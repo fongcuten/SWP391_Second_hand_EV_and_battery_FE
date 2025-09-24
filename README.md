@@ -22,10 +22,12 @@ Nền tảng giao dịch xe điện và pin cũ hiện đại, được xây d�
 ## 🚀 Cài đặt và Chạy
 
 ### Yêu cầu hệ thống
+
 - Node.js >= 18
 - npm >= 9
 
 ### Cài đặt
+
 ```bash
 # Clone repository
 git clone https://github.com/YOUR_USERNAME/SWP391_Second_hand_EV_and_battery_FE.git
@@ -41,6 +43,7 @@ npm run dev
 ```
 
 ### Scripts có sẵn
+
 ```bash
 npm run dev      # Chạy development server
 npm run build    # Build production
@@ -70,6 +73,7 @@ src/
 ## 🎯 Chức năng chính
 
 ### Cho thành viên (Member)
+
 - **Đăng ký & Quản lý tài khoản**: Email, phone, social login
 - **Đăng tin bán xe/pin**: Form với hình ảnh, thông số kỹ thuật
 - **Tìm kiếm & Mua**: Filter theo hãng, đời, giá, tình trạng
