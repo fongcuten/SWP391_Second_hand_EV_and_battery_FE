@@ -1,90 +1,125 @@
 import React, { useState } from "react";
-import { Search, Menu, X, User, Bell, Heart } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Search,
+  Menu,
+  X,
+  User,
+  Bell,
+  Heart,
+  ShoppingCart,
+  Filter,
+} from "lucide-react";
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const navigationItems = [
-    { label: "Tìm kiếm", href: "#" },
-    { label: "Thể loại", href: "#" },
-    { label: "Thương hiệu", href: "#" },
-    { label: "So sánh", href: "#" },
-    { label: "Hỗ trợ", href: "#" },
+    { label: "Trang chủ", href: "/", primary: true },
+    { label: "Xe điện", href: "/xe-dien", primary: true },
+    { label: "Pin & Phụ kiện", href: "/pin-phu-kien", primary: true },
+    { label: "Thương hiệu", href: "/thuong-hieu", primary: false },
+    { label: "So sánh", href: "/so-sanh", primary: false },
+    { label: "Hỗ trợ", href: "/ho-tro", primary: false },
   ];
 
+  const primaryNav = navigationItems.filter((item) => item.primary);
+  const secondaryNav = navigationItems.filter((item) => !item.primary);
+
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50">
+    <header className="bg-white shadow-md sticky top-0 z-50">
+      {/* Main Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">EV</span>
+          <Link
+            to="/"
+            className="flex items-center flex-shrink-0 hover:opacity-90 transition-opacity"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">EV</span>
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight">
+                  Second-hand EV
+                </h1>
+                <p className="text-xs text-green-600 font-medium">
+                  Thị trường xe điện cũ
+                </p>
+              </div>
+            </div>
+          </Link>
+
+          {/* Search Bar - Enhanced */}
+          <div className="flex-1 max-w-2xl mx-4 lg:mx-8">
+            <div
+              className={`relative transition-all duration-200 ${
+                isSearchFocused ? "scale-105" : ""
+              }`}
+            >
+              <div className="flex">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm xe điện, pin, phụ kiện..."
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                  />
+                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold text-gray-900">
-                    Second-hand EV
-                  </h1>
-                  <p className="text-xs text-gray-500">User's name</p>
-                </div>
+                <button className="bg-green-600 text-white px-6 py-3 rounded-r-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-2">
+                  <Search className="h-4 w-4" />
+                  <span className="hidden sm:inline">Tìm kiếm</span>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            {navigationItems.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
+          {/* User Actions */}
+          <div className="flex items-center space-x-2">
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center space-x-1">
+              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
+                <Heart className="h-5 w-5" />
+                <span className="text-sm font-medium">Yêu thích</span>
+              </button>
 
-          {/* Search Bar */}
-          <div className="hidden lg:flex flex-1 max-w-lg mx-8">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="Tìm kiếm xe, pin điện..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-              <button className="absolute right-2 center-y bg-green-600 text-white px-4 py-1 rounded-md text-sm hover:bg-green-700 transition-colors">
-                Tìm kiếm
+              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all relative">
+                <Bell className="h-5 w-5" />
+                <span className="text-sm font-medium">Thông báo</span>
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  3
+                </span>
+              </button>
+
+              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-sm font-medium">Giỏ hàng</span>
               </button>
             </div>
-          </div>
 
-          {/* Right side buttons */}
-          <div className="flex items-center space-x-4">
-            <button className="hidden md:flex items-center space-x-1 text-gray-700 hover:text-green-600">
-              <Heart className="h-5 w-5" />
-              <span className="text-sm">Yêu thích</span>
-            </button>
-
-            <button className="hidden md:flex items-center space-x-1 text-gray-700 hover:text-green-600">
-              <Bell className="h-5 w-5" />
-              <span className="text-sm">Thông báo</span>
-            </button>
-
-            <button className="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
-              ĐĂNG NHẬP
-            </button>
-
-            <button className="flex items-center space-x-1 text-gray-700 hover:text-green-600">
-              <User className="h-5 w-5" />
-            </button>
+            {/* Login/User */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigate("/dang-nhap")}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                Đăng nhập
+              </button>
+              <button className="hidden sm:flex items-center space-x-1 text-gray-700 hover:text-green-600 px-2 py-2 rounded-lg hover:bg-gray-50 transition-all">
+                <User className="h-5 w-5" />
+              </button>
+            </div>
 
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 hover:text-green-600"
+              className="md:hidden p-2 rounded-lg text-gray-700 hover:text-green-600 hover:bg-gray-50"
             >
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -95,45 +130,170 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Search Bar */}
-        <div className="lg:hidden pb-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Tìm kiếm xe, pin điện..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
+        {/* Navigation Bar - Desktop */}
+        <div className="hidden md:block border-t border-gray-100">
+          <nav className="flex items-center justify-between py-3">
+            <div className="flex space-x-8">
+              {primaryNav.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${
+                    location.pathname === item.href
+                      ? "text-green-600"
+                      : "text-gray-700 hover:text-green-600"
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${
+                      location.pathname === item.href
+                        ? "w-full"
+                        : "w-0 group-hover:w-full"
+                    }`}
+                  ></span>
+                </Link>
+              ))}
+            </div>
+            <div className="flex items-center space-x-6">
+              {secondaryNav.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className={`text-sm font-medium transition-colors duration-200 ${
+                    location.pathname === item.href
+                      ? "text-green-600"
+                      : "text-gray-600 hover:text-green-600"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <button className="flex items-center space-x-1 text-gray-600 hover:text-green-600">
+                <Filter className="h-4 w-4" />
+                <span className="text-sm">Lọc nâng cao</span>
+              </button>
+            </div>
+          </nav>
         </div>
       </div>
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {navigationItems.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-green-600 hover:bg-gray-50"
+        <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
+          <div className="px-4 py-4 space-y-3">
+            {/* Mobile User Actions */}
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <User className="h-5 w-5 text-gray-600" />
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  Chưa đăng nhập
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  navigate("/dang-nhap");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
               >
-                {item.label}
-              </a>
-            ))}
-            <hr className="my-2" />
-            <a
-              href="#"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-green-600"
-            >
-              Yêu thích
-            </a>
-            <a
-              href="#"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-green-600"
-            >
-              Thông báo
-            </a>
+                Đăng nhập
+              </button>
+            </div>
+
+            {/* Mobile Search */}
+            <div className="relative mb-4">
+              <input
+                type="text"
+                placeholder="Tìm kiếm xe điện, pin, phụ kiện..."
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+              <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+            </div>
+
+            {/* Primary Navigation */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Danh mục chính
+              </h3>
+              {primaryNav.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${
+                    location.pathname === item.href
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-700 hover:text-green-600 hover:bg-green-50"
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Secondary Navigation */}
+            <div className="space-y-1 pt-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Tiện ích
+              </h3>
+              {secondaryNav.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                    location.pathname === item.href
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Mobile Quick Actions */}
+            <div className="pt-3 border-t border-gray-100">
+              <div className="grid grid-cols-3 gap-2">
+                <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <Heart className="h-5 w-5 text-gray-600" />
+                  <span className="text-xs text-gray-600">Yêu thích</span>
+                </button>
+                <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors relative">
+                  <Bell className="h-5 w-5 text-gray-600" />
+                  <span className="text-xs text-gray-600">Thông báo</span>
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                    3
+                  </span>
+                </button>
+                <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <ShoppingCart className="h-5 w-5 text-gray-600" />
+                  <span className="text-xs text-gray-600">Giỏ hàng</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Contact Info */}
+            <div className="pt-3 border-t border-gray-100 text-center space-y-2">
+              <p className="text-sm text-gray-600">Hotline: 1900-xxxx</p>
+              <div className="flex justify-center space-x-4">
+                <a
+                  href="#"
+                  className="text-sm text-green-600 hover:text-green-700"
+                >
+                  Bán xe của bạn
+                </a>
+                <a
+                  href="#"
+                  className="text-sm text-green-600 hover:text-green-700"
+                >
+                  Trở thành đối tác
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}

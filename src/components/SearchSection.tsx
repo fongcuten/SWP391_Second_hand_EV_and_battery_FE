@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
-import { Search, Filter, MapPin, Calendar, Battery, DollarSign, Car } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState } from "react";
+import {
+  Search,
+  Filter,
+  MapPin,
+  Calendar,
+  Battery,
+  DollarSign,
+  Car,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 const SearchSection: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('vehicle');
+  const [activeTab, setActiveTab] = useState("vehicle");
   const [priceRange, setPriceRange] = useState([0, 5000000000]);
 
   const vehicleBrands = [
-    'VinFast', 'Tesla', 'BMW', 'Mercedes', 'Audi', 'Hyundai', 'Kia', 'Nissan'
+    "VinFast",
+    "Tesla",
+    "BMW",
+    "Mercedes",
+    "Audi",
+    "Hyundai",
+    "Kia",
+    "Nissan",
   ];
 
-  const batteryTypes = [
-    'Lithium-ion', 'LiFePO4', 'NiMH', 'Solid State'
-  ];
+  const batteryTypes = ["Lithium-ion", "LiFePO4", "NiMH", "Solid State"];
 
   const years = Array.from({ length: 10 }, (_, i) => 2024 - i);
 
@@ -46,22 +59,22 @@ const SearchSection: React.FC = () => {
           {/* Tabs */}
           <div className="flex flex-wrap gap-4 mb-8">
             <button
-              onClick={() => setActiveTab('vehicle')}
+              onClick={() => setActiveTab("vehicle")}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
-                activeTab === 'vehicle'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                activeTab === "vehicle"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               <Car className="h-5 w-5" />
               <span>Xe điện</span>
             </button>
             <button
-              onClick={() => setActiveTab('battery')}
+              onClick={() => setActiveTab("battery")}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
-                activeTab === 'battery'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                activeTab === "battery"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               <Battery className="h-5 w-5" />
@@ -75,7 +88,11 @@ const SearchSection: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder={activeTab === 'vehicle' ? 'Tìm kiếm xe điện...' : 'Tìm kiếm pin, phụ kiện...'}
+                placeholder={
+                  activeTab === "vehicle"
+                    ? "Tìm kiếm xe điện..."
+                    : "Tìm kiếm pin, phụ kiện..."
+                }
                 className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
               <Search className="absolute left-4 top-4 h-6 w-6 text-gray-400" />
@@ -101,17 +118,21 @@ const SearchSection: React.FC = () => {
               {/* Brand/Type */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  {activeTab === 'vehicle' ? 'Thương hiệu' : 'Loại pin'}
+                  {activeTab === "vehicle" ? "Thương hiệu" : "Loại pin"}
                 </label>
                 <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
                   <option value="">
-                    {activeTab === 'vehicle' ? 'Chọn thương hiệu' : 'Chọn loại pin'}
+                    {activeTab === "vehicle"
+                      ? "Chọn thương hiệu"
+                      : "Chọn loại pin"}
                   </option>
-                  {(activeTab === 'vehicle' ? vehicleBrands : batteryTypes).map((item) => (
-                    <option key={item} value={item.toLowerCase()}>
-                      {item}
-                    </option>
-                  ))}
+                  {(activeTab === "vehicle" ? vehicleBrands : batteryTypes).map(
+                    (item) => (
+                      <option key={item} value={item.toLowerCase()}>
+                        {item}
+                      </option>
+                    )
+                  )}
                 </select>
               </div>
 
@@ -119,7 +140,7 @@ const SearchSection: React.FC = () => {
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
                   <Calendar className="inline h-4 w-4 mr-1" />
-                  {activeTab === 'vehicle' ? 'Năm sản xuất' : 'Năm sản xuất'}
+                  {activeTab === "vehicle" ? "Năm sản xuất" : "Năm sản xuất"}
                 </label>
                 <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
                   <option value="">Chọn năm</option>
@@ -149,7 +170,7 @@ const SearchSection: React.FC = () => {
             </div>
 
             {/* Additional Filters for Vehicle */}
-            {activeTab === 'vehicle' && (
+            {activeTab === "vehicle" && (
               <div className="grid md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
@@ -202,7 +223,7 @@ const SearchSection: React.FC = () => {
                 <Search className="h-5 w-5" />
                 <span>Tìm kiếm ngay</span>
               </motion.button>
-              
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -223,9 +244,17 @@ const SearchSection: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-8"
         >
-          <p className="text-sm font-semibold text-gray-700 mb-4">Tìm kiếm phổ biến:</p>
+          <p className="text-sm font-semibold text-gray-700 mb-4">
+            Tìm kiếm phổ biến:
+          </p>
           <div className="flex flex-wrap gap-3">
-            {['VinFast VF8', 'Tesla Model 3', 'Pin Lithium 100kWh', 'BMW iX3', 'Hyundai Kona Electric'].map((tag) => (
+            {[
+              "VinFast VF8",
+              "Tesla Model 3",
+              "Pin Lithium 100kWh",
+              "BMW iX3",
+              "Hyundai Kona Electric",
+            ].map((tag) => (
               <button
                 key={tag}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-700 hover:border-green-500 hover:text-green-600 transition-colors"
