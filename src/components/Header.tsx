@@ -9,13 +9,19 @@ import {
   Heart,
   ShoppingCart,
   Filter,
+  LogOut,
+  Settings,
+  ChevronDown,
 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const navigationItems = [
     { label: "Trang chủ", href: "/", primary: true },
@@ -105,15 +111,104 @@ const Header: React.FC = () => {
 
             {/* Login/User */}
             <div className="flex items-center space-x-2">
-              <button
-                onClick={() => navigate("/dang-nhap")}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-              >
-                Đăng nhập
-              </button>
-              <button className="hidden sm:flex items-center space-x-1 text-gray-700 hover:text-green-600 px-2 py-2 rounded-lg hover:bg-gray-50 transition-all">
-                <User className="h-5 w-5" />
-              </button>
+              {isAuthenticated && user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
+                  >
+                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <div className="text-sm font-medium">{user.fullName}</div>
+                      <div className="text-xs text-gray-500">
+                        {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+                      </div>
+                    </div>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+
+                  {/* User dropdown menu */}
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.fullName}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {user.email}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {user.role === "admin"
+                            ? "Quản trị viên"
+                            : "Người dùng"}
+                        </div>
+                      </div>
+
+                      <Link
+                        to="/ho-so"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <User className="h-4 w-4 mr-3" />
+                        Thông tin cá nhân
+                      </Link>
+
+                      <Link
+                        to="/cai-dat"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Settings className="h-4 w-4 mr-3" />
+                        Cài đặt
+                      </Link>
+
+                      {user.role === "admin" && (
+                        <Link
+                          to="/admin"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <Settings className="h-4 w-4 mr-3" />
+                          Quản trị hệ thống
+                        </Link>
+                      )}
+
+                      <div className="border-t border-gray-100">
+                        <button
+                          onClick={async () => {
+                            setIsUserMenuOpen(false);
+                            await logout();
+                            navigate("/");
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4 mr-3" />
+                          Đăng xuất
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate("/dang-nhap")}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                  >
+                    Đăng nhập
+                  </button>
+                  <button
+                    onClick={() => navigate("/dang-ky")}
+                    className="hidden sm:flex items-center space-x-1 text-gray-700 hover:text-green-600 px-2 py-2 rounded-lg hover:bg-gray-50 transition-all"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -184,23 +279,55 @@ const Header: React.FC = () => {
           <div className="px-4 py-4 space-y-3">
             {/* Mobile User Actions */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-gray-600" />
+              {isAuthenticated && user ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">
+                        {user.fullName}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setIsMobileMenuOpen(false);
+                      await logout();
+                      navigate("/");
+                    }}
+                    className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"
+                  >
+                    Đăng xuất
+                  </button>
                 </div>
-                <span className="text-sm font-medium text-gray-700">
-                  Chưa đăng nhập
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  navigate("/dang-nhap");
-                  setIsMobileMenuOpen(false);
-                }}
-                className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
-              >
-                Đăng nhập
-              </button>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Chưa đăng nhập
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigate("/dang-nhap");
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
+                  >
+                    Đăng nhập
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Mobile Search */}
