@@ -100,7 +100,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📞 Contact
 
-Project Link: [https://github.com/YOUR_USERNAME/SWP391_Second_hand_EV_and_battery_FE](https://github.com/YOUR_USERNAME/SWP391_Second_hand_EV_and_battery_FE)
+Project Link: [https://github.com/fongcuten/SWP391_Second_hand_EV_and_battery_FE](https://github.com/YOUR_USERNAME/SWP391_Second_hand_EV_and_battery_FE)
 
 ---
 
