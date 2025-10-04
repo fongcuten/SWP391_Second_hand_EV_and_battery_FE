@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.8",
     "@heroicons/react": "^2.2.0",
+    "@tailwindcss/line-clamp": "^0.4.4",
     "@tailwindcss/vite": "^4.1.13",
     "@types/react-router-dom": "^5.3.3",
     "framer-motion": "^12.23.19",

@@ -7,8 +7,9 @@ import HomePage from "./components/HomePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import ElectricVehiclesPage from "./pages/ElectricVehiclesPage";
+import ElectricVehicleDetailPage from "./pages/ElectricVehicleDetailPage";
 // Import các pages khác khi tạo
-// import ElectricVehiclesPage from './pages/ElectricVehiclesPage';
 // import BatteryAccessoriesPage from './pages/BatteryAccessoriesPage';
 // import BrandsPage from './pages/BrandsPage';
 // import ComparePage from './pages/ComparePage';
@@ -77,8 +78,14 @@ function App() {
                   }
                 />
 
+                {/* Electric Vehicle Pages */}
+                <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
+                <Route
+                  path="/xe-dien/:id"
+                  element={<ElectricVehicleDetailPage />}
+                />
+
                 {/* Other pages - uncomment khi tạo */}
-                {/* <Route path="/xe-dien" element={<ElectricVehiclesPage />} /> */}
                 {/* <Route path="/pin-phu-kien" element={<BatteryAccessoriesPage />} /> */}
                 {/* <Route path="/thuong-hieu" element={<BrandsPage />} /> */}
                 {/* <Route path="/so-sanh" element={<ComparePage />} /> */}
