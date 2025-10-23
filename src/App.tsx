@@ -9,11 +9,19 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ElectricVehiclesPage from "./pages/ElectricVehiclesPage";
 import ElectricVehicleDetailPage from "./pages/ElectricVehicleDetailPage";
-// Import các pages khác khi tạo
-// import BatteryAccessoriesPage from './pages/BatteryAccessoriesPage';
-// import BrandsPage from './pages/BrandsPage';
-// import ComparePage from './pages/ComparePage';
-// import SupportPage from './pages/SupportPage';
+import UserPosts from "./pages/User/UserPost";
+import UserHome from "./components/UserHome";
+import SavedPostsPage from "./pages/User/SavedPost";
+import UserInfoForm from "./pages/User/UserInfo";
+import ChangePasswordPage from "./pages/User/ChangePassword";
+import CreateEVPost from "./pages/Post/CreatePost";
+import PaymentPage from "./pages/User/TopUp";
+
+
+// import BatteryAccessoriesPage from "./pages/BatteryAccessoriesPage";
+// import BrandsPage from "./pages/BrandsPage";
+// import ComparePage from "./pages/ComparePage";
+// import SupportPage from "./pages/SupportPage";
 
 function App() {
   return (
@@ -24,44 +32,34 @@ function App() {
             <Header />
             <main className="flex-1">
               <Routes>
-                {/* Public Routes */}
+                {/* ✅ Public Routes */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/dang-nhap" element={<LoginPage />} />
                 <Route path="/dang-ky" element={<RegisterPage />} />
 
-                {/* Protected Routes - require login */}
+                {/* ✅ Protected User Routes */}
                 <Route
                   path="/ho-so"
                   element={
                     <ProtectedRoute>
-                      <div className="text-center py-20">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                          Thông tin cá nhân
-                        </h1>
-                        <p className="text-gray-600 mt-2">
-                          Trang này đang được phát triển...
-                        </p>
-                      </div>
+                      <UserHome />
                     </ProtectedRoute>
                   }
-                />
-                <Route
-                  path="/cai-dat"
-                  element={
-                    <ProtectedRoute>
-                      <div className="text-center py-20">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                          Cài đặt
-                        </h1>
-                        <p className="text-gray-600 mt-2">
-                          Trang này đang được phát triển...
-                        </p>
-                      </div>
-                    </ProtectedRoute>
-                  }
-                />
+                >
+                  <Route path="posts" element={<UserPosts />} />
+                  <Route path="saved-post" element={<SavedPostsPage />} />
+                  <Route path="info" element={<UserInfoForm />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                  <Route path='topup' element={<PaymentPage />} />
+                </Route>
 
-                {/* Admin Only Routes */}
+                <Route path="dang-tin" element={
+                  <ProtectedRoute>
+                    <CreateEVPost />
+                  </ProtectedRoute>
+                } />
+
+                {/* ✅ Admin Route */}
                 <Route
                   path="/admin"
                   element={
@@ -78,20 +76,14 @@ function App() {
                   }
                 />
 
-                {/* Electric Vehicle Pages */}
+                {/* ✅ Electric Vehicles */}
                 <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
                 <Route
                   path="/xe-dien/:id"
                   element={<ElectricVehicleDetailPage />}
                 />
 
-                {/* Other pages - uncomment khi tạo */}
-                {/* <Route path="/pin-phu-kien" element={<BatteryAccessoriesPage />} /> */}
-                {/* <Route path="/thuong-hieu" element={<BrandsPage />} /> */}
-                {/* <Route path="/so-sanh" element={<ComparePage />} /> */}
-                {/* <Route path="/ho-tro" element={<SupportPage />} /> */}
-
-                {/* 404 Page */}
+                {/* ✅ 404 Fallback */}
                 <Route
                   path="*"
                   element={

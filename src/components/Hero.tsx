@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowRight, Car, Battery, Star, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import carImage from "../images/image_2025-09-17_105545579-removebg-preview (1) 1.png";
+import { Link, useLocation } from "react-router-dom";
 
 const Hero: React.FC = () => {
   return (
@@ -47,8 +48,10 @@ const Hero: React.FC = () => {
                 whileTap={{ scale: 0.95 }}
                 className="bg-slate-700 text-white px-8 py-4 rounded-lg font-semibold flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors"
               >
-                <span>Đăng tin ngay</span>
-                <ArrowRight className="h-5 w-5" />
+                <Link to="/dang-tin" >
+                  <span>Đăng tin ngay</span>
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
               </motion.button>
 
               <motion.button
