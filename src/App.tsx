@@ -22,6 +22,7 @@ import BatteriesPage from "./pages/BatteriesPage";
 import BatteryDetailPage from "./pages/BatteryDetailPage";
 import ComparePage from "./pages/ComparePage";
 import SupportPage from "./pages/SupportPage";
+import ChatPage from "./pages/ChatPage";
 
 function App() {
   return (
@@ -107,6 +108,8 @@ function App() {
                   element={<ElectricVehicleDetailPage />}
                 />
 
+
+                <Route path="/chat" element={<ChatPage />} />
                 {/* Battery Pages */}
                 <Route path="/pin" element={<BatteriesPage />} />
                 <Route path="/pin/:id" element={<BatteryDetailPage />} />

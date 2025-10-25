@@ -24,7 +24,6 @@ export default function ProfileCard({ user }: { user: UserType }) {
   const menu = [
     { label: "Quản lý tin", to: "/ho-so/posts", icon: "📄" },
     { label: "Tin đăng đã lưu", to: "/ho-so/saved-post", icon: "🧾" },
-    { label: "Chat của tôi", to: "/ho-so/chat", icon: "🔒" },
     { label: "Nạp tiền", to: "/ho-so/topup", icon: "💳" },
     { label: "Đánh giá từ tôi", to: "/ho-so/invoices", icon: "💬" },
     { label: "Lịch sử giao dịch", to: "/ho-so/transactions", icon: "🕒" },

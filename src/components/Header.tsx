@@ -172,6 +172,15 @@ const Header: React.FC = () => {
                         Cài đặt
                       </Link>
 
+                      <Link
+                        to="/chat"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Settings className="h-4 w-4 mr-3" />
+                        Chat của tôi
+                      </Link>
+
                       {user.role === "admin" && (
                         <Link
                           to="/admin"
