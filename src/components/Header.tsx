@@ -90,18 +90,24 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-2">
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-1">
-              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
+              <Link
+                to="/yeu-thich"
+                className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
+              >
                 <Heart className="h-5 w-5" />
                 <span className="text-sm font-medium">Yêu thích</span>
-              </button>
+              </Link>
 
-              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all relative">
+              <Link
+                to="/thong-bao"
+                className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all relative"
+              >
                 <Bell className="h-5 w-5" />
                 <span className="text-sm font-medium">Thông báo</span>
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   3
                 </span>
-              </button>
+              </Link>
 
               <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
                 <ShoppingCart className="h-5 w-5" />
@@ -385,17 +391,25 @@ const Header: React.FC = () => {
             {/* Mobile Quick Actions */}
             <div className="pt-3 border-t border-gray-100">
               <div className="grid grid-cols-3 gap-2">
-                <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <Link
+                  to="/yeu-thich"
+                  className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
                   <Heart className="h-5 w-5 text-gray-600" />
                   <span className="text-xs text-gray-600">Yêu thích</span>
-                </button>
-                <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors relative">
+                </Link>
+                <Link
+                  to="/thong-bao"
+                  className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors relative"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
                   <Bell className="h-5 w-5 text-gray-600" />
                   <span className="text-xs text-gray-600">Thông báo</span>
                   <span className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                     3
                   </span>
-                </button>
+                </Link>
                 <button className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <ShoppingCart className="h-5 w-5 text-gray-600" />
                   <span className="text-xs text-gray-600">Giỏ hàng</span>
