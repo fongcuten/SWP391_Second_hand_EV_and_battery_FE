@@ -1,10 +1,11 @@
-import React from 'react';
-import { Heart, Battery, Calendar, MapPin, Star, Eye } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Heart, Battery, Calendar, MapPin, Star, Eye } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface Product {
   id: string;
-  type: 'vehicle' | 'battery';
+  type: "vehicle" | "battery";
   title: string;
   brand: string;
   price: string;
@@ -22,106 +23,119 @@ interface Product {
 }
 
 const FeaturedProducts: React.FC = () => {
+  const navigate = useNavigate();
+
   const featuredProducts: Product[] = [
     {
-      id: '1',
-      type: 'vehicle',
-      title: 'VinFast VF8 Plus',
-      brand: 'VinFast',
-      price: '1.2 tỷ',
-      originalPrice: '1.4 tỷ',
-      image: '/api/placeholder/400/300',
-      location: 'Hà Nội',
+      id: "1",
+      type: "vehicle",
+      title: "VinFast VF8 Plus",
+      brand: "VinFast",
+      price: "1.2 tỷ",
+      originalPrice: "1.4 tỷ",
+      image: "/api/placeholder/400/300",
+      location: "Hà Nội",
       year: 2023,
-      batteryCapacity: '87.7 kWh',
-      mileage: '12,000 km',
-      condition: 'Tốt 95%',
+      batteryCapacity: "87.7 kWh",
+      mileage: "12,000 km",
+      condition: "Tốt 95%",
       rating: 4.8,
       views: 1250,
-      isPopular: true
+      isPopular: true,
     },
     {
-      id: '2',
-      type: 'vehicle',
-      title: 'Tesla Model 3',
-      brand: 'Tesla',
-      price: '1.8 tỷ',
-      image: '/api/placeholder/400/300',
-      location: 'TP.HCM',
+      id: "2",
+      type: "vehicle",
+      title: "Tesla Model 3",
+      brand: "Tesla",
+      price: "1.8 tỷ",
+      image: "/api/placeholder/400/300",
+      location: "TP.HCM",
       year: 2022,
-      batteryCapacity: '75 kWh',
-      mileage: '25,000 km',
-      condition: 'Tốt 92%',
+      batteryCapacity: "75 kWh",
+      mileage: "25,000 km",
+      condition: "Tốt 92%",
       rating: 4.9,
       views: 2100,
-      isNew: true
+      isNew: true,
     },
     {
-      id: '3',
-      type: 'battery',
-      title: 'Pin Lithium-ion 100kWh',
-      brand: 'CATL',
-      price: '450 triệu',
-      originalPrice: '500 triệu',
-      image: '/api/placeholder/400/300',
-      location: 'Đà Nẵng',
+      id: "3",
+      type: "battery",
+      title: "Pin Lithium-ion 100kWh",
+      brand: "CATL",
+      price: "450 triệu",
+      originalPrice: "500 triệu",
+      image: "/api/placeholder/400/300",
+      location: "Đà Nẵng",
       year: 2023,
-      condition: 'Mới 98%',
+      condition: "Mới 98%",
       rating: 4.7,
-      views: 890
+      views: 890,
     },
     {
-      id: '4',
-      type: 'vehicle',
-      title: 'BMW iX3',
-      brand: 'BMW',
-      price: '2.3 tỷ',
-      image: '/api/placeholder/400/300',
-      location: 'Hà Nội',
+      id: "4",
+      type: "vehicle",
+      title: "BMW iX3",
+      brand: "BMW",
+      price: "2.3 tỷ",
+      image: "/api/placeholder/400/300",
+      location: "Hà Nội",
       year: 2023,
-      batteryCapacity: '80 kWh',
-      mileage: '8,500 km',
-      condition: 'Tốt 96%',
+      batteryCapacity: "80 kWh",
+      mileage: "8,500 km",
+      condition: "Tốt 96%",
       rating: 4.6,
       views: 1650,
-      isPopular: true
+      isPopular: true,
     },
     {
-      id: '5',
-      type: 'vehicle',
-      title: 'Hyundai Kona Electric',
-      brand: 'Hyundai',
-      price: '850 triệu',
-      image: '/api/placeholder/400/300',
-      location: 'Hải Phòng',
+      id: "5",
+      type: "vehicle",
+      title: "Hyundai Kona Electric",
+      brand: "Hyundai",
+      price: "850 triệu",
+      image: "/api/placeholder/400/300",
+      location: "Hải Phòng",
       year: 2022,
-      batteryCapacity: '64 kWh',
-      mileage: '35,000 km',
-      condition: 'Tốt 88%',
+      batteryCapacity: "64 kWh",
+      mileage: "35,000 km",
+      condition: "Tốt 88%",
       rating: 4.5,
-      views: 760
+      views: 760,
     },
     {
-      id: '6',
-      type: 'battery',
-      title: 'Bộ pin LiFePO4 60kWh',
-      brand: 'BYD',
-      price: '320 triệu',
-      image: '/api/placeholder/400/300',
-      location: 'TP.HCM',
+      id: "6",
+      type: "battery",
+      title: "Bộ pin LiFePO4 60kWh",
+      brand: "BYD",
+      price: "320 triệu",
+      image: "/api/placeholder/400/300",
+      location: "TP.HCM",
       year: 2023,
-      condition: 'Mới 99%',
+      condition: "Mới 99%",
       rating: 4.8,
       views: 540,
-      isNew: true
-    }
+      isNew: true,
+    },
   ];
 
   const formatPrice = (price: string) => {
     return price;
   };
 
-  const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, index }) => (
+  const handleViewDetail = (product: Product) => {
+    if (product.type === "vehicle") {
+      navigate(`/xe-dien/${product.id}`);
+    } else {
+      navigate(`/pin/${product.id}`);
+    }
+  };
+
+  const ProductCard: React.FC<{ product: Product; index: number }> = ({
+    product,
+    index,
+  }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -135,9 +149,13 @@ const FeaturedProducts: React.FC = () => {
         {/* Product Image Placeholder */}
         <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
           <div className="text-center">
-            {product.type === 'vehicle' ? (
+            {product.type === "vehicle" ? (
               <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <svg className="w-10 h-10 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-10 h-10 text-gray-500"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M5 11l1.5-4.5h11L19 11m-1.5 5a1.5 1.5 0 01-3 0 1.5 1.5 0 013 0m-11 0a1.5 1.5 0 01-3 0 1.5 1.5 0 013 0M17 8V6a2 2 0 00-2-2H9a2 2 0 00-2 2v2" />
                 </svg>
               </div>
@@ -218,8 +236,18 @@ const FeaturedProducts: React.FC = () => {
           )}
           {product.mileage && (
             <div className="flex items-center space-x-1 text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
               <span>{product.mileage}</span>
             </div>
@@ -233,13 +261,18 @@ const FeaturedProducts: React.FC = () => {
           </span>
           <div className="flex items-center space-x-1">
             <Star className="w-4 h-4 text-yellow-400 fill-current" />
-            <span className="text-sm font-semibold text-gray-700">{product.rating}</span>
+            <span className="text-sm font-semibold text-gray-700">
+              {product.rating}
+            </span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <button className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+          <button
+            onClick={() => handleViewDetail(product)}
+            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+          >
             Xem chi tiết
           </button>
           <button className="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:border-green-500 hover:text-green-600 transition-colors">
@@ -265,7 +298,8 @@ const FeaturedProducts: React.FC = () => {
             Sản phẩm nổi bật
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Khám phá những chiếc xe điện và bộ pin chất lượng cao được đánh giá tốt nhất
+            Khám phá những chiếc xe điện và bộ pin chất lượng cao được đánh giá
+            tốt nhất
           </p>
         </motion.div>
 

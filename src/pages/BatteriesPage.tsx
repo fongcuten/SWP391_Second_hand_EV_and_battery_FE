@@ -1,35 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, SortAsc, SortDesc, Grid, List } from "lucide-react";
-import ElectricVehicleCard from "../components/ElectricVehicleCard";
-import type {
-  ElectricVehicle,
-  ElectricVehicleFilter,
-  ElectricVehicleSort,
-} from "../types/electricVehicle";
+import { Search, Filter, Grid, List } from "lucide-react";
+import BatteryCard from "../components/BatteryCard";
+import type { Battery, BatteryFilter, BatterySort } from "../types/battery";
 
 // Mock data - thay thế bằng API call thực tế
-const mockVehicles: ElectricVehicle[] = [
+const mockBatteries: Battery[] = [
   {
     id: "1",
-    brand: "Tesla",
-    model: "Model 3",
-    year: 2022,
-    price: 1200000000,
-    originalPrice: 1500000000,
-    mileage: 15000,
-    batteryCapacity: 75,
-    batteryHealth: 95,
-    range: 500,
-    chargingTime: 8,
-    motorPower: 283,
-    topSpeed: 225,
-    acceleration: 4.4,
-    color: "Trắng",
+    brand: "CATL",
+    model: "LFP-100",
+    type: "LFP",
+    capacity: 100,
+    voltage: 400,
+    currentHealth: 95,
+    cycleCount: 500,
+    price: 250000000,
+    originalPrice: 350000000,
+    manufactureYear: 2022,
+    warranty: 24,
+    compatibility: ["Tesla Model 3", "BYD Atto 3", "VinFast VF e34"],
     condition: "excellent",
-    description: "Xe điện Tesla Model 3 tình trạng xuất sắc, ít sử dụng",
-    images: ["https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=500"],
-    features: ["Autopilot", "Supercharger", "Premium Interior", "Glass Roof"],
+    description:
+      "Pin CATL LFP 100kWh tình trạng xuất sắc, ít sử dụng. Dung lượng pin còn 95%, chu kỳ sạc 500 lần. Bảo hành còn 24 tháng.",
+    images: [
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=500",
+    ],
+    features: [
+      "Sạc nhanh",
+      "An toàn cao",
+      "Tuổi thọ cao",
+      "Thân thiện môi trường",
+    ],
     location: "Hồ Chí Minh",
     sellerId: "seller1",
     sellerName: "Nguyễn Văn A",
@@ -37,29 +39,36 @@ const mockVehicles: ElectricVehicle[] = [
     isAvailable: true,
     createdAt: "2024-01-15T10:00:00Z",
     updatedAt: "2024-01-15T10:00:00Z",
+    weight: 500,
+    dimensions: {
+      length: 120,
+      width: 80,
+      height: 20,
+    },
+    chargingSpeed: 150,
+    dischargingSpeed: 200,
   },
   {
     id: "2",
-    brand: "BYD",
-    model: "Atto 3",
-    year: 2023,
-    price: 800000000,
-    originalPrice: 900000000,
-    mileage: 8000,
-    batteryCapacity: 60,
-    batteryHealth: 98,
-    range: 400,
-    chargingTime: 6,
-    motorPower: 150,
-    topSpeed: 180,
-    acceleration: 7.3,
-    color: "Xanh",
-    condition: "excellent",
-    description: "BYD Atto 3 mới 99%, đầy đủ phụ kiện",
+    brand: "LG Energy",
+    model: "NMC-75",
+    type: "NMC",
+    capacity: 75,
+    voltage: 350,
+    currentHealth: 92,
+    cycleCount: 800,
+    price: 180000000,
+    originalPrice: 280000000,
+    manufactureYear: 2021,
+    warranty: 18,
+    compatibility: ["Hyundai Kona", "Kia EV6", "Tesla Model Y"],
+    condition: "good",
+    description:
+      "Pin LG Energy NMC 75kWh tình trạng tốt. Dung lượng pin 92%, đã sử dụng 800 chu kỳ sạc. Pin chính hãng, có bảo hành.",
     images: [
       "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=500",
     ],
-    features: ["360 Camera", "Wireless Charging", "Sunroof", "Leather Seats"],
+    features: ["Mật độ năng lượng cao", "Hiệu suất tốt", "Độ bền cao"],
     location: "Hà Nội",
     sellerId: "seller2",
     sellerName: "Trần Thị B",
@@ -67,33 +76,40 @@ const mockVehicles: ElectricVehicle[] = [
     isAvailable: true,
     createdAt: "2024-01-10T14:30:00Z",
     updatedAt: "2024-01-10T14:30:00Z",
+    weight: 400,
+    dimensions: {
+      length: 110,
+      width: 75,
+      height: 18,
+    },
+    chargingSpeed: 120,
+    dischargingSpeed: 150,
   },
   {
     id: "3",
-    brand: "VinFast",
-    model: "VF e34",
-    year: 2021,
-    price: 600000000,
-    originalPrice: 700000000,
-    mileage: 25000,
-    batteryCapacity: 42,
-    batteryHealth: 88,
-    range: 300,
-    chargingTime: 5,
-    motorPower: 110,
-    topSpeed: 150,
-    acceleration: 8.9,
-    color: "Đỏ",
+    brand: "BYD",
+    model: "Blade Battery",
+    type: "LFP",
+    capacity: 60,
+    voltage: 320,
+    currentHealth: 88,
+    cycleCount: 1200,
+    price: 120000000,
+    originalPrice: 200000000,
+    manufactureYear: 2020,
+    warranty: 12,
+    compatibility: ["BYD e6", "BYD Tang", "BYD Han"],
     condition: "good",
-    description: "VinFast VF e34 tình trạng tốt, bảo hành còn lại",
+    description:
+      "Pin BYD Blade 60kWh công nghệ LFP an toàn. Dung lượng còn 88%, đã qua sử dụng nhưng vẫn hoạt động tốt.",
     images: [
-      "https://vinfast3sthanhhoa.com/wp-content/uploads/2021/07/vf-e34-orange.bmp",
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=500",
     ],
     features: [
-      "VinFast App",
-      "OTA Updates",
-      "Voice Control",
-      "Climate Control",
+      "An toàn vượt trội",
+      "Không cháy nổ",
+      "Tuổi thọ cao",
+      "Giá thành hợp lý",
     ],
     location: "Đà Nẵng",
     sellerId: "seller3",
@@ -102,82 +118,145 @@ const mockVehicles: ElectricVehicle[] = [
     isAvailable: true,
     createdAt: "2024-01-05T09:15:00Z",
     updatedAt: "2024-01-05T09:15:00Z",
+    weight: 350,
+    dimensions: {
+      length: 100,
+      width: 70,
+      height: 15,
+    },
+    chargingSpeed: 80,
+    dischargingSpeed: 100,
+  },
+  {
+    id: "4",
+    brand: "Panasonic",
+    model: "NCR18650B",
+    type: "lithium-ion",
+    capacity: 85,
+    voltage: 380,
+    currentHealth: 90,
+    cycleCount: 600,
+    price: 200000000,
+    originalPrice: 300000000,
+    manufactureYear: 2022,
+    warranty: 20,
+    compatibility: ["Tesla Model S", "Tesla Model X"],
+    condition: "excellent",
+    description:
+      "Pin Panasonic 85kWh sử dụng cho Tesla. Tình trạng rất tốt, dung lượng còn 90%.",
+    images: [
+      "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=500",
+    ],
+    features: ["Công nghệ Nhật Bản", "Hiệu suất cao", "Độ tin cậy cao"],
+    location: "Hồ Chí Minh",
+    sellerId: "seller4",
+    sellerName: "Phạm Văn D",
+    sellerPhone: "0905555555",
+    isAvailable: true,
+    createdAt: "2024-01-12T11:20:00Z",
+    updatedAt: "2024-01-12T11:20:00Z",
+    weight: 450,
+    dimensions: {
+      length: 115,
+      width: 78,
+      height: 19,
+    },
+    chargingSpeed: 130,
+    dischargingSpeed: 170,
   },
 ];
 
-const ElectricVehiclesPage: React.FC = () => {
+const BatteriesPage: React.FC = () => {
   const navigate = useNavigate();
-  const [vehicles, setVehicles] = useState<ElectricVehicle[]>([]);
-  const [filteredVehicles, setFilteredVehicles] = useState<ElectricVehicle[]>(
-    []
-  );
+  const [batteries, setBatteries] = useState<Battery[]>([]);
+  const [filteredBatteries, setFilteredBatteries] = useState<Battery[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState<ElectricVehicleFilter>({});
-  const [sort, setSort] = useState<ElectricVehicleSort>({
+  const [filters, setFilters] = useState<BatteryFilter>({});
+  const [sort, setSort] = useState<BatterySort>({
     field: "createdAt",
     order: "desc",
   });
 
-  // Load vehicles
+  // Load batteries
   useEffect(() => {
-    const loadVehicles = async () => {
+    const loadBatteries = async () => {
       setLoading(true);
       // Simulate API call
       setTimeout(() => {
-        setVehicles(mockVehicles);
-        setFilteredVehicles(mockVehicles);
+        setBatteries(mockBatteries);
+        setFilteredBatteries(mockBatteries);
         setLoading(false);
       }, 1000);
     };
 
-    loadVehicles();
+    loadBatteries();
   }, []);
 
   // Apply filters and search
   useEffect(() => {
-    let filtered = [...vehicles];
+    let filtered = [...batteries];
 
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
-        (vehicle) =>
-          vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          vehicle.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (battery) =>
+          battery.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          battery.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          battery.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          battery.type.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Other filters
     if (filters.brand) {
-      filtered = filtered.filter((vehicle) => vehicle.brand === filters.brand);
+      filtered = filtered.filter((battery) => battery.brand === filters.brand);
+    }
+    if (filters.type) {
+      filtered = filtered.filter((battery) => battery.type === filters.type);
     }
     if (filters.minPrice) {
       filtered = filtered.filter(
-        (vehicle) => vehicle.price >= filters.minPrice!
+        (battery) => battery.price >= filters.minPrice!
       );
     }
     if (filters.maxPrice) {
       filtered = filtered.filter(
-        (vehicle) => vehicle.price <= filters.maxPrice!
+        (battery) => battery.price <= filters.maxPrice!
       );
     }
-    if (filters.minYear) {
-      filtered = filtered.filter((vehicle) => vehicle.year >= filters.minYear!);
+    if (filters.minCapacity) {
+      filtered = filtered.filter(
+        (battery) => battery.capacity >= filters.minCapacity!
+      );
     }
-    if (filters.maxYear) {
-      filtered = filtered.filter((vehicle) => vehicle.year <= filters.maxYear!);
+    if (filters.maxCapacity) {
+      filtered = filtered.filter(
+        (battery) => battery.capacity <= filters.maxCapacity!
+      );
+    }
+    if (filters.minHealth) {
+      filtered = filtered.filter(
+        (battery) => battery.currentHealth >= filters.minHealth!
+      );
+    }
+    if (filters.maxHealth) {
+      filtered = filtered.filter(
+        (battery) => battery.currentHealth <= filters.maxHealth!
+      );
     }
     if (filters.condition) {
       filtered = filtered.filter(
-        (vehicle) => vehicle.condition === filters.condition
+        (battery) => battery.condition === filters.condition
       );
     }
     if (filters.location) {
-      filtered = filtered.filter((vehicle) =>
-        vehicle.location.toLowerCase().includes(filters.location!.toLowerCase())
+      filtered = filtered.filter((battery) =>
+        battery.location.toLowerCase().includes(filters.location!.toLowerCase())
       );
     }
 
@@ -199,14 +278,14 @@ const ElectricVehiclesPage: React.FC = () => {
       return 0;
     });
 
-    setFilteredVehicles(filtered);
-  }, [vehicles, searchTerm, filters, sort]);
+    setFilteredBatteries(filtered);
+  }, [batteries, searchTerm, filters, sort]);
 
-  const handleVehicleClick = (vehicle: ElectricVehicle) => {
-    navigate(`/xe-dien/${vehicle.id}`);
+  const handleBatteryClick = (battery: Battery) => {
+    navigate(`/pin/${battery.id}`);
   };
 
-  const handleFilterChange = (newFilters: Partial<ElectricVehicleFilter>) => {
+  const handleFilterChange = (newFilters: Partial<BatteryFilter>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
@@ -215,9 +294,10 @@ const ElectricVehiclesPage: React.FC = () => {
     setSearchTerm("");
   };
 
-  const brands = [...new Set(vehicles.map((v) => v.brand))];
+  const brands = [...new Set(batteries.map((b) => b.brand))];
+  const types = [...new Set(batteries.map((b) => b.type))];
   const conditions = ["excellent", "good", "fair", "poor"];
-  const locations = [...new Set(vehicles.map((v) => v.location))];
+  const locations = [...new Set(batteries.map((b) => b.location))];
 
   if (loading) {
     return (
@@ -225,7 +305,7 @@ const ElectricVehiclesPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Đang tải danh sách xe điện...</p>
+            <p className="mt-4 text-gray-600">Đang tải danh sách pin...</p>
           </div>
         </div>
       </div>
@@ -237,9 +317,11 @@ const ElectricVehiclesPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Xe Điện Cũ</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Pin Xe Điện Cũ
+          </h1>
           <p className="text-gray-600">
-            Tìm kiếm xe điện cũ chất lượng cao với giá tốt nhất
+            Tìm kiếm pin xe điện cũ chất lượng cao với giá tốt nhất
           </p>
         </div>
 
@@ -252,7 +334,7 @@ const ElectricVehiclesPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên xe, thương hiệu..."
+                  placeholder="Tìm kiếm theo thương hiệu, loại pin..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -274,7 +356,7 @@ const ElectricVehiclesPage: React.FC = () => {
               value={`${sort.field}-${sort.order}`}
               onChange={(e) => {
                 const [field, order] = e.target.value.split("-") as [
-                  keyof ElectricVehicle,
+                  keyof Battery,
                   "asc" | "desc"
                 ];
                 setSort({ field, order });
@@ -285,10 +367,10 @@ const ElectricVehiclesPage: React.FC = () => {
               <option value="createdAt-asc">Cũ nhất</option>
               <option value="price-asc">Giá thấp đến cao</option>
               <option value="price-desc">Giá cao đến thấp</option>
-              <option value="year-desc">Năm sản xuất mới nhất</option>
-              <option value="year-asc">Năm sản xuất cũ nhất</option>
-              <option value="mileage-asc">Số km ít nhất</option>
-              <option value="mileage-desc">Số km nhiều nhất</option>
+              <option value="capacity-desc">Dung lượng cao nhất</option>
+              <option value="capacity-asc">Dung lượng thấp nhất</option>
+              <option value="currentHealth-desc">Sức khỏe tốt nhất</option>
+              <option value="cycleCount-asc">Ít chu kỳ sạc nhất</option>
             </select>
 
             {/* View Mode */}
@@ -341,6 +423,27 @@ const ElectricVehiclesPage: React.FC = () => {
                   </select>
                 </div>
 
+                {/* Type Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Loại pin
+                  </label>
+                  <select
+                    value={filters.type || ""}
+                    onChange={(e) =>
+                      handleFilterChange({ type: e.target.value || undefined })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Tất cả loại</option>
+                    {types.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Price Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -376,19 +479,19 @@ const ElectricVehiclesPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Year Range */}
+                {/* Capacity Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Năm sản xuất
+                    Dung lượng (kWh)
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="number"
                       placeholder="Từ"
-                      value={filters.minYear || ""}
+                      value={filters.minCapacity || ""}
                       onChange={(e) =>
                         handleFilterChange({
-                          minYear: e.target.value
+                          minCapacity: e.target.value
                             ? Number(e.target.value)
                             : undefined,
                         })
@@ -398,10 +501,45 @@ const ElectricVehiclesPage: React.FC = () => {
                     <input
                       type="number"
                       placeholder="Đến"
-                      value={filters.maxYear || ""}
+                      value={filters.maxCapacity || ""}
                       onChange={(e) =>
                         handleFilterChange({
-                          maxYear: e.target.value
+                          maxCapacity: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Health Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sức khỏe pin (%)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Từ"
+                      value={filters.minHealth || ""}
+                      onChange={(e) =>
+                        handleFilterChange({
+                          minHealth: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Đến"
+                      value={filters.maxHealth || ""}
+                      onChange={(e) =>
+                        handleFilterChange({
+                          maxHealth: e.target.value
                             ? Number(e.target.value)
                             : undefined,
                         })
@@ -432,6 +570,29 @@ const ElectricVehiclesPage: React.FC = () => {
                     <option value="poor">Trung bình</option>
                   </select>
                 </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Địa điểm
+                  </label>
+                  <select
+                    value={filters.location || ""}
+                    onChange={(e) =>
+                      handleFilterChange({
+                        location: e.target.value || undefined,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Tất cả địa điểm</option>
+                    {locations.map((location) => (
+                      <option key={location} value={location}>
+                        {location}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="mt-4 flex justify-end">
@@ -449,18 +610,18 @@ const ElectricVehiclesPage: React.FC = () => {
         {/* Results */}
         <div className="mb-4 flex justify-between items-center">
           <p className="text-gray-600">
-            Tìm thấy {filteredVehicles.length} xe điện
+            Tìm thấy {filteredBatteries.length} pin
           </p>
         </div>
 
-        {/* Vehicle Grid/List */}
-        {filteredVehicles.length === 0 ? (
+        {/* Battery Grid/List */}
+        {filteredBatteries.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-gray-400 mb-4">
               <Search className="w-16 h-16 mx-auto" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Không tìm thấy xe điện nào
+              Không tìm thấy pin nào
             </h3>
             <p className="text-gray-600">
               Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
@@ -474,11 +635,11 @@ const ElectricVehiclesPage: React.FC = () => {
                 : "space-y-4"
             }
           >
-            {filteredVehicles.map((vehicle) => (
-              <ElectricVehicleCard
-                key={vehicle.id}
-                vehicle={vehicle}
-                onClick={handleVehicleClick}
+            {filteredBatteries.map((battery) => (
+              <BatteryCard
+                key={battery.id}
+                battery={battery}
+                onClick={handleBatteryClick}
               />
             ))}
           </div>
@@ -488,4 +649,4 @@ const ElectricVehiclesPage: React.FC = () => {
   );
 };
 
-export default ElectricVehiclesPage;
+export default BatteriesPage;

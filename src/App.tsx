@@ -16,12 +16,10 @@ import UserInfoForm from "./pages/User/UserInfo";
 import ChangePasswordPage from "./pages/User/ChangePassword";
 import CreateEVPost from "./pages/Post/CreatePost";
 import PaymentPage from "./pages/User/TopUp";
-
-
-// import BatteryAccessoriesPage from "./pages/BatteryAccessoriesPage";
-// import BrandsPage from "./pages/BrandsPage";
-// import ComparePage from "./pages/ComparePage";
-// import SupportPage from "./pages/SupportPage";
+import BatteriesPage from "./pages/BatteriesPage";
+import BatteryDetailPage from "./pages/BatteryDetailPage";
+import ComparePage from "./pages/ComparePage";
+import SupportPage from "./pages/SupportPage";
 
 function App() {
   return (
@@ -49,15 +47,21 @@ function App() {
                   <Route path="posts" element={<UserPosts />} />
                   <Route path="saved-post" element={<SavedPostsPage />} />
                   <Route path="info" element={<UserInfoForm />} />
-                  <Route path="change-password" element={<ChangePasswordPage />} />
-                  <Route path='topup' element={<PaymentPage />} />
+                  <Route
+                    path="change-password"
+                    element={<ChangePasswordPage />}
+                  />
+                  <Route path="topup" element={<PaymentPage />} />
                 </Route>
 
-                <Route path="dang-tin" element={
-                  <ProtectedRoute>
-                    <CreateEVPost />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="dang-tin"
+                  element={
+                    <ProtectedRoute>
+                      <CreateEVPost />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* ✅ Admin Route */}
                 <Route
@@ -82,6 +86,14 @@ function App() {
                   path="/xe-dien/:id"
                   element={<ElectricVehicleDetailPage />}
                 />
+
+                {/* Battery Pages */}
+                <Route path="/pin" element={<BatteriesPage />} />
+                <Route path="/pin/:id" element={<BatteryDetailPage />} />
+
+                {/* Other pages */}
+                <Route path="/so-sanh" element={<ComparePage />} />
+                <Route path="/ho-tro" element={<SupportPage />} />
 
                 {/* ✅ 404 Fallback */}
                 <Route
