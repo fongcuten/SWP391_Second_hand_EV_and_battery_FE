@@ -26,7 +26,7 @@ const Header: React.FC = () => {
   const navigationItems = [
     { label: "Trang chủ", href: "/", primary: true },
     { label: "Xe điện", href: "/xe-dien", primary: true },
-    { label: "Pin & Phụ kiện", href: "/pin-phu-kien", primary: true },
+    { label: "Pin", href: "/pin", primary: true },
     { label: "Thương hiệu", href: "/thuong-hieu", primary: false },
     { label: "So sánh", href: "/so-sanh", primary: false },
     { label: "Hỗ trợ", href: "/ho-tro", primary: false },
