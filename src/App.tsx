@@ -16,6 +16,8 @@ import UserInfoForm from "./pages/User/UserInfo";
 import ChangePasswordPage from "./pages/User/ChangePassword";
 import CreateEVPost from "./pages/Post/CreatePost";
 import PaymentPage from "./pages/User/TopUp";
+import FavoritesPage from "./pages/User/FavoritesPage";
+import NotificationsPage from "./pages/User/NotificationsPage";
 import BatteriesPage from "./pages/BatteriesPage";
 import BatteryDetailPage from "./pages/BatteryDetailPage";
 import ComparePage from "./pages/ComparePage";
@@ -53,6 +55,24 @@ function App() {
                   />
                   <Route path="topup" element={<PaymentPage />} />
                 </Route>
+
+                {/* Favorites and Notifications */}
+                <Route
+                  path="/yeu-thich"
+                  element={
+                    <ProtectedRoute>
+                      <FavoritesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/thong-bao"
+                  element={
+                    <ProtectedRoute>
+                      <NotificationsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
                 <Route
                   path="dang-tin"
