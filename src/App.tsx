@@ -121,7 +121,23 @@ function App() {
                 <Route path="/ho-tro" element={<SupportPage />} />
                 <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
 
-                <Route path="/ket-qua" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
+                <Route
+                  path="/checkout/success"
+                  element={
+                    <ProtectedRoute>
+                      <PaymentResult />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/checkout/cancel"
+                  element={
+                    <ProtectedRoute>
+                      <PaymentResult />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* ✅ 404 Fallback */}
                 <Route
