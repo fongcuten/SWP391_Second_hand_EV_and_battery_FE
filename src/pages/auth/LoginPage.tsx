@@ -7,21 +7,23 @@ import {
   Lock,
   AlertCircle,
   CheckCircle,
+  User,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import type { LoginFormData } from "../../types/auth";
+import api from "../../config/axios";
+import { setToken } from "../../services/localStorageService";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const { isLoading, error, isAuthenticated, clearError } = useAuth();
   const { showToast } = useToast();
 
-  const [formData, setFormData] = useState<LoginFormData>({
-    email: "",
+  const [formData, setFormData] = useState({
+    username: "",
     password: "",
-    rememberMe: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -47,25 +49,22 @@ const LoginPage: React.FC = () => {
 
   // Clear validation errors when form data changes
   useEffect(() => {
-    // Only clear server errors if user is actively typing
-    if (error && (formData.email || formData.password)) {
+    if (error && (formData.username || formData.password)) {
       const timeoutId = setTimeout(() => {
         clearError();
-      }, 500); // Debounce để tránh clear quá sớm
-
+      }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [formData.email, formData.password, error, clearError]);
+  }, [formData.username, formData.password, error, clearError]);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
 
-    // Clear validation error for this field
     if (validationErrors[name as keyof LoginFormData]) {
       setValidationErrors((prev) => ({
         ...prev,
@@ -78,17 +77,13 @@ const LoginPage: React.FC = () => {
   const validateForm = (): boolean => {
     const errors: Partial<LoginFormData> = {};
 
-    // Email validation
-    if (!formData.email) {
-      errors.email = "Email là bắt buộc";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = "Email không hợp lệ";
+    if (!formData.username) {
+      errors.username = "Tên đăng nhập là bắt buộc";
     }
 
-    // Password validation
     if (!formData.password) {
       errors.password = "Mật khẩu là bắt buộc";
-    } else if (formData.password.length < 6) {
+    } else if (formData.password.length < 4) {
       errors.password = "Mật khẩu phải có ít nhất 6 ký tự";
     }
 
@@ -100,25 +95,32 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      await login({
-        email: formData.email,
-        password: formData.password,
-        rememberMe: formData.rememberMe,
+      const response = await fetch("http://localhost:8080/evplatform/auth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
       });
 
+      const data = await response.json();
+      console.log("Response body:", data);
+
+      if (data.code !== 1000) {
+        throw new Error(data.message || "Đăng nhập thất bại");
+      }
+
+      setToken(data.result?.token);
       showToast("Đăng nhập thành công!", "success");
-      // Navigation will be handled by useEffect when isAuthenticated changes
-    } catch (err) {
-      console.error("Login failed:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Đăng nhập thất bại";
-      showToast(errorMessage, "error");
+      navigate("/");
+    } catch (error: any) {
+      console.error("Error during login:", error);
+      showToast(error.message || "Đăng nhập thất bại. Vui lòng thử lại.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -134,17 +136,14 @@ const LoginPage: React.FC = () => {
               <span className="text-white font-bold text-xl">EV</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                Second-hand EV
-              </h1>
+              <h1 className="text-xl font-bold text-gray-900">Second-hand EV</h1>
               <p className="text-sm text-green-600">Thị trường xe điện cũ</p>
             </div>
           </Link>
 
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Đăng nhập</h2>
           <p className="text-gray-600">
-            Chào mừng bạn quay trở lại! Vui lòng đăng nhập vào tài khoản của
-            bạn.
+            Chào mừng bạn quay trở lại! Vui lòng đăng nhập vào tài khoản của bạn.
           </p>
         </div>
 
@@ -155,10 +154,10 @@ const LoginPage: React.FC = () => {
           </h3>
           <div className="text-sm text-blue-700 space-y-1">
             <p>
-              <strong>Admin:</strong> admin@example.com / 123456
+              <strong>Admin:</strong> admin / 123456
             </p>
             <p>
-              <strong>User:</strong> user@example.com / 123456
+              <strong>User:</strong> user / 123456
             </p>
           </div>
         </div>
@@ -171,13 +170,11 @@ const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Success message from registration */}
+        {/* Success message */}
         {location.state?.message && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-3">
             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-            <div className="text-sm text-green-700">
-              {location.state.message}
-            </div>
+            <div className="text-sm text-green-700">{location.state.message}</div>
           </div>
         )}
 
@@ -186,33 +183,33 @@ const LoginPage: React.FC = () => {
           onSubmit={handleSubmit}
           className="bg-white shadow-xl rounded-lg p-8 space-y-6"
         >
-          {/* Email Field */}
+          {/* Username Field */}
           <div>
             <label
-              htmlFor="email"
+              htmlFor="username"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Email
+              Tên đăng nhập
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
+                <User className="h-5 w-5 text-gray-400" />
               </div>
               <input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
+                id="username"
+                name="username"
+                type="text"
+                value={formData.username}
                 onChange={handleInputChange}
                 className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-colors ${
-                  validationErrors.email ? "border-red-300" : "border-gray-300"
+                  validationErrors.username ? "border-red-300" : "border-gray-300"
                 }`}
-                placeholder="Nhập email của bạn"
+                placeholder="Nhập tên đăng nhập của bạn"
               />
             </div>
-            {validationErrors.email && (
+            {validationErrors.username && (
               <p className="mt-1 text-sm text-red-600">
-                {validationErrors.email}
+                {validationErrors.username}
               </p>
             )}
           </div>
@@ -259,32 +256,6 @@ const LoginPage: React.FC = () => {
                 {validationErrors.password}
               </p>
             )}
-          </div>
-
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="rememberMe"
-                className="ml-2 block text-sm text-gray-700"
-              >
-                Ghi nhớ đăng nhập
-              </label>
-            </div>
-            <Link
-              to="/quen-mat-khau"
-              className="text-sm text-green-600 hover:text-green-500 font-medium"
-            >
-              Quên mật khẩu?
-            </Link>
           </div>
 
           {/* Submit Button */}

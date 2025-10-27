@@ -23,6 +23,7 @@ import BatteryDetailPage from "./pages/BatteryDetailPage";
 import ComparePage from "./pages/ComparePage";
 import SupportPage from "./pages/SupportPage";
 import ChatPage from "./pages/ChatPage";
+import SubscriptionsPlan from "./pages/SubscriptionPlan";
 
 function App() {
   return (
@@ -117,6 +118,8 @@ function App() {
                 {/* Other pages */}
                 <Route path="/so-sanh" element={<ComparePage />} />
                 <Route path="/ho-tro" element={<SupportPage />} />
+                <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
+
 
                 {/* ✅ 404 Fallback */}
                 <Route
