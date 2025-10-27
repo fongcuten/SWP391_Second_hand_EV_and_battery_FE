@@ -1,50 +1,143 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  locationService,
+  type Province,
+  type District,
+  type Ward,
+} from "../../services/locationService";
 
-interface CarFormData {
-  condition: string;
+interface SalePostFormData {
+  // Thông tin cơ bản
+  product_type: "vehicle";
   brand: string;
-  year: string;
-  edition: string;
+  model: string;
+  year: number;
+  condition: string;
+
+  // Thông tin kỹ thuật
   transmission: string[];
   fuelType: string[];
-  origin: string;
-  style: string;
-  seats: string;
+  mileage: number;
   color: string;
+  seats: number;
+
+  // Thông tin pháp lý
   licensePlate: string;
-  ownerCount: string;
+  ownerCount: number;
   registration: string;
   inspection: string;
-  mileage: string;
-  price: string;
-  title: string;
+
+  // Thông tin bán hàng
+  ask_price: number;
   description: string;
+
+  // Địa chỉ
+  province_code: number | null;
+  district_code: number | null;
+  ward_code: number | null;
+  street: string;
 }
 
-const CreateCarPost: React.FC = () => {
-  const [formData, setFormData] = useState<CarFormData>({
-    condition: "Đã sử dụng",
+const CreateVehiclePost: React.FC = () => {
+  const [formData, setFormData] = useState<SalePostFormData>({
+    product_type: "vehicle",
     brand: "",
-    year: "",
-    edition: "",
+    model: "",
+    year: new Date().getFullYear(),
+    condition: "Đã sử dụng",
     transmission: [],
     fuelType: [],
-    origin: "",
-    style: "",
-    seats: "",
+    mileage: 0,
     color: "",
+    seats: 0,
     licensePlate: "",
-    ownerCount: "",
+    ownerCount: 1,
     registration: "",
     inspection: "",
-    mileage: "",
-    price: "",
-    title: "",
+    ask_price: 0,
     description: "",
+    province_code: null,
+    district_code: null,
+    ward_code: null,
+    street: "",
   });
 
   const [images, setImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Location states
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load provinces on component mount
+  useEffect(() => {
+    const loadProvinces = async () => {
+      setLoading(true);
+      try {
+        const provincesData = await locationService.getProvinces();
+        setProvinces(provincesData);
+      } catch (error) {
+        console.error("Error loading provinces:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProvinces();
+  }, []);
+
+  // Load districts when province changes
+  useEffect(() => {
+    if (formData.province_code) {
+      const loadDistricts = async () => {
+        setLoading(true);
+        try {
+          const districtsData = await locationService.getDistricts(
+            formData.province_code!
+          );
+          setDistricts(districtsData);
+          setWards([]); // Reset wards when province changes
+          setFormData((prev) => ({
+            ...prev,
+            district_code: null,
+            ward_code: null,
+          }));
+        } catch (error) {
+          console.error("Error loading districts:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadDistricts();
+    } else {
+      setDistricts([]);
+      setWards([]);
+    }
+  }, [formData.province_code]);
+
+  // Load wards when district changes
+  useEffect(() => {
+    if (formData.district_code) {
+      const loadWards = async () => {
+        setLoading(true);
+        try {
+          const wardsData = await locationService.getWards(
+            formData.district_code!
+          );
+          setWards(wardsData);
+          setFormData((prev) => ({ ...prev, ward_code: null }));
+        } catch (error) {
+          console.error("Error loading wards:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadWards();
+    } else {
+      setWards([]);
+    }
+  }, [formData.district_code]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -63,9 +156,25 @@ const CreateCarPost: React.FC = () => {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "year" ||
+        name === "mileage" ||
+        name === "seats" ||
+        name === "ownerCount" ||
+        name === "ask_price" ||
+        name === "province_code" ||
+        name === "district_code" ||
+        name === "ward_code"
+          ? Number(value) || 0
+          : value,
+    }));
   };
 
   const handleToggle = (field: "transmission" | "fuelType", value: string) => {
@@ -86,7 +195,23 @@ const CreateCarPost: React.FC = () => {
       alert("Vui lòng tải lên ít nhất 4 hình ảnh!");
       return;
     }
-    console.log("Form submitted:", formData, images);
+    if (
+      !formData.province_code ||
+      !formData.district_code ||
+      !formData.ward_code
+    ) {
+      alert("Vui lòng chọn đầy đủ thông tin địa chỉ!");
+      return;
+    }
+
+    // Prepare data for API submission
+    const submitData = {
+      ...formData,
+      images: images.map((file) => file.name), // In real app, upload files first
+    };
+
+    console.log("Vehicle post submitted:", submitData);
+    // TODO: Call API to create sale post
   };
 
   return (
@@ -118,8 +243,8 @@ const CreateCarPost: React.FC = () => {
           ))}
         </div>
 
-        {/* Brand / Year / Edition */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Brand / Model / Year */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Hãng xe *
@@ -134,6 +259,18 @@ const CreateCarPost: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Mẫu xe *
+            </label>
+            <input
+              name="model"
+              value={formData.model}
+              onChange={handleChange}
+              placeholder="Ví dụ: Vios"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Năm sản xuất *
             </label>
             <input
@@ -142,18 +279,6 @@ const CreateCarPost: React.FC = () => {
               value={formData.year}
               onChange={handleChange}
               placeholder="2020"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-              Phiên bản
-            </label>
-            <input
-              name="edition"
-              value={formData.edition}
-              onChange={handleChange}
-              placeholder="Ví dụ: Vios 1.5G"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
             />
           </div>
@@ -207,23 +332,56 @@ const CreateCarPost: React.FC = () => {
 
         {/* Extra info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {[
-            { name: "origin", placeholder: "Xuất xứ" },
-            { name: "style", placeholder: "Kiểu dáng" },
-            { name: "seats", placeholder: "Số chỗ" },
-            { name: "color", placeholder: "Màu sắc" },
-            { name: "licensePlate", placeholder: "Biển số xe" },
-            { name: "ownerCount", placeholder: "Số đời chủ" },
-          ].map((f) => (
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Số chỗ ngồi
+            </label>
             <input
-              key={f.name}
-              name={f.name}
-              placeholder={f.placeholder}
-              value={(formData as any)[f.name]}
+              type="number"
+              name="seats"
+              value={formData.seats}
               onChange={handleChange}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              placeholder="5"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
             />
-          ))}
+          </div>
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Màu sắc
+            </label>
+            <input
+              name="color"
+              value={formData.color}
+              onChange={handleChange}
+              placeholder="Trắng, Đen, Đỏ..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Biển số xe
+            </label>
+            <input
+              name="licensePlate"
+              value={formData.licensePlate}
+              onChange={handleChange}
+              placeholder="30A-12345"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Số đời chủ
+            </label>
+            <input
+              type="number"
+              name="ownerCount"
+              value={formData.ownerCount}
+              onChange={handleChange}
+              placeholder="1"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
         </div>
 
         {/* Registration / Inspection */}
@@ -242,10 +400,13 @@ const CreateCarPost: React.FC = () => {
                     key={opt}
                     type="button"
                     onClick={() =>
-                      setFormData({ ...formData, [item.key]: opt })
+                      setFormData({
+                        ...formData,
+                        [item.key]: opt,
+                      } as SalePostFormData)
                     }
                     className={`px-4 py-1.5 rounded-full border text-sm transition ${
-                      (formData as any)[item.key] === opt
+                      formData[item.key as keyof SalePostFormData] === opt
                         ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
                         : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
                     }`}
@@ -260,19 +421,115 @@ const CreateCarPost: React.FC = () => {
 
         {/* Mileage + Price */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Số Km đã đi *
+            </label>
+            <input
+              type="number"
+              name="mileage"
+              value={formData.mileage}
+              onChange={handleChange}
+              placeholder="50000"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Giá bán (VNĐ) *
+            </label>
+            <input
+              type="number"
+              name="ask_price"
+              value={formData.ask_price}
+              onChange={handleChange}
+              placeholder="500000000"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ======= ĐỊA CHỈ ======= */}
+      <section>
+        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">Địa chỉ *</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {/* Province */}
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Tỉnh/Thành phố *
+            </label>
+            <select
+              name="province_code"
+              value={formData.province_code || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loading}
+            >
+              <option value="">Chọn tỉnh/thành phố</option>
+              {provinces.map((province) => (
+                <option key={province.code} value={province.code}>
+                  {province.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* District */}
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Quận/Huyện *
+            </label>
+            <select
+              name="district_code"
+              value={formData.district_code || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loading || !formData.province_code}
+            >
+              <option value="">Chọn quận/huyện</option>
+              {districts.map((district) => (
+                <option key={district.code} value={district.code}>
+                  {district.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ward */}
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Phường/Xã *
+            </label>
+            <select
+              name="ward_code"
+              value={formData.ward_code || ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loading || !formData.district_code}
+            >
+              <option value="">Chọn phường/xã</option>
+              {wards.map((ward) => (
+                <option key={ward.code} value={ward.code}>
+                  {ward.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Street */}
+        <div>
+          <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+            Địa chỉ chi tiết
+          </label>
           <input
-            name="mileage"
-            placeholder="Số Km đã đi *"
-            value={formData.mileage}
+            name="street"
+            value={formData.street}
             onChange={handleChange}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
-          />
-          <input
-            name="price"
-            placeholder="Giá bán *"
-            value={formData.price}
-            onChange={handleChange}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+            placeholder="Số nhà, tên đường..."
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
           />
         </div>
       </section>
@@ -323,22 +580,14 @@ const CreateCarPost: React.FC = () => {
         </div>
       </section>
 
-      {/* ======= TIÊU ĐỀ & MÔ TẢ ======= */}
+      {/* ======= MÔ TẢ ======= */}
       <section>
         <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
-          Tiêu đề tin đăng & Mô tả chi tiết
+          Mô tả chi tiết
         </h2>
-        <input
-          name="title"
-          placeholder="Tiêu đề tin đăng *"
-          value={formData.title}
-          onChange={handleChange}
-          maxLength={70}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white mb-3"
-        />
         <textarea
           name="description"
-          placeholder="Mô tả chi tiết..."
+          placeholder="Mô tả chi tiết về xe, tình trạng, lịch sử sử dụng..."
           value={formData.description}
           onChange={handleChange}
           rows={5}
@@ -359,4 +608,4 @@ const CreateCarPost: React.FC = () => {
   );
 };
 
-export default CreateCarPost;
+export default CreateVehiclePost;

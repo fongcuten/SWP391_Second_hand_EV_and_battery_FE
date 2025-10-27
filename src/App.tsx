@@ -25,6 +25,7 @@ import SupportPage from "./pages/SupportPage";
 import ChatPage from "./pages/ChatPage";
 import SubscriptionsPlan from "./pages/SubscriptionPlan";
 import PaymentResult from "./pages/Payment/PaymentResult";
+import LocationTest from "./components/LocationTest";
 
 function App() {
   return (
@@ -110,7 +111,6 @@ function App() {
                   element={<ElectricVehicleDetailPage />}
                 />
 
-
                 <Route path="/chat" element={<ChatPage />} />
                 {/* Battery Pages */}
                 <Route path="/pin" element={<BatteriesPage />} />
@@ -138,6 +138,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Test API Location */}
+                <Route path="/test-location" element={<LocationTest />} />
 
                 {/* ✅ 404 Fallback */}
                 <Route
