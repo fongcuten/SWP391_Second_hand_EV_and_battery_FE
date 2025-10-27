@@ -1,40 +1,38 @@
 import axios from "axios";
 
-const PUBLIC_ENDPOINTS = [
-  "/plans",
-  "/categories",
-  "/auth/login",
-  "/auth/register",
-  "/posts/public",
-];
-
-// Create the instance
 const api = axios.create({
-  baseURL: "http://localhost:8080/evplatform/",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/evplatform",
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Add interceptor
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token")?.replaceAll('"', "");
-
-    // Check if endpoint is public
-    const isPublic = PUBLIC_ENDPOINTS.some((path) =>
-      config.url?.startsWith(path)
-    );
-
-    // Only attach Authorization for protected routes
-    if (!isPublic && token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+    // Skip auth for specific requests
+    if (config.skipAuth) {
+      return config;
     }
 
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
-    console.error("Request error:", error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem("auth_token");
+      window.location.href = "/dang-nhap";
+    }
     return Promise.reject(error);
   }
 );

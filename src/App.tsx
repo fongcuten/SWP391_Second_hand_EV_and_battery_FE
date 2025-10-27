@@ -24,6 +24,7 @@ import ComparePage from "./pages/ComparePage";
 import SupportPage from "./pages/SupportPage";
 import ChatPage from "./pages/ChatPage";
 import SubscriptionsPlan from "./pages/SubscriptionPlan";
+import PaymentResult from "./pages/Payment/PaymentResult";
 
 function App() {
   return (
@@ -120,6 +121,7 @@ function App() {
                 <Route path="/ho-tro" element={<SupportPage />} />
                 <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
 
+                <Route path="/ket-qua" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
 
                 {/* ✅ 404 Fallback */}
                 <Route
