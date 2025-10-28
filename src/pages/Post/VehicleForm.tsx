@@ -6,14 +6,15 @@ import {
   type District,
   type Ward,
 } from "../../services/locationService";
+import { brandService, type Brand, type Model } from "../../service/Post/BrandService";
 import { createSalePost, type CreateSalePostPayload } from "../../service/Post/SalePostService";
 import { Loader2, CheckCircle } from "lucide-react";
 
 interface SalePostFormData {
   // Thông tin cơ bản
   product_type: "vehicle";
-  brand: string;
-  model: string;
+  brandId: number | null;
+  modelId: number | null;
   year: number;
   condition: string;
 
@@ -46,8 +47,8 @@ const CreateVehiclePost: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<SalePostFormData>({
     product_type: "vehicle",
-    brand: "",
-    model: "",
+    brandId: null,
+    modelId: null,
     year: new Date().getFullYear(),
     condition: "Đã sử dụng",
     transmission: [],
@@ -76,7 +77,14 @@ const CreateVehiclePost: React.FC = () => {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
+  
+  // Brand/Model states
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+  
   const [loading, setLoading] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
 
   // Load provinces on component mount
   useEffect(() => {
@@ -92,6 +100,23 @@ const CreateVehiclePost: React.FC = () => {
       }
     };
     loadProvinces();
+  }, []);
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      setLoadingBrands(true);
+      try {
+        const brandsData = await brandService.getAllBrands();
+        setBrands(brandsData);
+        console.log("✅ Loaded brands:", brandsData);
+      } catch (error) {
+        console.error("❌ Error loading brands:", error);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+    loadBrands();
   }, []);
 
   // Load districts when province changes
@@ -146,6 +171,28 @@ const CreateVehiclePost: React.FC = () => {
     }
   }, [formData.district_code]);
 
+  // Load models when brand changes
+  useEffect(() => {
+    if (formData.brandId) {
+      const loadModels = async () => {
+        setLoadingModels(true);
+        try {
+          const modelsData = await brandService.getModelsByBrand(formData.brandId!);
+          setModels(modelsData);
+          setFormData((prev) => ({ ...prev, modelId: null }));
+          console.log("✅ Loaded models for brand:", formData.brandId, modelsData);
+        } catch (error) {
+          console.error("❌ Error loading models:", error);
+        } finally {
+          setLoadingModels(false);
+        }
+      };
+      loadModels();
+    } else {
+      setModels([]);
+    }
+  }, [formData.brandId]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -178,8 +225,10 @@ const CreateVehiclePost: React.FC = () => {
         name === "ask_price" ||
         name === "province_code" ||
         name === "district_code" ||
-        name === "ward_code"
-          ? Number(value) || 0
+        name === "ward_code" ||
+        name === "brandId" ||
+        name === "modelId"
+          ? Number(value) || null
           : value,
     }));
   };
@@ -212,8 +261,8 @@ const CreateVehiclePost: React.FC = () => {
       alert("Vui lòng nhập tiêu đề tin đăng!");
       return;
     }
-    if (!formData.brand || !formData.model) {
-      alert("Vui lòng nhập hãng xe và mẫu xe!");
+    if (!formData.brandId || !formData.modelId) {
+      alert("Vui lòng chọn hãng xe và mẫu xe!");
       return;
     }
     if (formData.transmission.length === 0) {
@@ -228,7 +277,6 @@ const CreateVehiclePost: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Prepare payload for API
       const payload: CreateSalePostPayload = {
         productType: "VEHICLE",
         askPrice: formData.ask_price,
@@ -239,14 +287,14 @@ const CreateVehiclePost: React.FC = () => {
         wardCode: formData.ward_code,
         street: formData.street,
         vehicle: {
-          modelId: 1, // TODO: Get actual model ID from brand/model selection
+          modelId: formData.modelId!,
           year: formData.year,
           odoKm: formData.mileage,
           vin: formData.licensePlate || `VF${formData.year}XYZ${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-          transmission: formData.transmission[0] || "AT", // Take first selected
-          fuelType: formData.fuelType[0] || "EV", // Take first selected
+          transmission: formData.transmission[0] || "AT",
+          fuelType: formData.fuelType[0] || "EV",
           origin: "VN",
-          bodyStyle: "Scooter", // TODO: Add body style selection to form
+          bodyStyle: "Scooter",
           seatCount: formData.seats || 2,
           color: formData.color,
           accessories: true,
@@ -254,27 +302,24 @@ const CreateVehiclePost: React.FC = () => {
         },
       };
 
-      console.log("📤 Submitting payload:", payload);
+      console.log("📤 Submitting payload:", JSON.stringify(payload, null, 2));
       console.log("📸 Files to upload:", images.length);
 
-      // Call API
       const response = await createSalePost(payload, images);
 
       console.log("✅ Post created successfully:", response);
 
-      // Show success message
       alert(`Đăng tin thành công! Mã tin: ${response.result.listingId}`);
-
-      // Redirect to post detail or user posts page
       navigate(`/ho-so/posts`);
     } catch (error: any) {
       console.error("❌ Error creating post:", error);
-      
-      const errorMessage = 
-        error.response?.data?.message || 
-        error.message || 
+      console.error("❌ Error response:", error.response?.data);
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
         "Có lỗi xảy ra khi đăng tin. Vui lòng thử lại!";
-      
+
       alert(errorMessage);
     } finally {
       setSubmitting(false);
@@ -331,28 +376,52 @@ const CreateVehiclePost: React.FC = () => {
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Hãng xe *
             </label>
-            <input
-              name="brand"
-              value={formData.brand}
+            <select
+              name="brandId"
+              value={formData.brandId || ""}
               onChange={handleChange}
-              placeholder="Ví dụ: VinFast"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loadingBrands}
               required
-            />
+            >
+              <option value="">
+                {loadingBrands ? "Đang tải..." : "Chọn hãng xe"}
+              </option>
+              {brands.map((brand) => (
+                <option key={brand.brandId} value={brand.brandId}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
           </div>
+          
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Mẫu xe *
             </label>
-            <input
-              name="model"
-              value={formData.model}
+            <select
+              name="modelId"
+              value={formData.modelId || ""}
               onChange={handleChange}
-              placeholder="Ví dụ: Klara S"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loadingModels || !formData.brandId}
               required
-            />
+            >
+              <option value="">
+                {loadingModels
+                  ? "Đang tải..."
+                  : !formData.brandId
+                  ? "Chọn hãng xe trước"
+                  : "Chọn mẫu xe"}
+              </option>
+              {models.map((model) => (
+                <option key={model.modelId} value={model.modelId}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
           </div>
+          
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Năm sản xuất *
@@ -362,7 +431,7 @@ const CreateVehiclePost: React.FC = () => {
               name="year"
               value={formData.year}
               onChange={handleChange}
-              placeholder="2020"
+              placeholder="2024"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               required
             />
