@@ -5,12 +5,7 @@ import BatteryForm from "./BatteryForm";
 
 const CreateEVPost: React.FC = () => {
   const [category, setCategory] = useState<"vehicle" | "battery">("vehicle");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Submitted category:", category);
-  };
-
+  
   return (
     <div className="min-h-screen py-10
                  bg-gradient-to-br from-[#F7F9F9] via-[#E8F9E9] to-[#A8E6CF]/50

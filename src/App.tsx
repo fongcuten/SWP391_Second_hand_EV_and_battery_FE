@@ -106,10 +106,7 @@ function App() {
 
                 {/* ✅ Electric Vehicles */}
                 <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
-                <Route
-                  path="/xe-dien/:id"
-                  element={<ElectricVehicleDetailPage />}
-                />
+                <Route path="/xe-dien/:id" element={<ElectricVehicleDetailPage />} />
 
                 <Route path="/chat" element={<ChatPage />} />
                 {/* Battery Pages */}

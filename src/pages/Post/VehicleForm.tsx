@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   locationService,
   type Province,
   type District,
   type Ward,
 } from "../../services/locationService";
+import { createSalePost, type CreateSalePostPayload } from "../../service/Post/SalePostService";
+import { Loader2, CheckCircle } from "lucide-react";
 
 interface SalePostFormData {
   // Thông tin cơ bản
@@ -29,6 +32,7 @@ interface SalePostFormData {
 
   // Thông tin bán hàng
   ask_price: number;
+  title: string;
   description: string;
 
   // Địa chỉ
@@ -39,6 +43,7 @@ interface SalePostFormData {
 }
 
 const CreateVehiclePost: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<SalePostFormData>({
     product_type: "vehicle",
     brand: "",
@@ -55,6 +60,7 @@ const CreateVehiclePost: React.FC = () => {
     registration: "",
     inspection: "",
     ask_price: 0,
+    title: "",
     description: "",
     province_code: null,
     district_code: null,
@@ -64,6 +70,7 @@ const CreateVehiclePost: React.FC = () => {
 
   const [images, setImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Location states
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -97,7 +104,7 @@ const CreateVehiclePost: React.FC = () => {
             formData.province_code!
           );
           setDistricts(districtsData);
-          setWards([]); // Reset wards when province changes
+          setWards([]);
           setFormData((prev) => ({
             ...prev,
             district_code: null,
@@ -189,29 +196,89 @@ const CreateVehiclePost: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
     if (images.length < 4) {
       alert("Vui lòng tải lên ít nhất 4 hình ảnh!");
       return;
     }
-    if (
-      !formData.province_code ||
-      !formData.district_code ||
-      !formData.ward_code
-    ) {
+    if (!formData.province_code || !formData.district_code || !formData.ward_code) {
       alert("Vui lòng chọn đầy đủ thông tin địa chỉ!");
       return;
     }
+    if (!formData.title.trim()) {
+      alert("Vui lòng nhập tiêu đề tin đăng!");
+      return;
+    }
+    if (!formData.brand || !formData.model) {
+      alert("Vui lòng nhập hãng xe và mẫu xe!");
+      return;
+    }
+    if (formData.transmission.length === 0) {
+      alert("Vui lòng chọn loại hộp số!");
+      return;
+    }
+    if (formData.fuelType.length === 0) {
+      alert("Vui lòng chọn loại nhiên liệu!");
+      return;
+    }
 
-    // Prepare data for API submission
-    const submitData = {
-      ...formData,
-      images: images.map((file) => file.name), // In real app, upload files first
-    };
+    try {
+      setSubmitting(true);
 
-    console.log("Vehicle post submitted:", submitData);
-    // TODO: Call API to create sale post
+      // Prepare payload for API
+      const payload: CreateSalePostPayload = {
+        productType: "VEHICLE",
+        askPrice: formData.ask_price,
+        title: formData.title,
+        description: formData.description,
+        provinceCode: formData.province_code,
+        districtCode: formData.district_code,
+        wardCode: formData.ward_code,
+        street: formData.street,
+        vehicle: {
+          modelId: 1, // TODO: Get actual model ID from brand/model selection
+          year: formData.year,
+          odoKm: formData.mileage,
+          vin: formData.licensePlate || `VF${formData.year}XYZ${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+          transmission: formData.transmission[0] || "AT", // Take first selected
+          fuelType: formData.fuelType[0] || "EV", // Take first selected
+          origin: "VN",
+          bodyStyle: "Scooter", // TODO: Add body style selection to form
+          seatCount: formData.seats || 2,
+          color: formData.color,
+          accessories: true,
+          registration: formData.registration === "Có",
+        },
+      };
+
+      console.log("📤 Submitting payload:", payload);
+      console.log("📸 Files to upload:", images.length);
+
+      // Call API
+      const response = await createSalePost(payload, images);
+
+      console.log("✅ Post created successfully:", response);
+
+      // Show success message
+      alert(`Đăng tin thành công! Mã tin: ${response.result.listingId}`);
+
+      // Redirect to post detail or user posts page
+      navigate(`/ho-so/posts`);
+    } catch (error: any) {
+      console.error("❌ Error creating post:", error);
+      
+      const errorMessage = 
+        error.response?.data?.message || 
+        error.message || 
+        "Có lỗi xảy ra khi đăng tin. Vui lòng thử lại!";
+      
+      alert(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -219,6 +286,21 @@ const CreateVehiclePost: React.FC = () => {
       onSubmit={handleSubmit}
       className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-gray-200 space-y-10"
     >
+      {/* ======= TIÊU ĐỀ ======= */}
+      <section>
+        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
+          Tiêu đề tin đăng
+        </h2>
+        <input
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          placeholder="Ví dụ: Xe điện VinFast Klara S màu trắng, đi 5000km"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+          required
+        />
+      </section>
+
       {/* ======= THÔNG TIN CHI TIẾT ======= */}
       <section>
         <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
@@ -253,8 +335,9 @@ const CreateVehiclePost: React.FC = () => {
               name="brand"
               value={formData.brand}
               onChange={handleChange}
-              placeholder="Ví dụ: Toyota"
+              placeholder="Ví dụ: VinFast"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
           <div>
@@ -265,8 +348,9 @@ const CreateVehiclePost: React.FC = () => {
               name="model"
               value={formData.model}
               onChange={handleChange}
-              placeholder="Ví dụ: Vios"
+              placeholder="Ví dụ: Klara S"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
           <div>
@@ -280,6 +364,7 @@ const CreateVehiclePost: React.FC = () => {
               onChange={handleChange}
               placeholder="2020"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
         </div>
@@ -341,7 +426,7 @@ const CreateVehiclePost: React.FC = () => {
               name="seats"
               value={formData.seats}
               onChange={handleChange}
-              placeholder="5"
+              placeholder="2"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
             />
           </div>
@@ -430,8 +515,9 @@ const CreateVehiclePost: React.FC = () => {
               name="mileage"
               value={formData.mileage}
               onChange={handleChange}
-              placeholder="50000"
+              placeholder="5000"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
           <div>
@@ -443,8 +529,9 @@ const CreateVehiclePost: React.FC = () => {
               name="ask_price"
               value={formData.ask_price}
               onChange={handleChange}
-              placeholder="500000000"
+              placeholder="19000000"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
         </div>
@@ -466,6 +553,7 @@ const CreateVehiclePost: React.FC = () => {
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading}
+              required
             >
               <option value="">Chọn tỉnh/thành phố</option>
               {provinces.map((province) => (
@@ -487,6 +575,7 @@ const CreateVehiclePost: React.FC = () => {
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading || !formData.province_code}
+              required
             >
               <option value="">Chọn quận/huyện</option>
               {districts.map((district) => (
@@ -508,6 +597,7 @@ const CreateVehiclePost: React.FC = () => {
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading || !formData.district_code}
+              required
             >
               <option value="">Chọn phường/xã</option>
               {wards.map((ward) => (
@@ -556,7 +646,7 @@ const CreateVehiclePost: React.FC = () => {
               <button
                 onClick={() => handleRemoveImage(i)}
                 type="button"
-                className="absolute top-1 right-1 bg-[#2C3E50]/70 text-white rounded-full px-2 py-1 text-xs"
+                className="absolute top-1 right-1 bg-[#2C3E50]/70 text-white rounded-full px-2 py-1 text-xs hover:bg-[#2C3E50]"
               >
                 ✕
               </button>
@@ -599,9 +689,20 @@ const CreateVehiclePost: React.FC = () => {
       <div className="flex justify-end">
         <button
           type="submit"
-          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition"
+          disabled={submitting}
+          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Đăng tin
+          {submitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Đang đăng tin...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-5 h-5" />
+              Đăng tin
+            </>
+          )}
         </button>
       </div>
     </form>

@@ -13,73 +13,44 @@ import {
   Clock,
   Zap,
   Car,
-  Star,
   CheckCircle,
-  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import type { ElectricVehicle } from "../types/electricVehicle";
+import { VehicleDetailService, type VehicleDetail } from "../service/Vehicle/ElectricDetailsService";
 
 const ElectricVehicleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [vehicle, setVehicle] = useState<ElectricVehicle | null>(null);
+
+  const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // Mock data - thay thế bằng API call thực tế
-  const mockVehicle: ElectricVehicle = {
-    id: "1",
-    brand: "Tesla",
-    model: "Model 3",
-    year: 2022,
-    price: 1200000000,
-    originalPrice: 1500000000,
-    mileage: 15000,
-    batteryCapacity: 75,
-    batteryHealth: 95,
-    range: 500,
-    chargingTime: 8,
-    motorPower: 283,
-    topSpeed: 225,
-    acceleration: 4.4,
-    color: "Trắng",
-    condition: "excellent",
-    description:
-      "Xe điện Tesla Model 3 tình trạng xuất sắc, ít sử dụng. Xe được bảo dưỡng định kỳ tại đại lý chính thức Tesla. Đầy đủ giấy tờ, sổ bảo hành còn lại. Nội thất như mới, không có vết xước hay hư hỏng. Pin còn 95% dung lượng, phạm vi hoạt động 500km. Xe có đầy đủ tính năng Autopilot, Supercharger, nội thất cao cấp và cửa sổ trời kính.",
-    images: [
-      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=800",
-      "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800",
-      "https://images.unsplash.com/photo-1549317336-206569e8475c?w=800",
-      "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800",
-    ],
-    features: [
-      "Autopilot",
-      "Supercharger",
-      "Premium Interior",
-      "Glass Roof",
-      "Wireless Charging",
-      "Premium Audio",
-      "Climate Control",
-      "OTA Updates",
-    ],
-    location: "Hồ Chí Minh",
-    sellerId: "seller1",
-    sellerName: "Nguyễn Văn A",
-    sellerPhone: "0901234567",
-    isAvailable: true,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  };
-
   useEffect(() => {
     const loadVehicle = async () => {
-      setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setVehicle(mockVehicle);
+      if (!id) {
+        setError("ID không hợp lệ");
         setLoading(false);
-      }, 1000);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log("🔄 Loading vehicle with ID:", id);
+        const data = await VehicleDetailService.getVehicleDetail(Number(id));
+        setVehicle(data);
+        console.log("✅ Vehicle loaded:", data);
+      } catch (err: any) {
+        console.error("❌ Error loading vehicle:", err);
+        setError("Không thể tải thông tin xe điện");
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadVehicle();
@@ -92,57 +63,41 @@ const ElectricVehicleDetailPage: React.FC = () => {
     }).format(price);
   };
 
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case "excellent":
-        return "bg-green-100 text-green-800";
-      case "good":
-        return "bg-blue-100 text-blue-800";
-      case "fair":
-        return "bg-yellow-100 text-yellow-800";
-      case "poor":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getConditionText = (condition: string) => {
-    switch (condition) {
-      case "excellent":
-        return "Xuất sắc";
-      case "good":
-        return "Tốt";
-      case "fair":
-        return "Khá";
-      case "poor":
-        return "Trung bình";
-      default:
-        return condition;
-    }
-  };
-
   const handleContact = (type: "phone" | "message") => {
     if (type === "phone") {
-      window.open(`tel:${vehicle?.sellerPhone}`);
+      // Implement phone contact
+      alert("Chức năng gọi điện sẽ được bổ sung");
     } else {
       // Implement message functionality
-      console.log("Open message dialog");
+      alert("Chức năng nhắn tin sẽ được bổ sung");
     }
   };
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `${vehicle?.brand} ${vehicle?.model}`,
-        text: `Xem xe điện ${vehicle?.brand} ${vehicle?.model} ${vehicle?.year}`,
+        title: vehicle?.title || "Xe điện",
+        text: `Xem xe điện ${vehicle?.title}`,
         url: window.location.href,
       });
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
       alert("Đã sao chép link vào clipboard");
     }
+  };
+
+  const handlePrevImage = () => {
+    if (!vehicle) return;
+    setSelectedImageIndex((prev) =>
+      prev === 0 ? vehicle.media.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    if (!vehicle) return;
+    setSelectedImageIndex((prev) =>
+      prev === vehicle.media.length - 1 ? 0 : prev + 1
+    );
   };
 
   if (loading) {
@@ -158,7 +113,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
     );
   }
 
-  if (!vehicle) {
+  if (error || !vehicle) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -167,7 +122,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
               Không tìm thấy xe điện
             </h1>
             <p className="text-gray-600 mb-6">
-              Xe điện bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.
+              {error || "Xe điện bạn đang tìm kiếm không tồn tại hoặc đã bị xóa."}
             </p>
             <button
               onClick={() => navigate("/xe-dien")}
@@ -180,6 +135,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
       </div>
     );
   }
+
+  const { vehiclePost } = vehicle;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -197,28 +154,58 @@ const ElectricVehicleDetailPage: React.FC = () => {
           {/* Left Column - Images */}
           <div className="lg:col-span-2">
             {/* Main Image */}
-            <div className="aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg overflow-hidden mb-4">
-              <img
-                src={vehicle.images[selectedImageIndex]}
-                alt={`${vehicle.brand} ${vehicle.model}`}
-                className="w-full h-full object-cover"
-              />
+            <div className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4">
+              {vehicle.media.length > 0 ? (
+                <>
+                  <img
+                    src={vehicle.media[selectedImageIndex].urlLarge}
+                    alt={vehicle.title}
+                    className="w-full h-full object-contain"
+                  />
+                  {/* Navigation Arrows */}
+                  {vehicle.media.length > 1 && (
+                    <>
+                      <button
+                        onClick={handlePrevImage}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={handleNextImage}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
+                  {/* Image Counter */}
+                  <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {selectedImageIndex + 1} / {vehicle.media.length}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  Không có hình ảnh
+                </div>
+              )}
             </div>
 
             {/* Thumbnail Images */}
-            {vehicle.images.length > 1 && (
+            {vehicle.media.length > 1 && (
               <div className="grid grid-cols-4 gap-2">
-                {vehicle.images.map((image, index) => (
+                {vehicle.media.map((image, index) => (
                   <button
-                    key={index}
+                    key={image.mediaId}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg overflow-hidden ${
-                      selectedImageIndex === index ? "ring-2 ring-blue-500" : ""
-                    }`}
+                    className={`aspect-video bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
+                        ? "ring-2 ring-blue-500"
+                        : "hover:ring-2 hover:ring-gray-300"
+                      }`}
                   >
                     <img
-                      src={image}
-                      alt={`${vehicle.brand} ${vehicle.model} ${index + 1}`}
+                      src={image.urlThumb}
+                      alt={`${vehicle.title} ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -230,88 +217,52 @@ const ElectricVehicleDetailPage: React.FC = () => {
           {/* Right Column - Details */}
           <div className="space-y-6">
             {/* Title and Price */}
-            <div>
+            <div className="bg-white rounded-lg p-6 shadow-sm">
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {vehicle.brand} {vehicle.model}
+                  {vehicle.title}
                 </h1>
                 <button
                   onClick={() => setIsFavorite(!isFavorite)}
                   className="p-2 text-gray-400 hover:text-red-500"
                 >
                   <Heart
-                    className={`w-6 h-6 ${
-                      isFavorite ? "fill-red-500 text-red-500" : ""
-                    }`}
+                    className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : ""
+                      }`}
                   />
                 </button>
               </div>
-              <p className="text-gray-600 mb-4">{vehicle.year}</p>
 
               <div className="mb-4">
-                <p className="text-3xl font-bold text-blue-600">
-                  {formatPrice(vehicle.price)}
+                <p className="text-sm text-gray-600 mb-2">
+                  {vehiclePost.brandName} {vehiclePost.modelName} • {vehiclePost.year}
                 </p>
-                {vehicle.originalPrice > vehicle.price && (
-                  <p className="text-lg text-gray-500 line-through">
-                    {formatPrice(vehicle.originalPrice)}
-                  </p>
-                )}
+                <p className="text-3xl font-bold text-blue-600">
+                  {formatPrice(vehicle.askPrice)}
+                </p>
               </div>
 
-              {/* Condition Badge */}
+              {/* Status Badge */}
               <div className="mb-4">
-                <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getConditionColor(
-                    vehicle.condition
-                  )}`}
-                >
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                   <CheckCircle className="w-4 h-4 mr-1" />
-                  Tình trạng: {getConditionText(vehicle.condition)}
+                  {vehicle.status}
                 </span>
               </div>
             </div>
 
             {/* Key Specifications */}
-            <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Thông số kỹ thuật
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
-                    <Battery className="w-5 h-5" />
-                    <span>Dung lượng pin</span>
+                    <Calendar className="w-5 h-5" />
+                    <span>Năm sản xuất</span>
                   </div>
-                  <span className="font-medium">
-                    {vehicle.batteryCapacity} kWh
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Gauge className="w-5 h-5" />
-                    <span>Phạm vi hoạt động</span>
-                  </div>
-                  <span className="font-medium">{vehicle.range} km</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Zap className="w-5 h-5" />
-                    <span>Công suất động cơ</span>
-                  </div>
-                  <span className="font-medium">{vehicle.motorPower} kW</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Clock className="w-5 h-5" />
-                    <span>Thời gian sạc</span>
-                  </div>
-                  <span className="font-medium">
-                    {vehicle.chargingTime} giờ
-                  </span>
+                  <span className="font-medium">{vehiclePost.year}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -320,8 +271,24 @@ const ElectricVehicleDetailPage: React.FC = () => {
                     <span>Số km đã đi</span>
                   </div>
                   <span className="font-medium">
-                    {vehicle.mileage.toLocaleString()} km
+                    {vehiclePost.odoKm.toLocaleString()} km
                   </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Zap className="w-5 h-5" />
+                    <span>Hộp số</span>
+                  </div>
+                  <span className="font-medium">{vehiclePost.transmission}</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Battery className="w-5 h-5" />
+                    <span>Nhiên liệu</span>
+                  </div>
+                  <span className="font-medium">{vehiclePost.fuelType}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -329,30 +296,40 @@ const ElectricVehicleDetailPage: React.FC = () => {
                     <Car className="w-5 h-5" />
                     <span>Màu sắc</span>
                   </div>
-                  <span className="font-medium">{vehicle.color}</span>
+                  <span className="font-medium">{vehiclePost.color}</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <CheckCircle className="w-5 h-5" />
+                    <span>Số chỗ ngồi</span>
+                  </div>
+                  <span className="font-medium">{vehiclePost.seatCount} chỗ</span>
                 </div>
               </div>
             </div>
 
             {/* Seller Info */}
-            <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Thông tin người bán
               </h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600">Tên:</span>
-                  <span className="font-medium">{vehicle.sellerName}</span>
+                  <span className="text-gray-600">Người bán:</span>
+                  <span className="font-medium">{vehicle.seller}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">{vehicle.location}</span>
+                  <span className="text-gray-600">
+                    {vehicle.street && `${vehicle.street}, `}
+                    Mã vùng: {vehicle.wardCode}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600">
-                    Đăng bán:{" "}
-                    {new Date(vehicle.createdAt).toLocaleDateString("vi-VN")}
+                    Đăng bán: {new Date(vehicle.createdAt).toLocaleDateString("vi-VN")}
                   </span>
                 </div>
               </div>
@@ -365,7 +342,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium"
               >
                 <Phone className="w-5 h-5" />
-                Gọi điện: {vehicle.sellerPhone}
+                Liên hệ người bán
               </button>
 
               <button
@@ -387,30 +364,48 @@ const ElectricVehicleDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Description and Features */}
+        {/* Description and Details */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Description */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Mô tả chi tiết
             </h3>
-            <p className="text-gray-700 leading-relaxed">
-              {vehicle.description}
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {vehicle.description || "Chưa có mô tả"}
             </p>
           </div>
 
-          {/* Features */}
+          {/* Additional Details */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tính năng nổi bật
+              Chi tiết khác
             </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {vehicle.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700 text-sm">{feature}</span>
-                </div>
-              ))}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Xuất xứ:</span>
+                <span className="font-medium">{vehiclePost.origin}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Kiểu dáng:</span>
+                <span className="font-medium">{vehiclePost.bodyStyle}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">VIN:</span>
+                <span className="font-medium font-mono text-sm">{vehiclePost.vin}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Đăng kiểm:</span>
+                <span className={`font-medium ${vehiclePost.registration ? 'text-green-600' : 'text-red-600'}`}>
+                  {vehiclePost.registration ? "Còn hạn" : "Hết hạn"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Phụ kiện:</span>
+                <span className={`font-medium ${vehiclePost.accessories ? 'text-green-600' : 'text-gray-600'}`}>
+                  {vehiclePost.accessories ? "Có" : "Không"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
