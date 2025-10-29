@@ -1,27 +1,31 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   locationService,
   type Province,
   type District,
   type Ward,
 } from "../../services/locationService";
+import { brandService, type Brand, type Model } from "../../services/Post/BrandService";
+import { createSalePost, type CreateSalePostPayload } from "../../services/Post/SalePostService";
+import { UserSubscriptionService, type UserSubscription } from "../../services/User/UserSubscriptionService";
+import { Loader2, CheckCircle, Crown, Award, Star, Info } from "lucide-react";
 
 interface BatterySalePostFormData {
   // Thông tin cơ bản
   product_type: "battery";
-  brand: string;
-  model: string;
-  year: number;
-  condition: string;
+  brandId: number | null;
+  modelId: number | null;
 
-  // Thông tin kỹ thuật
-  batteryCapacity: number;
-  batteryHealth: number;
-  voltage: number;
-  chemistry: string;
+  // Thông tin kỹ thuật pin
+  chemistryName: string;
+  capacityKwh: number;
+  sohPercent: number;
+  cycleCount: number;
 
   // Thông tin bán hàng
   ask_price: number;
+  title: string;
   description: string;
 
   // Địa chỉ
@@ -32,17 +36,17 @@ interface BatterySalePostFormData {
 }
 
 const CreateBatteryPost: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<BatterySalePostFormData>({
     product_type: "battery",
-    brand: "",
-    model: "",
-    year: new Date().getFullYear(),
-    condition: "excellent",
-    batteryCapacity: 0,
-    batteryHealth: 100,
-    voltage: 0,
-    chemistry: "",
+    brandId: null,
+    modelId: null,
+    chemistryName: "Li-ion",
+    capacityKwh: 0,
+    sohPercent: 100,
+    cycleCount: 0,
     ask_price: 0,
+    title: "",
     description: "",
     province_code: null,
     district_code: null,
@@ -50,14 +54,51 @@ const CreateBatteryPost: React.FC = () => {
     street: "",
   });
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [images, setImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Location states
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
+
+  // Brand/Model states
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+
   const [loading, setLoading] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // User subscription state
+  const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+
+  // Load user subscription on mount
+  useEffect(() => {
+    const loadUserSubscription = async () => {
+      setLoadingSubscription(true);
+      try {
+        const subscription = await UserSubscriptionService.getCurrentSubscription();
+        setUserSubscription(subscription);
+        console.log("✅ User subscription loaded:", subscription);
+      } catch (error) {
+        console.error("❌ Error loading subscription:", error);
+        setUserSubscription({
+          planId: 1,
+          planName: "Free",
+          price: 0,
+          status: "ACTIVE",
+          startAt: new Date().toISOString(),
+          endAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+    loadUserSubscription();
+  }, []);
 
   // Load provinces on component mount
   useEffect(() => {
@@ -73,6 +114,23 @@ const CreateBatteryPost: React.FC = () => {
       }
     };
     loadProvinces();
+  }, []);
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      setLoadingBrands(true);
+      try {
+        const brandsData = await brandService.getAllBrands();
+        setBrands(brandsData);
+        console.log("✅ Loaded brands:", brandsData);
+      } catch (error) {
+        console.error("❌ Error loading brands:", error);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+    loadBrands();
   }, []);
 
   // Load districts when province changes
@@ -127,7 +185,44 @@ const CreateBatteryPost: React.FC = () => {
     }
   }, [formData.district_code]);
 
-  // Handle input text/number changes
+  // Load models when brand changes
+  useEffect(() => {
+    if (formData.brandId) {
+      const loadModels = async () => {
+        setLoadingModels(true);
+        try {
+          const modelsData = await brandService.getModelsByBrand(formData.brandId!);
+          setModels(modelsData);
+          setFormData((prev) => ({ ...prev, modelId: null }));
+          console.log("✅ Loaded models for brand:", formData.brandId, modelsData);
+        } catch (error) {
+          console.error("❌ Error loading models:", error);
+        } finally {
+          setLoadingModels(false);
+        }
+      };
+      loadModels();
+    } else {
+      setModels([]);
+    }
+  }, [formData.brandId]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const selected = Array.from(files);
+    const total = [...images, ...selected];
+    if (total.length > 10) {
+      alert("Tối đa 10 hình ảnh!");
+      return;
+    }
+    setImages(total);
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -137,137 +232,227 @@ const CreateBatteryPost: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "year" ||
-        name === "batteryCapacity" ||
-        name === "batteryHealth" ||
-        name === "voltage" ||
-        name === "ask_price" ||
-        name === "province_code" ||
-        name === "district_code" ||
-        name === "ward_code"
-          ? Number(value) || 0
+        name === "capacityKwh" ||
+          name === "sohPercent" ||
+          name === "cycleCount" ||
+          name === "ask_price" ||
+          name === "province_code" ||
+          name === "district_code" ||
+          name === "ward_code" ||
+          name === "brandId" ||
+          name === "modelId"
+          ? Number(value) || null
           : value,
     }));
   };
 
-  // Toggle condition
-  const handleConditionChange = (cond: string) => {
-    setFormData((prev) => ({ ...prev, condition: cond }));
-  };
-
-  // Image Upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = e.target.files ? Array.from(e.target.files) : [];
-    const total = [...files, ...newFiles];
-    if (total.length > 10) {
-      alert("Tối đa 10 hình ảnh!");
-      return;
-    }
-    setFiles(total);
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length < 4) {
+
+    // Validation
+    if (images.length < 4) {
       alert("Vui lòng tải lên ít nhất 4 hình ảnh!");
       return;
     }
-    if (
-      !formData.province_code ||
-      !formData.district_code ||
-      !formData.ward_code
-    ) {
+    if (!formData.province_code || !formData.district_code || !formData.ward_code) {
       alert("Vui lòng chọn đầy đủ thông tin địa chỉ!");
       return;
     }
+    if (!formData.title.trim()) {
+      alert("Vui lòng nhập tiêu đề tin đăng!");
+      return;
+    }
+    if (!formData.brandId || !formData.modelId) {
+      alert("Vui lòng chọn hãng pin và mẫu pin!");
+      return;
+    }
+    if (formData.capacityKwh <= 0) {
+      alert("Vui lòng nhập dung lượng pin hợp lệ!");
+      return;
+    }
+    if (formData.sohPercent < 0 || formData.sohPercent > 100) {
+      alert("Tình trạng pin (SOH) phải từ 0-100%!");
+      return;
+    }
 
-    // Prepare data for API submission
-    const submitData = {
-      ...formData,
-      images: files.map((file) => file.name), // In real app, upload files first
+    try {
+      setSubmitting(true);
+
+      // Get priority level from user subscription plan
+      const priorityLevel = userSubscription
+        ? UserSubscriptionService.getPriorityFromPlan(userSubscription.planName)
+        : 1;
+
+      const payload: CreateSalePostPayload = {
+        productType: "BATTERY",
+        askPrice: formData.ask_price,
+        title: formData.title,
+        description: formData.description,
+        provinceCode: formData.province_code,
+        districtCode: formData.district_code,
+        wardCode: formData.ward_code,
+        street: formData.street,
+        priorityLevel: priorityLevel,
+        battery: {
+          modelId: formData.modelId!,
+          chemistryName: formData.chemistryName,
+          capacityKwh: formData.capacityKwh,
+          sohPercent: formData.sohPercent,
+          cycleCount: formData.cycleCount,
+        },
+      };
+
+      console.log("📤 Submitting battery post with plan:", userSubscription?.planName);
+      console.log("📤 Priority level:", priorityLevel);
+      console.log("📤 Submitting payload:", JSON.stringify(payload, null, 2));
+      console.log("📸 Files to upload:", images.length);
+
+      const response = await createSalePost(payload, images);
+
+      console.log("✅ Battery post created successfully:", response);
+
+      alert(`Đăng tin thành công! 🎉\n\nMã tin: ${response.result.listingId}`);
+      navigate(`/ho-so/posts`);
+    } catch (error: any) {
+      console.error("❌ Error creating battery post:", error);
+      console.error("❌ Error response:", error.response?.data);
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Có lỗi xảy ra khi đăng tin. Vui lòng thử lại!";
+
+      alert(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Get subscription badge component
+  const getSubscriptionBadge = () => {
+    if (!userSubscription) return null;
+
+    const tier = UserSubscriptionService.getSubscriptionTier(userSubscription.planName);
+
+    const badges = {
+      PREMIUM: {
+        icon: Crown,
+        bg: "bg-gradient-to-r from-yellow-400 to-orange-500",
+        text: "text-white",
+        label: userSubscription.planName.toUpperCase(),
+      },
+      STANDARD: {
+        icon: Award,
+        bg: "bg-gradient-to-r from-blue-500 to-purple-500",
+        text: "text-white",
+        label: userSubscription.planName.toUpperCase(),
+      },
+      FREE: {
+        icon: Star,
+        bg: "bg-gray-600",
+        text: "text-white",
+        label: userSubscription.planName.toUpperCase(),
+      },
     };
 
-    console.log("Battery post submitted:", submitData);
-    // TODO: Call API to create sale post
+    const badge = badges[tier];
+    const Icon = badge.icon;
+
+    return (
+      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${badge.bg} ${badge.text} font-semibold shadow-lg`}>
+        <Icon className="w-5 h-5" />
+        {badge.label}
+      </div>
+    );
   };
+
+  if (loadingSubscription) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+        <div className="text-center py-10">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-[#2ECC71]" />
+          <p className="mt-4 text-gray-600">Đang tải thông tin gói đăng ký...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md space-y-10 m-5"
+      className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-gray-200 space-y-10"
     >
-      {/* ========== Thông tin cơ bản ========== */}
+      {/* Title Section */}
+      <section>
+        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
+          Tiêu đề tin đăng
+        </h2>
+        <input
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          placeholder="Ví dụ: Pin xe điện Tesla 75kWh, tình trạng 95%, ít sử dụng"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+          required
+        />
+      </section>
+
+      {/* Battery Info Section */}
       <section>
         <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
           Thông tin pin xe điện
         </h2>
 
-        {/* Condition */}
-        <div className="flex gap-3 mb-6">
-          {["excellent", "good", "fair", "poor"].map((cond) => (
-            <button
-              key={cond}
-              type="button"
-              onClick={() => handleConditionChange(cond)}
-              className={`px-5 py-1.5 text-sm font-medium rounded-full border transition ${
-                formData.condition === cond
-                  ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-                  : "bg-[#F7F9F9] border-[#E5E5E5] text-[#2C3E50] hover:bg-[#A8E6CF]/30"
-              }`}
-            >
-              {cond === "excellent"
-                ? "Xuất sắc"
-                : cond === "good"
-                ? "Tốt"
-                : cond === "fair"
-                ? "Trung bình"
-                : "Kém"}
-            </button>
-          ))}
-        </div>
-
-        {/* Brand / Model / Year */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Brand / Model */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Hãng pin *
             </label>
-            <input
-              name="brand"
-              value={formData.brand}
+            <select
+              name="brandId"
+              value={formData.brandId || ""}
               onChange={handleChange}
-              placeholder="Tesla, BYD, CATL..."
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
-            />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loadingBrands}
+              required
+            >
+              <option value="">
+                {loadingBrands ? "Đang tải..." : "Chọn hãng pin"}
+              </option>
+              {brands.map((brand) => (
+                <option key={brand.brandId} value={brand.brandId}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
           </div>
+
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Mẫu pin *
             </label>
-            <input
-              name="model"
-              value={formData.model}
+            <select
+              name="modelId"
+              value={formData.modelId || ""}
               onChange={handleChange}
-              placeholder="Model S Battery..."
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-              Năm sản xuất *
-            </label>
-            <input
-              type="number"
-              name="year"
-              value={formData.year}
-              onChange={handleChange}
-              placeholder="2024"
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
-            />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              disabled={loadingModels || !formData.brandId}
+              required
+            >
+              <option value="">
+                {loadingModels
+                  ? "Đang tải..."
+                  : !formData.brandId
+                    ? "Chọn hãng pin trước"
+                    : "Chọn mẫu pin"}
+              </option>
+              {models.map((model) => (
+                <option key={model.modelId} value={model.modelId}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -275,81 +460,99 @@ const CreateBatteryPost: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
+              Công nghệ pin *
+            </label>
+            <select
+              name="chemistryName"
+              value={formData.chemistryName}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
+            >
+              <option value="Li-ion">Li-ion</option>
+              <option value="LFP">LFP (LiFePO4)</option>
+              <option value="NMC">NMC</option>
+              <option value="NCA">NCA</option>
+              <option value="LTO">LTO</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Dung lượng pin (kWh) *
             </label>
             <input
               type="number"
-              name="batteryCapacity"
-              value={formData.batteryCapacity}
+              name="capacityKwh"
+              value={formData.capacityKwh}
               onChange={handleChange}
-              placeholder="75"
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              placeholder="75.5"
+              step="0.1"
+              min="0.1"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
+
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-              Tình trạng pin (%) *
+              Tình trạng pin - SOH (%) *
             </label>
             <input
               type="number"
-              name="batteryHealth"
-              value={formData.batteryHealth}
+              name="sohPercent"
+              value={formData.sohPercent}
               onChange={handleChange}
               placeholder="95"
               min="0"
               max="100"
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
+            <p className="text-xs text-gray-500 mt-1">
+              SOH (State of Health): 0-100%
+            </p>
           </div>
+
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-              Điện áp (V)
+              Số chu kỳ sạc *
             </label>
             <input
               type="number"
-              name="voltage"
-              value={formData.voltage}
+              name="cycleCount"
+              value={formData.cycleCount}
               onChange={handleChange}
-              placeholder="400"
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              placeholder="500"
+              min="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
-          <div>
+
+          <div className="md:col-span-2">
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-              Công nghệ pin
+              Giá bán (VNĐ) *
             </label>
             <input
-              name="chemistry"
-              value={formData.chemistry}
+              type="number"
+              name="ask_price"
+              value={formData.ask_price}
               onChange={handleChange}
-              placeholder="Li-ion, LFP, NMC..."
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              placeholder="50000000"
+              min="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+              required
             />
           </div>
-        </div>
-
-        {/* Price */}
-        <div className="mb-6">
-          <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
-            Giá bán (VNĐ) *
-          </label>
-          <input
-            type="number"
-            name="ask_price"
-            value={formData.ask_price}
-            onChange={handleChange}
-            placeholder="50000000"
-            className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
-          />
         </div>
       </section>
 
-      {/* ========== ĐỊA CHỈ ========== */}
+      {/* Address Section */}
       <section>
         <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">Địa chỉ *</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {/* Province */}
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Tỉnh/Thành phố *
@@ -358,8 +561,9 @@ const CreateBatteryPost: React.FC = () => {
               name="province_code"
               value={formData.province_code || ""}
               onChange={handleChange}
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading}
+              required
             >
               <option value="">Chọn tỉnh/thành phố</option>
               {provinces.map((province) => (
@@ -370,7 +574,6 @@ const CreateBatteryPost: React.FC = () => {
             </select>
           </div>
 
-          {/* District */}
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Quận/Huyện *
@@ -379,8 +582,9 @@ const CreateBatteryPost: React.FC = () => {
               name="district_code"
               value={formData.district_code || ""}
               onChange={handleChange}
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading || !formData.province_code}
+              required
             >
               <option value="">Chọn quận/huyện</option>
               {districts.map((district) => (
@@ -391,7 +595,6 @@ const CreateBatteryPost: React.FC = () => {
             </select>
           </div>
 
-          {/* Ward */}
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Phường/Xã *
@@ -400,8 +603,9 @@ const CreateBatteryPost: React.FC = () => {
               name="ward_code"
               value={formData.ward_code || ""}
               onChange={handleChange}
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
               disabled={loading || !formData.district_code}
+              required
             >
               <option value="">Chọn phường/xã</option>
               {wards.map((ward) => (
@@ -413,7 +617,6 @@ const CreateBatteryPost: React.FC = () => {
           </div>
         </div>
 
-        {/* Street */}
         <div>
           <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
             Địa chỉ chi tiết
@@ -423,87 +626,90 @@ const CreateBatteryPost: React.FC = () => {
             value={formData.street}
             onChange={handleChange}
             placeholder="Số nhà, tên đường..."
-            className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
           />
         </div>
       </section>
 
-      {/* ========== Mô tả ========== */}
+      {/* Images Section */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
+          Hình ảnh *
+        </h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Tải tối thiểu 4 hình, tối đa 10 hình (mỗi hình ≤ 6MB)
+        </p>
+        <div className="flex flex-wrap gap-4">
+          {images.map((file, i) => (
+            <div
+              key={i}
+              className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-200 shadow-sm"
+            >
+              <img
+                src={URL.createObjectURL(file)}
+                alt="preview"
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => handleRemoveImage(i)}
+                type="button"
+                className="absolute top-1 right-1 bg-[#2C3E50]/70 text-white rounded-full px-2 py-1 text-xs hover:bg-[#2C3E50]"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-28 h-28 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-[#2ECC71] hover:text-[#2ECC71] transition rounded-lg"
+          >
+            +
+          </button>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileUpload}
+            ref={fileInputRef}
+            className="hidden"
+          />
+        </div>
+      </section>
+
+      {/* Description Section */}
       <section>
         <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
           Mô tả chi tiết
         </h2>
         <textarea
           name="description"
-          placeholder="Mô tả chi tiết về xe, tính năng, tình trạng..."
+          placeholder="Mô tả chi tiết về pin: tình trạng, lịch sử sử dụng, lý do bán..."
           value={formData.description}
           onChange={handleChange}
           rows={5}
-          className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none resize-none"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none resize-none bg-white"
         />
       </section>
 
-      {/* ========== Hình ảnh ========== */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
-          Hình ảnh *
-        </h2>
-        <p className="text-sm text-[#2C3E50]/70 mb-2">
-          Tải lên ít nhất 4 hình (tối đa 10 hình, mỗi hình ≤ 8MB)
-        </p>
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-          {files.map((file, index) => (
-            <div
-              key={index}
-              className="relative group border rounded-lg overflow-hidden shadow-sm border-[#E5E5E5]"
-            >
-              <img
-                src={URL.createObjectURL(file)}
-                alt={`upload-${index}`}
-                className="h-28 w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => handleRemoveImage(index)}
-                className="absolute top-1 right-1 bg-[#2C3E50]/70 text-white rounded-full px-2 py-0.5 text-xs opacity-0 group-hover:opacity-100 transition"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-
-          {/* Upload button */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center border-2 border-dashed border-[#E5E5E5] rounded-lg h-28 cursor-pointer hover:bg-[#A8E6CF]/30 transition"
-          >
-            <span className="text-3xl text-[#2C3E50]/50">＋</span>
-            <span className="text-xs text-[#2C3E50]/70 mt-1">Thêm ảnh</span>
-          </div>
-        </div>
-
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          ref={fileInputRef}
-          className="hidden"
-          onChange={handleFileUpload}
-        />
-
-        <p className="text-sm text-[#2C3E50]/70 mt-2">
-          Tổng số: {files.length}/10 hình
-        </p>
-      </section>
-
-      {/* Submit */}
+      {/* Submit Button */}
       <div className="flex justify-end">
         <button
           type="submit"
-          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition"
+          disabled={submitting}
+          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Đăng tin
+          {submitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Đang đăng tin...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-5 h-5" />
+              Đăng tin ({userSubscription?.planName || "Free"})
+            </>
+          )}
         </button>
       </div>
     </form>

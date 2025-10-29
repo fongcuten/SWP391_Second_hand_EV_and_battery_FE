@@ -17,7 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { VehicleDetailService, type VehicleDetail } from "../service/Vehicle/ElectricDetailsService";
+import { VehicleDetailService, type VehicleDetail } from "../services/Vehicle/ElectricDetailsService";
 
 const ElectricVehicleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -199,8 +199,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                     key={image.mediaId}
                     onClick={() => setSelectedImageIndex(index)}
                     className={`aspect-video bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
-                        ? "ring-2 ring-blue-500"
-                        : "hover:ring-2 hover:ring-gray-300"
+                      ? "ring-2 ring-blue-500"
+                      : "hover:ring-2 hover:ring-gray-300"
                       }`}
                   >
                     <img

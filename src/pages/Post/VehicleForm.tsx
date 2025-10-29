@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   locationService,
   type Province,
   type District,
   type Ward,
 } from "../../services/locationService";
-import { brandService, type Brand, type Model } from "../../service/Post/BrandService";
-import { createSalePost, type CreateSalePostPayload } from "../../service/Post/SalePostService";
-import { Loader2, CheckCircle } from "lucide-react";
+import { brandService, type Brand, type Model } from "../../services/Post/BrandService";
+import { createSalePost, type CreateSalePostPayload } from "../../services/Post/SalePostService";
+import { PriceSuggestionService } from "../../services/AI/AIPriceService";
+import { Loader2, CheckCircle, Sparkles, Info, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 interface SalePostFormData {
   // Thông tin cơ bản
@@ -77,14 +79,22 @@ const CreateVehiclePost: React.FC = () => {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
-  
+
   // Brand/Model states
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingPriceSuggestion, setLoadingPriceSuggestion] = useState(false);
+
+  const [priceSuggestion, setPriceSuggestion] = useState<{
+    min: number;
+    max: number;
+    suggested: number;
+    note: string;
+  } | null>(null);
 
   // Load provinces on component mount
   useEffect(() => {
@@ -95,6 +105,7 @@ const CreateVehiclePost: React.FC = () => {
         setProvinces(provincesData);
       } catch (error) {
         console.error("Error loading provinces:", error);
+        toast.error("Không thể tải danh sách tỉnh/thành phố");
       } finally {
         setLoading(false);
       }
@@ -112,6 +123,7 @@ const CreateVehiclePost: React.FC = () => {
         console.log("✅ Loaded brands:", brandsData);
       } catch (error) {
         console.error("❌ Error loading brands:", error);
+        toast.error("Không thể tải danh sách hãng xe");
       } finally {
         setLoadingBrands(false);
       }
@@ -137,6 +149,7 @@ const CreateVehiclePost: React.FC = () => {
           }));
         } catch (error) {
           console.error("Error loading districts:", error);
+          toast.error("Không thể tải danh sách quận/huyện");
         } finally {
           setLoading(false);
         }
@@ -161,6 +174,7 @@ const CreateVehiclePost: React.FC = () => {
           setFormData((prev) => ({ ...prev, ward_code: null }));
         } catch (error) {
           console.error("Error loading wards:", error);
+          toast.error("Không thể tải danh sách phường/xã");
         } finally {
           setLoading(false);
         }
@@ -183,6 +197,7 @@ const CreateVehiclePost: React.FC = () => {
           console.log("✅ Loaded models for brand:", formData.brandId, modelsData);
         } catch (error) {
           console.error("❌ Error loading models:", error);
+          toast.error("Không thể tải danh sách mẫu xe");
         } finally {
           setLoadingModels(false);
         }
@@ -199,14 +214,16 @@ const CreateVehiclePost: React.FC = () => {
     const selected = Array.from(files);
     const total = [...images, ...selected];
     if (total.length > 10) {
-      alert("Tối đa 10 hình ảnh!");
+      toast.warning("Tối đa 10 hình ảnh!");
       return;
     }
     setImages(total);
+    toast.success(`Đã thêm ${selected.length} hình ảnh`);
   };
 
   const handleRemoveImage = (index: number) => {
     setImages(images.filter((_, i) => i !== index));
+    toast.info("Đã xóa hình ảnh");
   };
 
   const handleChange = (
@@ -219,15 +236,15 @@ const CreateVehiclePost: React.FC = () => {
       ...prev,
       [name]:
         name === "year" ||
-        name === "mileage" ||
-        name === "seats" ||
-        name === "ownerCount" ||
-        name === "ask_price" ||
-        name === "province_code" ||
-        name === "district_code" ||
-        name === "ward_code" ||
-        name === "brandId" ||
-        name === "modelId"
+          name === "mileage" ||
+          name === "seats" ||
+          name === "ownerCount" ||
+          name === "ask_price" ||
+          name === "province_code" ||
+          name === "district_code" ||
+          name === "ward_code" ||
+          name === "brandId" ||
+          name === "modelId"
           ? Number(value) || null
           : value,
     }));
@@ -245,37 +262,116 @@ const CreateVehiclePost: React.FC = () => {
     });
   };
 
+  const handleGetPriceSuggestion = async () => {
+    // Validation
+    if (!formData.province_code) {
+      toast.warning("Vui lòng chọn tỉnh/thành phố trước!");
+      return;
+    }
+    if (!formData.brandId || !formData.modelId) {
+      toast.warning("Vui lòng chọn hãng xe và mẫu xe trước!");
+      return;
+    }
+    if (!formData.year) {
+      toast.warning("Vui lòng nhập năm sản xuất trước!");
+      return;
+    }
+    if (!formData.mileage) {
+      toast.warning("Vui lòng nhập số km đã đi trước!");
+      return;
+    }
+
+    try {
+      setLoadingPriceSuggestion(true);
+      toast.info("🤖 AI đang phân tích giá thị trường...");
+
+      // Get brand and model names
+      const selectedBrand = brands.find((b) => b.brandId === formData.brandId);
+      const selectedModel = models.find((m) => m.modelId === formData.modelId);
+
+      if (!selectedBrand || !selectedModel) {
+        toast.error("Không tìm thấy thông tin hãng xe hoặc mẫu xe!");
+        return;
+      }
+
+      const response = await PriceSuggestionService.getVehiclePriceSuggestion({
+        productType: "VEHICLE",
+        provinceCode: formData.province_code,
+        brand: selectedBrand.name,
+        model: selectedModel.name,
+        year: formData.year,
+        odoKm: formData.mileage,
+      });
+
+      setPriceSuggestion({
+        min: response.priceMinVND,
+        max: response.priceMaxVND,
+        suggested: response.suggestedPriceVND,
+        note: response.note,
+      });
+
+      // Auto-fill suggested price
+      setFormData((prev) => ({
+        ...prev,
+        ask_price: response.suggestedPriceVND,
+      }));
+
+      toast.success("✨ Đã tính toán giá đề xuất từ AI!");
+      console.log("✅ Price suggestion applied:", response);
+    } catch (error: any) {
+      console.error("❌ Error getting price suggestion:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Không thể lấy gợi ý giá. Vui lòng thử lại!";
+      toast.error(errorMessage);
+    } finally {
+      setLoadingPriceSuggestion(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    if (price >= 1000000000) {
+      return `${(price / 1000000000).toFixed(1)} tỷ`;
+    }
+    if (price >= 1000000) {
+      return `${(price / 1000000).toFixed(0)} triệu`;
+    }
+    return `${price.toLocaleString("vi-VN")} đ`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
     if (images.length < 4) {
-      alert("Vui lòng tải lên ít nhất 4 hình ảnh!");
+      toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
       return;
     }
     if (!formData.province_code || !formData.district_code || !formData.ward_code) {
-      alert("Vui lòng chọn đầy đủ thông tin địa chỉ!");
+      toast.error("Vui lòng chọn đầy đủ thông tin địa chỉ!");
       return;
     }
     if (!formData.title.trim()) {
-      alert("Vui lòng nhập tiêu đề tin đăng!");
+      toast.error("Vui lòng nhập tiêu đề tin đăng!");
       return;
     }
     if (!formData.brandId || !formData.modelId) {
-      alert("Vui lòng chọn hãng xe và mẫu xe!");
+      toast.error("Vui lòng chọn hãng xe và mẫu xe!");
       return;
     }
     if (formData.transmission.length === 0) {
-      alert("Vui lòng chọn loại hộp số!");
+      toast.error("Vui lòng chọn loại hộp số!");
       return;
     }
     if (formData.fuelType.length === 0) {
-      alert("Vui lòng chọn loại nhiên liệu!");
+      toast.error("Vui lòng chọn loại nhiên liệu!");
       return;
     }
 
     try {
       setSubmitting(true);
+      toast.info("Đang xử lý tin đăng...");
 
       const payload: CreateSalePostPayload = {
         productType: "VEHICLE",
@@ -309,8 +405,10 @@ const CreateVehiclePost: React.FC = () => {
 
       console.log("✅ Post created successfully:", response);
 
-      alert(`Đăng tin thành công! Mã tin: ${response.result.listingId}`);
-      navigate(`/ho-so/posts`);
+      toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.result.listingId}`);
+      setTimeout(() => {
+        navigate(`/ho-so/posts`);
+      }, 1500);
     } catch (error: any) {
       console.error("❌ Error creating post:", error);
       console.error("❌ Error response:", error.response?.data);
@@ -320,7 +418,7 @@ const CreateVehiclePost: React.FC = () => {
         error.message ||
         "Có lỗi xảy ra khi đăng tin. Vui lòng thử lại!";
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -359,11 +457,10 @@ const CreateVehiclePost: React.FC = () => {
               type="button"
               key={item}
               onClick={() => setFormData({ ...formData, condition: item })}
-              className={`px-5 py-1.5 text-sm font-medium rounded-full border transition ${
-                formData.condition === item
-                  ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-                  : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
-              }`}
+              className={`px-5 py-1.5 text-sm font-medium rounded-full border transition ${formData.condition === item
+                ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+                : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
+                }`}
             >
               {item}
             </button>
@@ -394,7 +491,7 @@ const CreateVehiclePost: React.FC = () => {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Mẫu xe *
@@ -411,8 +508,8 @@ const CreateVehiclePost: React.FC = () => {
                 {loadingModels
                   ? "Đang tải..."
                   : !formData.brandId
-                  ? "Chọn hãng xe trước"
-                  : "Chọn mẫu xe"}
+                    ? "Chọn hãng xe trước"
+                    : "Chọn mẫu xe"}
               </option>
               {models.map((model) => (
                 <option key={model.modelId} value={model.modelId}>
@@ -421,7 +518,7 @@ const CreateVehiclePost: React.FC = () => {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Năm sản xuất *
@@ -449,11 +546,10 @@ const CreateVehiclePost: React.FC = () => {
                 key={type}
                 type="button"
                 onClick={() => handleToggle("transmission", type)}
-                className={`px-4 py-1.5 rounded-full border text-sm transition ${
-                  formData.transmission.includes(type)
-                    ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-                    : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
-                }`}
+                className={`px-4 py-1.5 rounded-full border text-sm transition ${formData.transmission.includes(type)
+                  ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+                  : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
+                  }`}
               >
                 {type}
               </button>
@@ -472,11 +568,10 @@ const CreateVehiclePost: React.FC = () => {
                 key={fuel}
                 type="button"
                 onClick={() => handleToggle("fuelType", fuel)}
-                className={`px-4 py-1.5 rounded-full border text-sm transition ${
-                  formData.fuelType.includes(fuel)
-                    ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-                    : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
-                }`}
+                className={`px-4 py-1.5 rounded-full border text-sm transition ${formData.fuelType.includes(fuel)
+                  ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+                  : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
+                  }`}
               >
                 {fuel}
               </button>
@@ -520,6 +615,8 @@ const CreateVehiclePost: React.FC = () => {
               value={formData.licensePlate}
               onChange={handleChange}
               placeholder="30A-12345"
+              pattern="^[0-9]{2}.*"
+              title="Biển số phải bắt đầu bằng 2 chữ số"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
             />
           </div>
@@ -559,11 +656,10 @@ const CreateVehiclePost: React.FC = () => {
                         [item.key]: opt,
                       } as SalePostFormData)
                     }
-                    className={`px-4 py-1.5 rounded-full border text-sm transition ${
-                      formData[item.key as keyof SalePostFormData] === opt
-                        ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-                        : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
-                    }`}
+                    className={`px-4 py-1.5 rounded-full border text-sm transition ${formData[item.key as keyof SalePostFormData] === opt
+                      ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+                      : "bg-[#F7F9F9] border-gray-300 text-gray-700 hover:bg-[#A8E6CF]/40"
+                      }`}
                   >
                     {opt}
                   </button>
@@ -593,15 +689,95 @@ const CreateVehiclePost: React.FC = () => {
             <label className="block text-sm text-[#2C3E50] mb-1 font-medium">
               Giá bán (VNĐ) *
             </label>
-            <input
-              type="number"
-              name="ask_price"
-              value={formData.ask_price}
-              onChange={handleChange}
-              placeholder="19000000"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                name="ask_price"
+                value={formData.ask_price}
+                onChange={handleChange}
+                placeholder="19000000"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white"
+                required
+              />
+              <button
+                type="button"
+                onClick={handleGetPriceSuggestion}
+                disabled={loadingPriceSuggestion}
+                className="px-4 py-2 bg-[#2ECC71] text-white rounded-lg hover:bg-[#27AE60] transition-all flex items-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shadow-md hover:shadow-lg"
+                title="Gợi ý giá bán dựa trên AI"
+              >
+                {loadingPriceSuggestion ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Đang tính...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span className="hidden sm:inline">AI Gợi ý</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Price Suggestion Result - Redesigned */}
+            {priceSuggestion && (
+              <div className="mt-4 bg-gradient-to-br from-[#F7F9F9] to-[#E8F5E9] border-2 border-[#A8E6CF] rounded-xl p-5 shadow-md">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#2ECC71] flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-[#2C3E50] mb-3 flex items-center gap-2">
+                      🤖 Gợi ý giá từ AI
+                    </h4>
+
+                    {/* Price Range */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-white rounded-lg p-3 border border-[#A8E6CF]">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingDown className="w-4 h-4 text-[#27AE60]" />
+                          <span className="text-xs text-gray-600 font-medium">Giá thấp nhất</span>
+                        </div>
+                        <p className="text-lg font-bold text-[#2C3E50]">
+                          {formatPrice(priceSuggestion.min)}
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-[#A8E6CF]">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUp className="w-4 h-4 text-[#27AE60]" />
+                          <span className="text-xs text-gray-600 font-medium">Giá cao nhất</span>
+                        </div>
+                        <p className="text-lg font-bold text-[#2C3E50]">
+                          {formatPrice(priceSuggestion.max)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Suggested Price - Highlighted */}
+                    <div className="bg-[#2ECC71] rounded-lg p-4 mb-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="w-5 h-5 text-white" />
+                        <span className="text-sm text-white font-medium">Giá đề xuất tốt nhất</span>
+                      </div>
+                      <p className="text-2xl font-bold text-white">
+                        {formatPrice(priceSuggestion.suggested)}
+                      </p>
+                    </div>
+
+                    {/* Note */}
+                    {priceSuggestion.note && (
+                      <div className="flex items-start gap-2 bg-white/70 rounded-lg p-3">
+                        <Info className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-gray-700">
+                          {priceSuggestion.note}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -759,7 +935,7 @@ const CreateVehiclePost: React.FC = () => {
         <button
           type="submit"
           disabled={submitting}
-          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
         >
           {submitting ? (
             <>

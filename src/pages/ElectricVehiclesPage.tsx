@@ -17,7 +17,7 @@ import {
   Crown,
   Award,
 } from "lucide-react";
-import { ListPostService, type ListPostSummary, type ListPostFilters } from "../service/Vehicle/ElectricVehiclesPageService";
+import { ListPostService, type ListPostSummary, type ListPostFilters } from "../services/Vehicle/ElectricVehiclesPageService";
 
 const ElectricVehiclesPage: React.FC = () => {
   // State
@@ -61,25 +61,19 @@ const ElectricVehiclesPage: React.FC = () => {
           (post) => post.productType === "VEHICLE"
         ) || [];
 
-        // Sort by priority first, then by selected sort
-        let sorted = [...vehiclePosts].sort((a, b) => {
-          // Higher priority comes first
-          if (b.priorityLevel !== a.priorityLevel) {
-            return b.priorityLevel - a.priorityLevel;
-          }
+        // 🔍 DEBUG: Log the raw data to check priorityLevel
+        console.log("📊 Raw API Response:", response);
+        console.log("📋 Vehicle Posts:", vehiclePosts);
+        console.log("🎯 Priority Levels:", vehiclePosts.map(post => ({
+          id: post.listingId,
+          name: post.productName,
+          priority: post.priorityLevel,
+          rawPost: post
+        })));
 
-          // Then apply user-selected sort
-          if (sortBy === "price-asc") {
-            return a.askPrice - b.askPrice;
-          } else if (sortBy === "price-desc") {
-            return b.askPrice - a.askPrice;
-          }
-          return 0;
-        });
-
-        setPosts(sorted);
+        setPosts(vehiclePosts);
         setTotalPages(response.totalPages || 0);
-        setTotalElements(sorted.length);
+        setTotalElements(vehiclePosts.length);
       } catch (error: any) {
         console.error("❌ Error loading posts:", error);
         setError("Không thể tải danh sách xe điện");
@@ -89,29 +83,49 @@ const ElectricVehiclesPage: React.FC = () => {
     };
 
     loadPosts();
-  }, [currentPage, pageSize, sortBy]);
+  }, [currentPage, pageSize]);
 
-  // Search and filter
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch = searchTerm
-      ? post.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.address?.toLowerCase().includes(searchTerm.toLowerCase())
-      : true;
+  // Search, filter AND sort (combined logic)
+  const filteredPosts = posts
+    .filter((post) => {
+      const matchesSearch = searchTerm
+        ? post.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.address?.toLowerCase().includes(searchTerm.toLowerCase())
+        : true;
 
-    const matchesProvince = provinceSearch
-      ? post.address?.toLowerCase().includes(provinceSearch.toLowerCase()) ||
-      post.provinceCode?.toString().includes(provinceSearch)
-      : true;
+      const matchesProvince = provinceSearch
+        ? post.address?.toLowerCase().includes(provinceSearch.toLowerCase()) ||
+        post.provinceCode?.toString().includes(provinceSearch)
+        : true;
 
-    const matchesPrice =
-      post.askPrice >= priceRange[0] && post.askPrice <= priceRange[1];
+      const matchesPrice =
+        post.askPrice >= priceRange[0] && post.askPrice <= priceRange[1];
 
-    const matchesPriority =
-      selectedPriority.length === 0 ||
-      selectedPriority.includes(post.priorityLevel || 1);
+      const matchesPriority =
+        selectedPriority.length === 0 ||
+        selectedPriority.includes(post.priorityLevel || 1);
 
-    return matchesSearch && matchesProvince && matchesPrice && matchesPriority;
-  });
+      return matchesSearch && matchesProvince && matchesPrice && matchesPriority;
+    })
+    .sort((a, b) => {
+      // ALWAYS sort by priority first (higher priority = shown first)
+      if (b.priorityLevel !== a.priorityLevel) {
+        return (b.priorityLevel || 1) - (a.priorityLevel || 1);
+      }
+
+      // Then apply user-selected sort as secondary sorting
+      switch (sortBy) {
+        case "price-asc":
+          return a.askPrice - b.askPrice;
+        case "price-desc":
+          return b.askPrice - a.askPrice;
+        case "oldest":
+          return new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime();
+        case "newest":
+        default:
+          return new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime();
+      }
+    });
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -139,7 +153,7 @@ const ElectricVehiclesPage: React.FC = () => {
             icon: Crown,
             label: "PREMIUM",
           },
-          card: "border-4 border-yellow-400 shadow-2xl shadow-yellow-200/50",
+          card: "border-4 border-yellow-400 shadow-2xl shadow-yellow-200/50 transform hover:scale-105",
           overlay: "bg-gradient-to-t from-yellow-500/20 to-transparent",
           ring: "ring-4 ring-yellow-400/50",
         };
@@ -151,7 +165,7 @@ const ElectricVehiclesPage: React.FC = () => {
             icon: Award,
             label: "STANDARD",
           },
-          card: "border-3 border-blue-400 shadow-xl shadow-blue-200/50",
+          card: "border-3 border-blue-400 shadow-xl shadow-blue-200/50 transform hover:scale-102",
           overlay: "bg-gradient-to-t from-blue-500/10 to-transparent",
           ring: "ring-2 ring-blue-400/50",
         };
@@ -161,9 +175,9 @@ const ElectricVehiclesPage: React.FC = () => {
             bg: "bg-gray-600",
             text: "text-white",
             icon: Star,
-            label: "HOT",
+            label: "NORMAL",
           },
-          card: "border-2 border-transparent",
+          card: "border-2 border-gray-200",
           overlay: "",
           ring: "",
         };
@@ -236,6 +250,27 @@ const ElectricVehiclesPage: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {/* Priority Info Banner */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 mt-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="font-semibold text-gray-700">🏆 Tin đăng được ưu tiên theo gói:</span>
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-yellow-500" />
+                <span className="text-sm font-medium text-gray-600">Premium (Cao nhất)</span>
+              </div>
+              <span className="text-gray-400">→</span>
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-blue-500" />
+                <span className="text-sm font-medium text-gray-600">Standard</span>
+              </div>
+              <span className="text-gray-400">→</span>
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-gray-500" />
+                <span className="text-sm font-medium text-gray-600">Normal</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Search & Filters Bar */}
@@ -277,16 +312,16 @@ const ElectricVehiclesPage: React.FC = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer"
                 >
-                  <option value="newest">📅 Mới nhất</option>
-                  <option value="oldest">📅 Cũ nhất</option>
-                  <option value="price-asc">💰 Giá thấp → cao</option>
-                  <option value="price-desc">💰 Giá cao → thấp</option>
+                  <option value="newest">📅 Mới nhất (sau khi ưu tiên)</option>
+                  <option value="oldest">📅 Cũ nhất (sau khi ưu tiên)</option>
+                  <option value="price-asc">💰 Giá thấp → cao (sau khi ưu tiên)</option>
+                  <option value="price-desc">💰 Giá cao → thấp (sau khi ưu tiên)</option>
                 </select>
               </div>
 
               {/* Priority Filter Chips */}
               <div className="flex-1 flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-gray-600">Ưu tiên:</span>
+                <span className="text-sm font-medium text-gray-600">Lọc theo ưu tiên:</span>
                 <button
                   onClick={() => togglePriority(3)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedPriority.includes(3)
@@ -443,10 +478,15 @@ const ElectricVehiclesPage: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <p className="text-gray-600">
             Hiển thị <span className="font-semibold text-gray-900">{filteredPosts.length}</span> kết quả
+            {selectedPriority.length > 0 && (
+              <span className="ml-2 text-sm text-blue-600">
+                (đã lọc theo ưu tiên: {selectedPriority.map(p => p === 3 ? "Premium" : p === 2 ? "Standard" : "Normal").join(", ")})
+              </span>
+            )}
           </p>
         </div>
 
-        {/* Vehicle Grid/List */}
+        {/* Vehicle Grid/List - rest remains the same */}
         {filteredPosts.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -484,7 +524,7 @@ const ElectricVehiclesPage: React.FC = () => {
                     <Link
                       key={post.listingId}
                       to={`/xe-dien/${post.listingId}`}
-                      className={`group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden hover:border-blue-500 ${priorityStyle.card} ${priorityStyle.ring}`}
+                      className={`group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden ${priorityStyle.card} ${priorityStyle.ring}`}
                     >
                       {/* Image */}
                       <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
@@ -548,7 +588,7 @@ const ElectricVehiclesPage: React.FC = () => {
                     <Link
                       key={post.listingId}
                       to={`/xe-dien/${post.listingId}`}
-                      className={`group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden hover:border-blue-500 flex ${priorityStyle.card} ${priorityStyle.ring}`}
+                      className={`group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex ${priorityStyle.card} ${priorityStyle.ring}`}
                     >
                       {/* Image */}
                       <div className="w-64 flex-shrink-0 bg-gray-100 overflow-hidden relative">

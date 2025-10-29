@@ -31,8 +31,28 @@ export interface CreateSalePostPayload {
   districtCode: number;
   wardCode: number;
   street: string;
-  vehicle?: VehiclePostData;
-  battery?: BatteryPostData;
+  priorityLevel?: number;
+  vehicle?: {
+    modelId: number;
+    year: number;
+    odoKm: number;
+    vin: string;
+    transmission: string;
+    fuelType: string;
+    origin: string;
+    bodyStyle: string;
+    seatCount: number;
+    color: string;
+    accessories: boolean;
+    registration: boolean;
+  };
+  battery?: {
+    modelId: number;
+    chemistryName: string;
+    capacityKwh: number;
+    sohPercent: number;
+    cycleCount: number;
+  };
 }
 
 export interface MediaResponse {
