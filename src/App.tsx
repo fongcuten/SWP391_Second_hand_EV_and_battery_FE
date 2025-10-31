@@ -28,6 +28,7 @@ import SupportPage from "./pages/SupportPage";
 import ChatPage from "./pages/ChatPage";
 import SubscriptionsPlan from "./pages/SubscriptionPlan";
 import PaymentResult from "./pages/Payment/PaymentResult";
+import AdminPage from "./pages/Admin/AdminPage";
 import LocationTest from "./components/LocationTest";
 
 function App() {
@@ -95,21 +96,17 @@ function App() {
                   path="/admin"
                   element={
                     <ProtectedRoute requiredRole="admin">
-                      <div className="text-center py-20">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                          Quản trị hệ thống
-                        </h1>
-                        <p className="text-gray-600 mt-2">
-                          Chào mừng quản trị viên!
-                        </p>
-                      </div>
+                      <AdminPage />
                     </ProtectedRoute>
                   }
                 />
 
                 {/* ✅ Electric Vehicles */}
                 <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
-                <Route path="/xe-dien/:id" element={<ElectricVehicleDetailPage />} />
+                <Route
+                  path="/xe-dien/:id"
+                  element={<ElectricVehicleDetailPage />}
+                />
 
                 <Route path="/chat" element={<ChatPage />} />
                 {/* Battery Pages */}

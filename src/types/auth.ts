@@ -32,7 +32,7 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   user: User;
-  token: string;
+  token: string | null;
   refreshToken?: string;
 }
 
