@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Zap, AlertCircle, Crown } from "lucide-react";
+import { Zap, AlertCircle, Crown, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { AnimatedSection } from "../components/ui/AnimatedSection";
 import api from "../config/axios";
 import { useAuth } from "../contexts/AuthContext";
 
-type Plan = {
+// ===== TYPES =====
+
+interface Plan {
     name: string;
     description: string;
     price: number;
@@ -13,92 +16,160 @@ type Plan = {
     currency: string;
     maxPosts: number;
     priorityLevel: number;
-};
+}
 
-export const SubscriptionsPlan = () => {
+// ===== MAIN COMPONENT =====
+
+export const SubscriptionsPlan: React.FC = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    // State
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+    const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
-    const { user } = useAuth();
-    const navigate = useNavigate();
+    // ===== DATA LOADING =====
 
     useEffect(() => {
-        const fetchPlans = async () => {
-            try {
-                const response = await api.get("/plans", { skipAuth: true });
-                const data = response.data?.result;
-                console.log("Fetched plans:", data);
-                if (Array.isArray(data)) {
-                    setPlans(data);
-                } else {
-                    console.error("Unexpected API structure:", response.data);
-                    setPlans([]);
-                }
-            } catch (err) {
-                console.error("Error fetching plans:", err);
-                setError("Không thể tải gói đăng ký. Vui lòng thử lại sau.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchPlans();
     }, []);
 
-    // ✅ Handle button click
+    const fetchPlans = async () => {
+        setLoading(true);
+        setError("");
+
+        try {
+            const response = await api.get("/plans", { skipAuth: true });
+            const data = response.data?.result;
+
+            if (!Array.isArray(data)) {
+                throw new Error("Invalid API response format");
+            }
+
+            setPlans(data);
+        } catch (err) {
+            console.error("❌ Error fetching plans:", err);
+            setError("Không thể tải gói đăng ký. Vui lòng thử lại sau.");
+            toast.error("Không thể tải danh sách gói đăng ký!");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ===== HANDLERS =====
+
     const handleSubscribe = async (planName: string) => {
+        // Check authentication
         if (!user) {
             navigate("/dang-nhap", { state: { from: "/ke-hoach" } });
             return;
         }
 
+        setProcessingPlan(planName);
+
         try {
-            setLoadingPlan(planName);
-
-            // Call checkout endpoint (axios interceptor will handle auth token)
-            const response = await api.post("/users/me/plan/checkout", {
-                planName
-            });
-
+            const response = await api.post("/users/me/plan/checkout", { planName });
             const checkoutUrl = response.data?.result?.checkoutUrl;
+
             if (!checkoutUrl) {
-                alert("Không nhận được URL thanh toán. Vui lòng thử lại.");
+                toast.error("Không nhận được URL thanh toán. Vui lòng thử lại.");
                 return;
             }
 
-            // Redirect to Stripe Checkout
+            // Redirect to payment
             window.location.replace(checkoutUrl);
-
         } catch (error: any) {
-            console.error("Checkout error:", error);
-            console.error("Error response:", error.response?.data);
+            console.error("❌ Checkout error:", error);
 
+            // Handle specific errors
             if (error.response?.status === 401) {
-                alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+                toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
                 localStorage.removeItem("auth_token");
                 navigate("/dang-nhap");
             } else {
                 const errorMsg = error.response?.data?.message || "Lỗi hệ thống, vui lòng thử lại sau.";
-                alert(errorMsg);
+                toast.error(errorMsg);
             }
         } finally {
-            setLoadingPlan(null);
+            setProcessingPlan(null);
         }
     };
 
+    // ===== UTILITIES =====
 
+    const isPremiumPlan = (planName: string) => planName.toLowerCase().includes("premium");
+
+    const getGridCols = () => {
+        switch (plans.length) {
+            case 1: return "grid-cols-1";
+            case 2: return "md:grid-cols-2";
+            case 3: return "md:grid-cols-3";
+            default: return "md:grid-cols-4";
+        }
+    };
+
+    const getPlanBadge = (plan: Plan) => {
+        if (isPremiumPlan(plan.name)) {
+            return (
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1 bg-[#2ECC71] text-white font-semibold text-sm rounded-full shadow-md">
+                    <Crown className="w-4 h-4 text-yellow-300" />
+                    Cao Cấp Nhất
+                </div>
+            );
+        }
+
+        if (plan.priorityLevel >= 2) {
+            return (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#2ECC71] text-white font-semibold text-sm rounded-full shadow-md">
+                    Phổ Biến
+                </div>
+            );
+        }
+
+        return null;
+    };
+
+    const getPlanCardClass = (plan: Plan) => {
+        const isPremium = isPremiumPlan(plan.name);
+        const baseClass = "relative rounded-2xl p-8 border transition-all duration-300 hover:-translate-y-2";
+
+        return isPremium
+            ? `${baseClass} bg-gradient-to-br from-[#2ECC71]/20 to-[#A8E6CF]/40 border-[#2ECC71] shadow-[0_0_30px_rgba(46,204,113,0.3)] scale-105`
+            : `${baseClass} bg-white border-gray-100 hover:border-[#2ECC71]/40 shadow-lg`;
+    };
+
+    const getButtonClass = (plan: Plan) => {
+        const isPremium = isPremiumPlan(plan.name);
+        const baseClass = "block w-full text-center py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
+        return isPremium
+            ? `${baseClass} bg-[#2ECC71] text-white hover:bg-[#27AE60] active:scale-95`
+            : `${baseClass} bg-[#F7F9F9] text-[#2C3E50] border border-[#A8E6CF] hover:bg-[#A8E6CF]/60 active:scale-95`;
+    };
+
+    const formatMaxPosts = (maxPosts: number) =>
+        maxPosts === 9999 ? "Không giới hạn" : maxPosts.toLocaleString("vi-VN");
+
+    const getButtonText = (plan: Plan, isProcessing: boolean) => {
+        if (isProcessing) return "Đang xử lý...";
+        if (plan.price > 0) return "Nâng cấp ngay";
+        return "Bắt đầu miễn phí";
+    };
+
+    // ===== RENDER =====
 
     return (
-        <section className="bg-gradient-to-br from-[#A8E6CF]/40 to-[#F7F9F9] py-20 relative overflow-hidden">
-            {/* Decorative floating glows */}
-            <div className="absolute top-0 left-0 w-72 h-72 bg-[#2ECC71]/20 blur-3xl rounded-full animate-pulse"></div>
-            <div className="absolute bottom-0 right-0 w-72 h-72 bg-[#2C3E50]/10 blur-3xl rounded-full animate-pulse delay-1000"></div>
+        <section className="bg-gradient-to-br from-[#A8E6CF]/40 to-[#F7F9F9] py-20 relative overflow-hidden min-h-screen">
+            {/* Decorative Background */}
+            <div className="absolute top-0 left-0 w-72 h-72 bg-[#2ECC71]/20 blur-3xl rounded-full animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-72 h-72 bg-[#2C3E50]/10 blur-3xl rounded-full animate-pulse" style={{ animationDelay: "1s" }} />
 
             <AnimatedSection animation="fadeUp" delay={200}>
                 <div className="max-w-6xl mx-auto px-6 relative z-10">
-                    {/* Section Header */}
+
+                    {/* Header */}
                     <div className="text-center mb-16">
                         <h1 className="text-4xl md:text-5xl font-extrabold text-[#2C3E50] mb-4">
                             Chọn Gói Phù Hợp Cho Bạn
@@ -108,85 +179,84 @@ export const SubscriptionsPlan = () => {
                         </p>
                     </div>
 
-                    {/* Loading / Error States */}
+                    {/* Content */}
                     {loading ? (
-                        <div className="text-center text-[#2C3E50]/70 text-lg">Đang tải gói...</div>
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Loader2 className="w-12 h-12 text-[#2ECC71] animate-spin mb-4" />
+                            <p className="text-[#2C3E50]/70 text-lg">Đang tải gói...</p>
+                        </div>
                     ) : error ? (
-                        <div className="text-center text-red-600 flex items-center justify-center gap-2">
-                            <AlertCircle className="w-5 h-5" /> {error}
+                        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertCircle className="w-8 h-8 text-red-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-[#2C3E50] mb-2">Có lỗi xảy ra</h3>
+                            <p className="text-gray-600 mb-6">{error}</p>
+                            <button
+                                onClick={fetchPlans}
+                                className="px-6 py-3 bg-[#2ECC71] text-white rounded-xl hover:bg-[#27AE60] transition font-medium"
+                            >
+                                Thử lại
+                            </button>
+                        </div>
+                    ) : plans.length === 0 ? (
+                        <div className="text-center text-[#2C3E50]/70 text-lg py-20">
+                            Hiện không có gói đăng ký nào.
                         </div>
                     ) : (
-                        <div className={`grid md:grid-cols-${plans.length} gap-10`}>
-                            {plans.map((plan, index) => {
-                                const isPremium = plan.name.toLowerCase().includes("premium");
+                        <div className={`grid ${getGridCols()} gap-10`}>
+                            {plans.map((plan, index) => (
+                                <AnimatedSection key={plan.name} animation="fadeUp" delay={index * 200}>
+                                    <div className={getPlanCardClass(plan)}>
+                                        {/* Badge */}
+                                        {getPlanBadge(plan)}
 
-                                return (
-                                    <AnimatedSection key={index} animation="fadeUp" delay={index * 200}>
-                                        <div
-                                            className={`relative rounded-2xl p-8 border transition-all duration-300 hover:-translate-y-2 
-                        ${isPremium
-                                                    ? "bg-gradient-to-br from-[#2ECC71]/20 to-[#A8E6CF]/40 border-[#2ECC71] shadow-[0_0_30px_rgba(46,204,113,0.3)] scale-105"
-                                                    : "bg-white border-gray-100 hover:border-[#2ECC71]/40 shadow-lg"
-                                                }`}
-                                        >
-                                            {isPremium ? (
-                                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1 bg-[#2ECC71] text-white font-semibold text-sm rounded-full shadow-md">
-                                                    <Crown className="w-4 h-4 text-yellow-300" />
-                                                    Cao Cấp Nhất
-                                                </div>
-                                            ) : plan.priorityLevel >= 2 ? (
-                                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#2ECC71] text-white font-semibold text-sm rounded-full shadow-md">
-                                                    Phổ Biến
-                                                </div>
-                                            ) : null}
-
-                                            {/* Plan Header */}
-                                            <div className="text-center mb-6">
-                                                <h3 className="text-2xl font-bold text-[#2C3E50] mb-3">
-                                                    {plan.name}
-                                                </h3>
-                                                <div className="flex items-baseline justify-center gap-2">
-                                                    <span className={`text-4xl font-extrabold ${isPremium ? "text-[#2ECC71]" : "text-[#2C3E50]"}`}>
-                                                        {plan.price.toLocaleString("vi-VN")}
-                                                    </span>
-                                                    <span className="text-gray-500 font-medium">
-                                                        {plan.currency} / {plan.durationDays} ngày
-                                                    </span>
-                                                </div>
-                                                <p className="mt-3 text-[#2C3E50]/70">{plan.description}</p>
+                                        {/* Header */}
+                                        <div className="text-center mb-6">
+                                            <h3 className="text-2xl font-bold text-[#2C3E50] mb-3">
+                                                {plan.name}
+                                            </h3>
+                                            <div className="flex items-baseline justify-center gap-2">
+                                                <span className={`text-4xl font-extrabold ${isPremiumPlan(plan.name) ? "text-[#2ECC71]" : "text-[#2C3E50]"}`}>
+                                                    {plan.price.toLocaleString("vi-VN")}
+                                                </span>
+                                                <span className="text-gray-500 font-medium">
+                                                    {plan.currency} / {plan.durationDays} ngày
+                                                </span>
                                             </div>
-
-                                            {/* Plan Info */}
-                                            <div className="text-sm text-[#2C3E50]/70 mb-6 space-y-1">
-                                                <p>
-                                                    <strong>Bài đăng tối đa:</strong>{" "}
-                                                    {plan.maxPosts === 9999 ? "Không giới hạn" : plan.maxPosts}
-                                                </p>
-                                                <p>
-                                                    <strong>Cấp độ ưu tiên:</strong> {plan.priorityLevel}
-                                                </p>
-                                            </div>
-
-                                            {/* CTA Button (logic added here) */}
-                                            <button
-                                                onClick={() => handleSubscribe(plan.name)}
-                                                disabled={loadingPlan === plan.name}
-                                                className={`block w-full text-center py-3 rounded-lg font-semibold transition-colors 
-                          ${isPremium
-                                                        ? "bg-[#2ECC71] text-white hover:bg-[#29b765]"
-                                                        : "bg-[#F7F9F9] text-[#2C3E50] border border-[#A8E6CF] hover:bg-[#A8E6CF]/60"
-                                                    }`}
-                                            >
-                                                {loadingPlan === plan.name
-                                                    ? "Đang xử lý..."
-                                                    : plan.price > 0
-                                                        ? "Nâng cấp ngay"
-                                                        : "Bắt đầu miễn phí"}
-                                            </button>
+                                            <p className="mt-3 text-[#2C3E50]/70">{plan.description}</p>
                                         </div>
-                                    </AnimatedSection>
-                                );
-                            })}
+
+                                        {/* Details */}
+                                        <div className="space-y-3 mb-6 text-sm text-[#2C3E50]/80">
+                                            <div className="flex items-center justify-between p-3 bg-[#F7F9F9] rounded-lg">
+                                                <span className="font-medium">Bài đăng tối đa:</span>
+                                                <span className="font-bold text-[#2ECC71]">{formatMaxPosts(plan.maxPosts)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-[#F7F9F9] rounded-lg">
+                                                <span className="font-medium">Cấp độ ưu tiên:</span>
+                                                <span className="font-bold text-[#2ECC71]">{plan.priorityLevel}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* CTA Button */}
+                                        <button
+                                            onClick={() => handleSubscribe(plan.name)}
+                                            disabled={processingPlan === plan.name}
+                                            className={getButtonClass(plan)}
+                                        >
+                                            {processingPlan === plan.name ? (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    Đang xử lý...
+                                                </span>
+                                            ) : (
+                                                getButtonText(plan, false)
+                                            )}
+                                        </button>
+                                    </div>
+                                </AnimatedSection>
+                            ))}
                         </div>
                     )}
 

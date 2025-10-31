@@ -1,77 +1,194 @@
-import React, { useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { MoreVertical, EyeOff, ShoppingCart, X, Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  ShoppingCart,
+  X,
+  Upload,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Calendar,
+  MapPin,
+  Tag,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import { UserPostService, type SalePost } from "../../services/User/UserPostService";
+import { locationService, type Province, type District, type Ward } from "../../services/locationService";
 
-type ContextType = {
-  user?: any;
-  posts?: any[];
-  activeTab?: string;
-  setActiveTab?: (tab: string) => void;
-};
+// ===== TYPES =====
 
-const orderTabs = [
-  { id: "is_posted", label: "Tin đã đăng" },
-  { id: "out_dated", label: "Tin hết hạn" },
+type TabId = "all" | "active" | "expired" | "pending";
+type InspectionType = "system" | "manual" | "";
+
+interface OrderTab {
+  id: TabId;
+  label: string;
+}
+
+// ===== CONSTANTS =====
+
+const ORDER_TABS: OrderTab[] = [
+  { id: "all", label: "Tất cả tin" },
+  { id: "active", label: "Đang hiển thị" },
+  { id: "expired", label: "Hết hạn" },
+  { id: "pending", label: "Chờ duyệt" },
 ];
 
-const mockOrders = [
-  {
-    id: "ORD001",
-    title: "Xe điện VinFast KlaraS bản cao cấp, màu trắng cực đẹp",
-    location: "Quận 6, TP.HCM",
-    status: "is_posted",
-    code: "70219517",
-    service: "Chưa có",
-    expire: "Chưa có dịch vụ",
-    visibility: "Chưa hiển thị",
-    image: "https://picsum.photos/seed/evbike/200",
-  },
-  {
-    id: "ORD014",
-    title: "Điện thoại iPhone 14 Pro 128GB",
-    location: "Quận 3, TP.HCM",
-    status: "on_payment",
-    code: "70589512",
-    service: "Dịch vụ VIP",
-    expire: "20/11/2025",
-    visibility: "Đang hiển thị",
-    image: "https://picsum.photos/seed/iphone/200",
-  },
-];
+const STATUS_BADGES = {
+  ACTIVE: { text: "Đang hiển thị", color: "bg-green-500" },
+  PENDING: { text: "Chờ duyệt", color: "bg-yellow-500" },
+  EXPIRED: { text: "Hết hạn", color: "bg-red-500" },
+  REJECTED: { text: "Bị từ chối", color: "bg-gray-500" },
+} as const;
+
+// ===== MAIN COMPONENT =====
 
 export default function UserPosts() {
-  const ctx = useOutletContext<ContextType>();
-  const [activeTab, setActiveTab] = useState(orderTabs[0].id);
+  // ===== STATE =====
+  const [posts, setPosts] = useState<SalePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabId>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
-  const [inspectionType, setInspectionType] = useState<"system" | "manual" | "">("");
+  const [selectedPost, setSelectedPost] = useState<SalePost | null>(null);
+  const [inspectionType, setInspectionType] = useState<InspectionType>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const filteredOrders = mockOrders.filter((o) => o.status === activeTab);
+  // ✅ NEW: Location state for system inspection
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<number | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<number | null>(null);
+  const [selectedWard, setSelectedWard] = useState<number | null>(null);
+  const [street, setStreet] = useState("");
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
 
-  const openModal = (order: typeof mockOrders[0]) => {
-    setSelectedOrder(order);
+  // ===== EFFECTS =====
+  useEffect(() => {
+    loadPosts();
+    loadProvinces();
+  }, []);
+
+  // ✅ Load districts when province changes
+  useEffect(() => {
+    if (selectedProvince) {
+      loadDistricts(selectedProvince);
+    } else {
+      setDistricts([]);
+      setSelectedDistrict(null);
+      setWards([]);
+      setSelectedWard(null);
+    }
+  }, [selectedProvince]);
+
+  // ✅ Load wards when district changes
+  useEffect(() => {
+    if (selectedDistrict) {
+      loadWards(selectedDistrict);
+    } else {
+      setWards([]);
+      setSelectedWard(null);
+    }
+  }, [selectedDistrict]);
+
+  // ===== DATA LOADING =====
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const data = await UserPostService.getMyPosts();
+      setPosts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("❌ Error loading posts:", error);
+      toast.error("Không thể tải danh sách tin đăng!");
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProvinces = async () => {
+    setLoadingProvinces(true);
+    try {
+      const data = await locationService.getProvinces();
+      setProvinces(data);
+    } catch (error) {
+      console.error("❌ Error loading provinces:", error);
+      toast.error("Không thể tải danh sách tỉnh/thành phố");
+    } finally {
+      setLoadingProvinces(false);
+    }
+  };
+
+  const loadDistricts = async (provinceCode: number) => {
+    setLoadingDistricts(true);
+    try {
+      const data = await locationService.getDistricts(provinceCode);
+      setDistricts(data);
+    } catch (error) {
+      console.error("❌ Error loading districts:", error);
+      toast.error("Không thể tải danh sách quận/huyện");
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  const loadWards = async (districtCode: number) => {
+    setLoadingWards(true);
+    try {
+      const data = await locationService.getWards(districtCode);
+      setWards(data);
+    } catch (error) {
+      console.error("❌ Error loading wards:", error);
+      toast.error("Không thể tải danh sách phường/xã");
+    } finally {
+      setLoadingWards(false);
+    }
+  };
+
+  // ===== MODAL HANDLERS =====
+  const openModal = (post: SalePost) => {
+    setSelectedPost(post);
     setIsModalOpen(true);
     setInspectionType("");
     setUploadedFile(null);
+
+    // ✅ Pre-fill location from post
+    setSelectedProvince(post.provinceCode || null);
+    setSelectedDistrict(post.districtCode || null);
+    setSelectedWard(post.wardCode || null);
+    setStreet(post.street || "");
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedOrder(null);
+    setSelectedPost(null);
     setInspectionType("");
     setUploadedFile(null);
+
+    // ✅ Reset location
+    setSelectedProvince(null);
+    setSelectedDistrict(null);
+    setSelectedWard(null);
+    setStreet("");
+    setDistricts([]);
+    setWards([]);
   };
 
+  // ===== FILE HANDLERS =====
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type === "application/pdf") {
-        setUploadedFile(file);
-      } else {
-        alert("Vui lòng chọn file PDF");
-      }
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type === "application/pdf") {
+      setUploadedFile(file);
+    } else {
+      toast.warning("Vui lòng chọn file PDF");
     }
   };
 
@@ -79,13 +196,13 @@ export default function UserPosts() {
     e.preventDefault();
     setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf") {
-        setUploadedFile(file);
-      } else {
-        alert("Vui lòng chọn file PDF");
-      }
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (file.type === "application/pdf") {
+      setUploadedFile(file);
+    } else {
+      toast.warning("Vui lòng chọn file PDF");
     }
   };
 
@@ -98,48 +215,140 @@ export default function UserPosts() {
     setIsDragging(false);
   };
 
-  const handleSubmit = () => {
+  // ===== ACTION HANDLERS =====
+  const handleSubmit = async () => {
     if (!inspectionType) {
-      alert("Vui lòng chọn phương thức kiểm duyệt");
+      toast.warning("Vui lòng chọn phương thức kiểm duyệt");
       return;
+    }
+
+    // ✅ Validate location for system inspection
+    if (inspectionType === "system") {
+      if (!selectedProvince) {
+        toast.warning("Vui lòng chọn tỉnh/thành phố");
+        return;
+      }
+      if (!selectedDistrict) {
+        toast.warning("Vui lòng chọn quận/huyện");
+        return;
+      }
+      if (!selectedWard) {
+        toast.warning("Vui lòng chọn phường/xã");
+        return;
+      }
+      if (!street.trim()) {
+        toast.warning("Vui lòng nhập địa chỉ cụ thể");
+        return;
+      }
     }
 
     if (inspectionType === "manual" && !uploadedFile) {
-      alert("Vui lòng tải lên hồ sơ giấy tờ xe");
+      toast.warning("Vui lòng tải lên hồ sơ giấy tờ xe");
       return;
     }
 
-    // TODO: Submit to API
-    console.log("Inspection Type:", inspectionType);
-    console.log("Uploaded File:", uploadedFile);
+    if (!selectedPost) return;
 
-    alert("Gửi yêu cầu kiểm duyệt thành công!");
-    closeModal();
+    try {
+      // TODO: Replace with actual API call
+      console.log("📤 Inspection request:", {
+        type: inspectionType,
+        postId: selectedPost.listingId,
+        location: {
+          provinceCode: selectedProvince,
+          districtCode: selectedDistrict,
+          wardCode: selectedWard,
+          street: street.trim(),
+        },
+        file: uploadedFile?.name,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      toast.success("Gửi yêu cầu kiểm duyệt thành công!");
+      closeModal();
+      await loadPosts();
+    } catch (error) {
+      console.error("❌ Error submitting inspection:", error);
+      toast.error("Không thể gửi yêu cầu kiểm duyệt!");
+    }
   };
 
+  const handleDeletePost = async (listingId: number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tin đăng này?")) return;
+
+    try {
+      await UserPostService.deletePost(listingId);
+      toast.success("Xóa tin đăng thành công!");
+      await loadPosts();
+    } catch (error) {
+      console.error("❌ Error deleting post:", error);
+      toast.error("Không thể xóa tin đăng!");
+    }
+  };
+
+  // ===== UTILITIES =====
+  const getFilteredPosts = () => {
+    switch (activeTab) {
+      case "active":
+        return posts.filter(p => p.status === "ACTIVE");
+      case "expired":
+        return posts.filter(p => p.status === "EXPIRED");
+      case "pending":
+        return posts.filter(p => p.status === "PENDING");
+      default:
+        return posts;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badge = STATUS_BADGES[status as keyof typeof STATUS_BADGES] || {
+      text: status,
+      color: "bg-gray-400",
+    };
+
+    return (
+      <span className={`inline-block ${badge.color} text-white text-xs px-2 py-1 rounded-md font-medium`}>
+        {badge.text}
+      </span>
+    );
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("vi-VN");
+    } catch {
+      return "—";
+    }
+  };
+
+  const getLocationString = (post: SalePost) => {
+    const parts = [post.street, post.wardCode, post.districtCode, post.provinceCode]
+      .filter(Boolean)
+      .join(", ");
+    return parts || "Chưa cập nhật địa chỉ";
+  };
+
+  const filteredPosts = getFilteredPosts();
+
+  // ===== RENDER =====
   return (
-    <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50">
+    <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50 my-8">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-[#2ECC71] via-[#A8E6CF] to-[#F7F9F9] border-b border-[#A8E6CF]/50 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#2C3E50]">
-          Quản lý tin đăng
-        </h2>
-        <Link
-          to="/"
-          className="text-sm text-[#2C3E50] hover:text-[#2ECC71] font-medium transition-colors"
-        >
+        <h2 className="text-xl font-semibold text-[#2C3E50]">Quản lý tin đăng</h2>
+        <Link to="/" className="text-sm text-[#2C3E50] hover:text-[#2ECC71] font-medium transition-colors">
           Trang chủ
         </Link>
       </div>
 
       {/* Tabs */}
       <div className="flex justify-between bg-[#F7F9F9] border-b border-[#A8E6CF]/60 px-4 py-3 gap-2 flex-wrap">
-        {orderTabs.map((tab) => (
+        {ORDER_TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 text-center py-2 text-sm font-medium rounded-lg transition-all duration-300
-              ${activeTab === tab.id
+            className={`flex-1 text-center py-2 text-sm font-medium rounded-lg transition-all duration-300 ${activeTab === tab.id
                 ? "bg-[#2ECC71] text-white shadow-md"
                 : "text-[#2C3E50] hover:bg-[#A8E6CF]/50 hover:text-[#2ECC71]"
               }`}
@@ -151,9 +360,16 @@ export default function UserPosts() {
 
       {/* Content */}
       <div className="p-6 space-y-4">
-        {filteredOrders.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-12 h-12 text-[#2ECC71] animate-spin mb-4" />
+            <p className="text-[#2C3E50]/70 text-lg">Đang tải tin đăng...</p>
+          </div>
+        ) : filteredPosts.length === 0 ? (
           <div className="text-center py-16 text-[#2C3E50]/70">
-            <p className="text-lg font-medium mb-2">Chưa có tin ở trạng thái này.</p>
+            <p className="text-lg font-medium mb-2">
+              {activeTab === "all" ? "Bạn chưa có tin đăng nào." : "Chưa có tin ở trạng thái này."}
+            </p>
             <Link
               to="/dang-tin"
               className="inline-block mt-3 bg-[#2ECC71] hover:bg-[#29b765] text-white px-6 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors"
@@ -162,46 +378,93 @@ export default function UserPosts() {
             </Link>
           </div>
         ) : (
-          filteredOrders.map((order) => (
+          filteredPosts.map((post) => (
             <div
-              key={order.id}
+              key={post.listingId}
               className="flex flex-col sm:flex-row gap-4 border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
             >
+              {/* Image */}
               <div className="flex-shrink-0">
                 <img
-                  src={order.image}
-                  alt={order.title}
+                  src={post.coverThumb || "https://via.placeholder.com/200?text=No+Image"}
+                  alt={post.productName}
                   className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
                 />
               </div>
 
+              {/* Content */}
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-1 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
-                    {order.title}
+                    {post.productName}
                   </h4>
-                </div>
-                <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1">
-                  <span>🏙️</span> {order.location}
-                </p>
-                <p className="text-sm text-[#2C3E50]/70 mt-1">
-                  Mã tin: <span className="font-medium">{order.code}</span> –{" "}
-                  <span className="inline-block bg-red-500 text-white text-xs px-2 py-[2px] rounded-md">
-                    {order.visibility}
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                    {post.productType === "VEHICLE" ? "Xe" : "Pin"}
                   </span>
+                </div>
+
+                <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
+                  <MapPin className="w-4 h-4" />
+                  {post.address || getLocationString(post)}
                 </p>
-                <div className="mt-1 text-sm text-[#2C3E50]/70">
-                  <p>Loại dịch vụ: <span className="font-medium">{order.service}</span></p>
-                  <p>Ngày hết hạn: <span className="font-medium">{order.expire}</span></p>
+
+                <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-4 h-4" />
+                    Mã tin: <span className="font-medium">#{post.listingId}</span>
+                  </span>
+                  {post.status && getStatusBadge(post.status)}
+                  {post.priorityLevel && post.priorityLevel > 0 && (
+                    <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
+                      Ưu tiên: {post.priorityLevel}
+                    </span>
+                  )}
+                </p>
+
+                <div className="text-sm text-[#2C3E50]/70 space-y-1">
+                  {post.createdAt && (
+                    <p className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      Đăng ngày: <span className="font-medium">{formatDate(post.createdAt)}</span>
+                    </p>
+                  )}
+                  <p>
+                    Giá:{" "}
+                    <span className="font-medium text-[#2ECC71]">
+                      {post.askPrice.toLocaleString("vi-VN")} VNĐ
+                    </span>
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2 sm:mt-0">
+                {(post.status === "ACTIVE" || post.status === "PENDING") && (
+                  <Link
+                    to={`/chinh-sua-tin/${post.listingId}`}
+                    className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Sửa
+                  </Link>
+                )}
+
+                {post.productType === "VEHICLE" && (
+                  <button
+                    onClick={() => openModal(post)}
+                    className="flex items-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    Kiểm duyệt
+                  </button>
+                )}
+
                 <button
-                  onClick={() => openModal(order)}
-                  className="flex items-center gap-1 bg-[#2ECC71] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#29b765] transition-colors"
+                  onClick={() => handleDeletePost(post.listingId)}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
                 >
-                  <ShoppingCart size={16} /> Kiểm duyệt xe
+                  <Trash2 className="w-4 h-4" />
+                  Xóa
                 </button>
               </div>
             </div>
@@ -209,20 +472,22 @@ export default function UserPosts() {
         )}
       </div>
 
-      {/* Inspection Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+      {/* Modal */}
+      {isModalOpen && selectedPost && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto "
+              style={{
+                scrollbarWidth: 'none', /* Firefox */
+                msOverflowStyle: 'none', /* IE and Edge */
+              }}
+          >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30">
+            <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30 z-10">
               <div>
                 <h3 className="text-xl font-bold text-white">Kiểm duyệt xe</h3>
-                <p className="text-white/80 text-sm mt-1">Mã tin: {selectedOrder?.code}</p>
+                <p className="text-white/80 text-sm mt-1">Mã tin: #{selectedPost.listingId}</p>
               </div>
-              <button
-                onClick={closeModal}
-                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-              >
+              <button onClick={closeModal} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
                 <X size={24} />
               </button>
             </div>
@@ -233,25 +498,33 @@ export default function UserPosts() {
               <div className="bg-gradient-to-br from-[#F7F9F9] to-[#A8E6CF]/10 rounded-xl p-4 border border-[#A8E6CF]/30">
                 <div className="flex gap-4">
                   <img
-                    src={selectedOrder?.image}
-                    alt={selectedOrder?.title}
+                    src={selectedPost.coverThumb || "https://via.placeholder.com/200"}
+                    alt={selectedPost.productName}
                     className="w-24 h-24 object-cover rounded-lg border-2 border-[#2ECC71]/30"
                   />
                   <div className="flex-1">
-                    <h4 className="font-semibold text-[#2C3E50] mb-2">{selectedOrder?.title}</h4>
-                    <p className="text-sm text-[#2C3E50]/70">📍 {selectedOrder?.location}</p>
+                    <h4 className="font-semibold text-[#2C3E50] mb-2">{selectedPost.productName}</h4>
+                    <p className="text-sm text-[#2C3E50]/70">
+                      📍 {selectedPost.address || getLocationString(selectedPost)}
+                    </p>
+                    {selectedPost.vehicle && (
+                      <p className="text-sm text-[#2C3E50]/70 mt-1">
+                        {selectedPost.vehicle.brandName} {selectedPost.vehicle.modelName} -{" "}
+                        {selectedPost.vehicle.year}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Inspection Type Selection */}
+              {/* Inspection Type */}
               <div>
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-3">
                   Chọn phương thức kiểm duyệt <span className="text-red-500">*</span>
                 </label>
 
                 <div className="space-y-3">
-                  {/* System Inspection Option */}
+                  {/* System Inspection */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "system"
                         ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
@@ -264,7 +537,7 @@ export default function UserPosts() {
                       value="system"
                       checked={inspectionType === "system"}
                       onChange={(e) => setInspectionType(e.target.value as "system")}
-                      className="mt-1 w-5 h-5 text-[#2ECC71] focus:ring-[#2ECC71]"
+                      className="mt-1 w-5 h-5 text-[#2ECC71]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -273,17 +546,12 @@ export default function UserPosts() {
                         <span className="text-xs bg-[#2ECC71] text-white px-2 py-0.5 rounded-full">Nhanh</span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Hệ thống sẽ tự động kiểm tra thông tin xe dựa trên dữ liệu đã đăng ký.
-                        Thời gian xử lý: <strong>5-10 phút</strong>
+                        Hệ thống sẽ tự động kiểm tra thông tin xe. Thời gian: <strong>5-10 phút</strong>
                       </p>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-[#2ECC71]">
-                        <CheckCircle size={14} />
-                        <span>Miễn phí</span>
-                      </div>
                     </div>
                   </label>
 
-                  {/* Manual Inspection Option */}
+                  {/* Manual Inspection */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "manual"
                         ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
@@ -296,7 +564,7 @@ export default function UserPosts() {
                       value="manual"
                       checked={inspectionType === "manual"}
                       onChange={(e) => setInspectionType(e.target.value as "manual")}
-                      className="mt-1 w-5 h-5 text-[#2ECC71] focus:ring-[#2ECC71]"
+                      className="mt-1 w-5 h-5 text-[#2ECC71]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -305,23 +573,121 @@ export default function UserPosts() {
                         <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Chính xác</span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Gửi hồ sơ giấy tờ xe để đội ngũ kiểm duyệt thẩm định chi tiết.
-                        Thời gian xử lý: <strong>1-2 ngày làm việc</strong>
+                        Gửi hồ sơ để thẩm định chi tiết. Thời gian: <strong>1-2 ngày</strong>
                       </p>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-[#2C3E50]/60">
-                        <AlertCircle size={14} />
-                        <span>Yêu cầu tải lên giấy tờ xe (PDF)</span>
-                      </div>
                     </div>
                   </label>
                 </div>
               </div>
 
-              {/* File Upload Section - Only show when manual is selected */}
+              {/* ✅ NEW: Location Selection for System Inspection */}
+              {inspectionType === "system" && (
+                <div className="animate-fade-in space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">📍 Địa điểm kiểm duyệt</p>
+                    <p className="text-xs text-blue-800">
+                      Vui lòng chọn địa điểm để chúng tôi sắp xếp lịch kiểm duyệt xe tại nhà
+                    </p>
+                  </div>
+
+                  {/* Province */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">
+                      Tỉnh/Thành phố <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedProvince || ""}
+                      onChange={(e) => setSelectedProvince(Number(e.target.value) || null)}
+                      disabled={loadingProvinces}
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all"
+                    >
+                      <option value="">
+                        {loadingProvinces ? "Đang tải..." : "Chọn tỉnh/thành phố"}
+                      </option>
+                      {provinces.map((province) => (
+                        <option key={province.code} value={province.code}>
+                          {province.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* District */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">
+                      Quận/Huyện <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedDistrict || ""}
+                      onChange={(e) => setSelectedDistrict(Number(e.target.value) || null)}
+                      disabled={!selectedProvince || loadingDistricts}
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!selectedProvince
+                          ? "Chọn tỉnh/thành phố trước"
+                          : loadingDistricts
+                            ? "Đang tải..."
+                            : "Chọn quận/huyện"}
+                      </option>
+                      {districts.map((district) => (
+                        <option key={district.code} value={district.code}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ward */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">
+                      Phường/Xã <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedWard || ""}
+                      onChange={(e) => setSelectedWard(Number(e.target.value) || null)}
+                      disabled={!selectedDistrict || loadingWards}
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!selectedDistrict
+                          ? "Chọn quận/huyện trước"
+                          : loadingWards
+                            ? "Đang tải..."
+                            : "Chọn phường/xã"}
+                      </option>
+                      {wards.map((ward) => (
+                        <option key={ward.code} value={ward.code}>
+                          {ward.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Street */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">
+                      Địa chỉ cụ thể <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      placeholder="Ví dụ: Số 123, Đường ABC..."
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all"
+                    />
+                    <p className="text-xs text-[#2C3E50]/60 mt-1">
+                      💡 Nhập số nhà, tên đường để chúng tôi dễ dàng tìm đến
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* File Upload for Manual Inspection */}
               {inspectionType === "manual" && (
                 <div className="animate-fade-in">
                   <label className="block text-sm font-semibold text-[#2C3E50] mb-3">
-                    Tải lên hồ sơ giấy tờ xe <span className="text-red-500">*</span>
+                    Tải lên hồ sơ <span className="text-red-500">*</span>
                   </label>
 
                   <div
@@ -332,20 +698,16 @@ export default function UserPosts() {
                         ? "border-[#2ECC71] bg-[#2ECC71]/5 scale-105"
                         : uploadedFile
                           ? "border-[#2ECC71] bg-[#2ECC71]/5"
-                          : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
+                          : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/50"
                       }`}
                   >
                     {uploadedFile ? (
                       <div className="space-y-3">
-                        <div className="w-16 h-16 mx-auto bg-[#2ECC71]/10 rounded-full flex items-center justify-center">
-                          <FileText className="w-8 h-8 text-[#2ECC71]" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#2C3E50]">{uploadedFile.name}</p>
-                          <p className="text-sm text-[#2C3E50]/60">
-                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
+                        <FileText className="w-16 h-16 mx-auto text-[#2ECC71]" />
+                        <p className="font-semibold text-[#2C3E50]">{uploadedFile.name}</p>
+                        <p className="text-sm text-[#2C3E50]/60">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
                         <button
                           onClick={() => setUploadedFile(null)}
                           className="text-sm text-red-500 hover:text-red-600 font-medium"
@@ -355,29 +717,17 @@ export default function UserPosts() {
                       </div>
                     ) : (
                       <>
-                        <div className="w-16 h-16 mx-auto bg-[#A8E6CF]/20 rounded-full flex items-center justify-center mb-4">
-                          <Upload className="w-8 h-8 text-[#2ECC71]" />
-                        </div>
-                        <p className="text-[#2C3E50] font-medium mb-2">
-                          Kéo thả file PDF vào đây hoặc
-                        </p>
+                        <Upload className="w-16 h-16 mx-auto text-[#2ECC71] mb-4" />
+                        <p className="text-[#2C3E50] font-medium mb-2">Kéo thả file PDF vào đây hoặc</p>
                         <label className="inline-block bg-[#2ECC71] hover:bg-[#29b765] text-white px-6 py-2 rounded-lg cursor-pointer transition-colors font-medium">
                           Chọn file
-                          <input
-                            type="file"
-                            accept=".pdf"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
+                          <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
                         </label>
-                        <p className="text-xs text-[#2C3E50]/60 mt-3">
-                          Chỉ chấp nhận file PDF, tối đa 10MB
-                        </p>
+                        <p className="text-xs text-[#2C3E50]/60 mt-3">Chỉ chấp nhận PDF, tối đa 10MB</p>
                       </>
                     )}
                   </div>
 
-                  {/* Required Documents Info */}
                   <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm font-semibold text-blue-900 mb-2">📋 Giấy tờ cần thiết:</p>
                     <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
@@ -392,7 +742,7 @@ export default function UserPosts() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-[#F7F9F9] px-6 py-4 border-t border-[#A8E6CF]/30 flex gap-3">
+            <div className="sticky bottom-0 bg-[#F7F9F9] px-6 py-4 border-t border-[#A8E6CF]/30 flex gap-3 z-10">
               <button
                 onClick={closeModal}
                 className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors"
@@ -401,10 +751,14 @@ export default function UserPosts() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!inspectionType || (inspectionType === "manual" && !uploadedFile)}
-                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                disabled={
+                  !inspectionType ||
+                  (inspectionType === "system" && (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim())) ||
+                  (inspectionType === "manual" && !uploadedFile)
+                }
+                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
               >
-                Gửi yêu cầu kiểm duyệt
+                Gửi yêu cầu
               </button>
             </div>
           </div>
