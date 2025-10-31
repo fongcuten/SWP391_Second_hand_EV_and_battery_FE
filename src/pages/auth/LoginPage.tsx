@@ -18,7 +18,8 @@ import { setToken } from "../../services/localStorageService";
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, error, isAuthenticated, clearError, login } = useAuth();
+  const { isLoading, error, isAuthenticated, clearError, login, user } =
+    useAuth();
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -35,12 +36,16 @@ const LoginPage: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from =
-        (location.state as { from?: { pathname: string } })?.from?.pathname ||
-        "/";
-      navigate(from, { replace: true });
+      const stateFrom = (location.state as { from?: { pathname: string } })
+        ?.from?.pathname;
+      // Admin luôn vào trang quản trị
+      if (user?.role === "admin") {
+        navigate("/admin", { replace: true });
+        return;
+      }
+      navigate(stateFrom || "/", { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, user, navigate, location]);
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -104,7 +109,6 @@ const LoginPage: React.FC = () => {
         email: formData.username, // API sử dụng username nhưng AuthContext expect email
         password: formData.password,
       });
-      
 
       showToast("Đăng nhập thành công!", "success");
 

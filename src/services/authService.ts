@@ -96,6 +96,27 @@ export const authService = {
       }
     };
 
+    // Try to derive user id from JWT if backend doesn't return it
+    const deriveUserIdFromToken = (jwt: string): string | null => {
+      try {
+        const parts = jwt.split(".");
+        if (parts.length !== 3) return null;
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const json = atob(base64);
+        const payload = JSON.parse(json);
+        // common claims where user id might live
+        const candidate =
+          payload?.userId ??
+          payload?.uid ??
+          payload?.sub ??
+          payload?.nameid ??
+          null;
+        return candidate ? String(candidate) : null;
+      } catch {
+        return null;
+      }
+    };
+
     const backendRole = data.result?.role as string | undefined;
     const tokenRole = deriveRoleFromToken(token);
 
@@ -106,7 +127,10 @@ export const authService = {
     ) as User["role"];
 
     const user: User = {
-      id: data.result?.userId || "1",
+      // Prefer backend userId; then try token; finally fallback to email (stable per user)
+      id: String(
+        data.result?.userId ?? deriveUserIdFromToken(token) ?? loginData.email
+      ),
       email: loginData.email,
       fullName: data.result?.fullName || loginData.email,
       phoneNumber: data.result?.phoneNumber || "",
@@ -156,9 +180,12 @@ export const authService = {
     try {
       const parsed = JSON.parse(userStr) as Partial<User>;
       if (!parsed) return null;
-      const normalizedRole = (parsed.role as string | undefined)
-        ? String(parsed.role).trim()
+      const normalizedRoleStr = (parsed.role as string | undefined)
+        ? String(parsed.role).trim().toLowerCase()
         : "user";
+      const normalizedRole = (
+        normalizedRoleStr === "admin" ? "admin" : "user"
+      ) as User["role"];
       const normalizedUser: User = {
         id: String(parsed.id || ""),
         email: String(parsed.email || ""),

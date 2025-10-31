@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -31,132 +36,135 @@ import PaymentResult from "./pages/Payment/PaymentResult";
 import AdminPage from "./pages/Admin/AdminPage";
 import LocationTest from "./components/LocationTest";
 
+const AppShell: React.FC = () => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {!isAdminRoute && <Header />}
+      <main className="flex-1">
+        <Routes>
+          {/* ✅ Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/dang-nhap" element={<LoginPage />} />
+          <Route path="/dang-ky" element={<RegisterPage />} />
+
+          {/* ✅ Protected User Routes */}
+          <Route
+            path="/ho-so"
+            element={
+              <ProtectedRoute>
+                <UserHome />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="posts" element={<UserPosts />} />
+            <Route path="saved-post" element={<SavedPostsPage />} />
+            <Route path="info" element={<UserInfoForm />} />
+            <Route path="change-password" element={<ChangePasswordPage />} />
+            <Route path="topup" element={<PaymentPage />} />
+          </Route>
+
+          {/* Favorites and Notifications */}
+          <Route
+            path="/yeu-thich"
+            element={
+              <ProtectedRoute>
+                <FavoritesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/thong-bao"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="dang-tin"
+            element={
+              <ProtectedRoute>
+                <CreateEVPost />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ Admin Route */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ Electric Vehicles */}
+          <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
+          <Route path="/xe-dien/:id" element={<ElectricVehicleDetailPage />} />
+
+          <Route path="/chat" element={<ChatPage />} />
+          {/* Battery Pages */}
+          <Route path="/pin" element={<BatteriesPage />} />
+          <Route path="/pin/:id" element={<BatteryDetailPage />} />
+
+          {/* Other pages */}
+          <Route path="/so-sanh" element={<ComparePage />} />
+          <Route path="/ho-tro" element={<SupportPage />} />
+          <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
+
+          <Route
+            path="/checkout/success"
+            element={
+              <ProtectedRoute>
+                <PaymentResult />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/checkout/cancel"
+            element={
+              <ProtectedRoute>
+                <PaymentResult />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Test API Location */}
+          <Route path="/test-location" element={<LocationTest />} />
+
+          {/* ✅ 404 Fallback */}
+          <Route
+            path="*"
+            element={
+              <div className="text-center py-20">
+                <h1 className="text-4xl font-bold text-gray-600">
+                  404 - Trang không tồn tại
+                </h1>
+                <p className="text-gray-500 mt-4">
+                  Trang bạn đang tìm kiếm không tồn tại.
+                </p>
+              </div>
+            }
+          />
+        </Routes>
+      </main>
+      {!isAdminRoute && <Footer />}
+    </div>
+  );
+};
+
 function App() {
   return (
     <ToastProvider>
       <AuthProvider>
         <Router>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <main className="flex-1">
-              <Routes>
-                {/* ✅ Public Routes */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/dang-nhap" element={<LoginPage />} />
-                <Route path="/dang-ky" element={<RegisterPage />} />
-
-                {/* ✅ Protected User Routes */}
-                <Route
-                  path="/ho-so"
-                  element={
-                    <ProtectedRoute>
-                      <UserHome />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="posts" element={<UserPosts />} />
-                  <Route path="saved-post" element={<SavedPostsPage />} />
-                  <Route path="info" element={<UserInfoForm />} />
-                  <Route
-                    path="change-password"
-                    element={<ChangePasswordPage />}
-                  />
-                  <Route path="topup" element={<PaymentPage />} />
-                </Route>
-
-                {/* Favorites and Notifications */}
-                <Route
-                  path="/yeu-thich"
-                  element={
-                    <ProtectedRoute>
-                      <FavoritesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/thong-bao"
-                  element={
-                    <ProtectedRoute>
-                      <NotificationsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="dang-tin"
-                  element={
-                    <ProtectedRoute>
-                      <CreateEVPost />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* ✅ Admin Route */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* ✅ Electric Vehicles */}
-                <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
-                <Route
-                  path="/xe-dien/:id"
-                  element={<ElectricVehicleDetailPage />}
-                />
-
-                <Route path="/chat" element={<ChatPage />} />
-                {/* Battery Pages */}
-                <Route path="/pin" element={<BatteriesPage />} />
-                <Route path="/pin/:id" element={<BatteryDetailPage />} />
-
-                {/* Other pages */}
-                <Route path="/so-sanh" element={<ComparePage />} />
-                <Route path="/ho-tro" element={<SupportPage />} />
-                <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
-
-                <Route
-                  path="/checkout/success"
-                  element={
-                    <ProtectedRoute>
-                      <PaymentResult />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/checkout/cancel"
-                  element={
-                    <ProtectedRoute>
-                      <PaymentResult />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Test API Location */}
-                <Route path="/test-location" element={<LocationTest />} />
-
-                {/* ✅ 404 Fallback */}
-                <Route
-                  path="*"
-                  element={
-                    <div className="text-center py-20">
-                      <h1 className="text-4xl font-bold text-gray-600">
-                        404 - Trang không tồn tại
-                      </h1>
-                      <p className="text-gray-500 mt-4">
-                        Trang bạn đang tìm kiếm không tồn tại.
-                      </p>
-                    </div>
-                  }
-                />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
+          <AppShell />
           <ToastContainer
             position="top-right"
             autoClose={3000}
