@@ -17,6 +17,7 @@ import {
 import { toast } from "react-toastify";
 import { UserPostService, type SalePost } from "../../services/User/UserPostService";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
+import { InspectionService } from "../../services/Inspection/InspectionService"; // ✅ Import inspection service
 
 // ===== TYPES =====
 
@@ -56,6 +57,7 @@ export default function UserPosts() {
   const [inspectionType, setInspectionType] = useState<InspectionType>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [submittingInspection, setSubmittingInspection] = useState(false); // ✅ Add loading state
 
   // ✅ NEW: Location state for system inspection
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -222,22 +224,10 @@ export default function UserPosts() {
       return;
     }
 
-    // ✅ Validate location for system inspection
+    // Validate location for system inspection
     if (inspectionType === "system") {
-      if (!selectedProvince) {
-        toast.warning("Vui lòng chọn tỉnh/thành phố");
-        return;
-      }
-      if (!selectedDistrict) {
-        toast.warning("Vui lòng chọn quận/huyện");
-        return;
-      }
-      if (!selectedWard) {
-        toast.warning("Vui lòng chọn phường/xã");
-        return;
-      }
-      if (!street.trim()) {
-        toast.warning("Vui lòng nhập địa chỉ cụ thể");
+      if (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim()) {
+        toast.warning("Vui lòng điền đầy đủ thông tin địa chỉ");
         return;
       }
     }
@@ -249,28 +239,59 @@ export default function UserPosts() {
 
     if (!selectedPost) return;
 
+    setSubmittingInspection(true);
+
     try {
-      // TODO: Replace with actual API call
-      console.log("📤 Inspection request:", {
-        type: inspectionType,
-        postId: selectedPost.listingId,
-        location: {
-          provinceCode: selectedProvince,
-          districtCode: selectedDistrict,
-          wardCode: selectedWard,
-          street: street.trim(),
-        },
-        file: uploadedFile?.name,
-      });
+      // ✅ Prepare payload (same pattern as createSalePost)
+      const payload: InspectionOrderRequest = {
+        listingId: selectedPost.listingId,
+        inspectionType: inspectionType === "system" ? "SYSTEM_AUTO" : "MANUAL_DOCUMENT",
+      };
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add location fields for system inspection
+      if (inspectionType === "system") {
+        payload.provinceCode = selectedProvince!;
+        payload.districtCode = selectedDistrict!;
+        payload.wardCode = selectedWard!;
+        payload.street = street.trim();
+      }
 
-      toast.success("Gửi yêu cầu kiểm duyệt thành công!");
+      console.log("📤 Submitting inspection request:", payload);
+      console.log("📎 File:", uploadedFile?.name);
+
+      // ✅ Call API with payload and file separately
+      const response = await InspectionService.submitInspectionOrder(
+        payload,
+        inspectionType === "manual" ? uploadedFile : undefined
+      );
+
+      console.log("✅ Inspection order created:", response);
+
+      // Show success message
+      if (inspectionType === "system") {
+        toast.success(
+          `Đã tạo lịch kiểm duyệt! Chúng tôi sẽ liên hệ với bạn sớm.${response.result?.scheduledDate
+            ? ` Ngày dự kiến: ${new Date(response.result.scheduledDate).toLocaleDateString("vi-VN")}`
+            : ""
+          }`
+        );
+      } else {
+        toast.success("Hồ sơ của bạn đã được gửi! Chúng tôi sẽ xem xét trong 1-2 ngày làm việc.");
+      }
+
+      // Close modal and reload posts
       closeModal();
       await loadPosts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error submitting inspection:", error);
-      toast.error("Không thể gửi yêu cầu kiểm duyệt!");
+
+      if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Không thể gửi yêu cầu kiểm duyệt. Vui lòng thử lại!");
+      }
+    } finally {
+      setSubmittingInspection(false);
     }
   };
 
@@ -333,7 +354,7 @@ export default function UserPosts() {
 
   // ===== RENDER =====
   return (
-    <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50 my-8">
+    <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50 mb-10">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-[#2ECC71] via-[#A8E6CF] to-[#F7F9F9] border-b border-[#A8E6CF]/50 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-[#2C3E50]">Quản lý tin đăng</h2>
@@ -349,8 +370,8 @@ export default function UserPosts() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 text-center py-2 text-sm font-medium rounded-lg transition-all duration-300 ${activeTab === tab.id
-                ? "bg-[#2ECC71] text-white shadow-md"
-                : "text-[#2C3E50] hover:bg-[#A8E6CF]/50 hover:text-[#2ECC71]"
+              ? "bg-[#2ECC71] text-white shadow-md"
+              : "text-[#2C3E50] hover:bg-[#A8E6CF]/50 hover:text-[#2ECC71]"
               }`}
           >
             {tab.label}
@@ -476,10 +497,10 @@ export default function UserPosts() {
       {isModalOpen && selectedPost && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto "
-              style={{
-                scrollbarWidth: 'none', /* Firefox */
-                msOverflowStyle: 'none', /* IE and Edge */
-              }}
+            style={{
+              scrollbarWidth: 'none', /* Firefox */
+              msOverflowStyle: 'none', /* IE and Edge */
+            }}
           >
             {/* Modal Header */}
             <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30 z-10">
@@ -527,8 +548,8 @@ export default function UserPosts() {
                   {/* System Inspection */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "system"
-                        ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
-                        : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
+                      ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
+                      : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
                       }`}
                   >
                     <input
@@ -554,8 +575,8 @@ export default function UserPosts() {
                   {/* Manual Inspection */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "manual"
-                        ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
-                        : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
+                      ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
+                      : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
                       }`}
                   >
                     <input
@@ -695,10 +716,10 @@ export default function UserPosts() {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging
-                        ? "border-[#2ECC71] bg-[#2ECC71]/5 scale-105"
-                        : uploadedFile
-                          ? "border-[#2ECC71] bg-[#2ECC71]/5"
-                          : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/50"
+                      ? "border-[#2ECC71] bg-[#2ECC71]/5 scale-105"
+                      : uploadedFile
+                        ? "border-[#2ECC71] bg-[#2ECC71]/5"
+                        : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/50"
                       }`}
                   >
                     {uploadedFile ? (
@@ -745,20 +766,29 @@ export default function UserPosts() {
             <div className="sticky bottom-0 bg-[#F7F9F9] px-6 py-4 border-t border-[#A8E6CF]/30 flex gap-3 z-10">
               <button
                 onClick={closeModal}
-                className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors"
+                disabled={submittingInspection}
+                className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Hủy
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={
+                  submittingInspection ||
                   !inspectionType ||
                   (inspectionType === "system" && (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim())) ||
                   (inspectionType === "manual" && !uploadedFile)
                 }
-                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                Gửi yêu cầu
+                {submittingInspection ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  "Gửi yêu cầu"
+                )}
               </button>
             </div>
           </div>

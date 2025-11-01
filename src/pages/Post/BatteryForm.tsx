@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
-import { createSalePost, type CreateSalePostPayload } from "../../services/Post/SalePostService";
+import { PostService } from "../../services/Post/PostService"; // ✅ Changed import
 import { PriceSuggestionService } from "../../services/AI/AIPriceService";
 import { Loader2, CheckCircle, Sparkles } from "lucide-react";
 
@@ -207,8 +207,9 @@ const CreateBatteryPost: React.FC = () => {
     toast.info("Đang xử lý tin đăng...");
 
     try {
-      const payload: CreateSalePostPayload = {
-        productType: "BATTERY",
+      // ✅ Build payload matching backend expectations
+      const payload = {
+        productType: "BATTERY" as const,
         askPrice: formData.ask_price,
         title: formData.title,
         description: formData.description,
@@ -224,10 +225,13 @@ const CreateBatteryPost: React.FC = () => {
         },
       };
 
-      const response = await createSalePost(payload, images);
-      toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.result.listingId}`);
-      setTimeout(() => navigate(`/ho-so/posts`), 1500);
+      // ✅ Call the new createBatteryPost method
+      const response = await PostService.createBatteryPost(payload, images);
+
+      toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.listingId}`);
+      setTimeout(() => navigate(`/pin/${response.listingId}`), 1500);
     } catch (error: any) {
+      console.error("❌ Error creating battery post:", error);
       toast.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng tin!");
     } finally {
       setSubmitting(false);

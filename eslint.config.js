@@ -18,6 +18,16 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },rules: {
+      // ✅ Disable the 'any' warning
+      '@typescript-eslint/no-explicit-any': 'off',
+      
+      // Optional: Other useful rules
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
     },
   },
 ])

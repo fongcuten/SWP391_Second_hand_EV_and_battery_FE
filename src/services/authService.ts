@@ -67,6 +67,9 @@ export const authService = {
 
     const token = data.result?.token;
     console.log("Received token:", token);
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    console.log("Stored token in localStorage:", localStorage.getItem(AUTH_TOKEN_KEY));
+    
     if (!token) throw new Error("No token received from server");
 
     // Try to derive role from JWT if backend doesn't return role field
@@ -138,8 +141,7 @@ export const authService = {
       createdAt: new Date().toISOString(),
       isEmailVerified: true,
     };
-
-    localStorage.setItem(AUTH_TOKEN_KEY, token); // store backend JWT
+    
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
     return { user, token };

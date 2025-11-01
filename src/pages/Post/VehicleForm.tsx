@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
 import { brandService, type Brand, type Model } from "../../services/Post/BrandService";
-import { createSalePost, type CreateSalePostPayload } from "../../services/Post/SalePostService";
+import { PostService } from "../../services/Post/PostService"; // ✅ Changed import
 import { PriceSuggestionService } from "../../services/AI/AIPriceService";
 import { Loader2, CheckCircle, Sparkles } from "lucide-react";
 
@@ -37,6 +37,34 @@ interface VehicleFormData {
   district_code: number | null;
   ward_code: number | null;
   street: string;
+}
+
+// ✅ Add proper Payload interface matching your backend
+export interface VehiclePayload {
+  modelId: number;
+  year: number;
+  odoKm: number;
+  vin: string;
+  transmission: string;
+  fuelType: string;
+  origin: string;
+  bodyStyle: string;
+  seatCount: number;
+  color: string;
+  accessories: boolean;
+  registration: boolean;
+}
+
+export interface CreatePostPayload {
+  productType: "VEHICLE" | "BATTERY";
+  askPrice: number;
+  title: string;
+  description: string;
+  provinceCode: number;
+  districtCode: number;
+  wardCode: number;
+  street: string;
+  vehicle?: VehiclePayload;
 }
 
 const INITIAL_FORM_DATA: VehicleFormData = {
@@ -333,7 +361,8 @@ const CreateVehiclePost: React.FC = () => {
     toast.info("Đang xử lý tin đăng...");
 
     try {
-      const payload: CreateSalePostPayload = {
+      // ✅ Build the proper payload
+      const payload: CreatePostPayload = {
         productType: "VEHICLE",
         askPrice: formData.ask_price,
         title: formData.title,
@@ -358,10 +387,21 @@ const CreateVehiclePost: React.FC = () => {
         },
       };
 
-      const response = await createSalePost(payload, images);
-      toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.result.listingId}`);
-      setTimeout(() => navigate(`/ho-so/posts`), 1500);
+      // ✅ Call the new createPost method with proper FormData
+      const formDataToSend = new FormData();
+      formDataToSend.append("payload", JSON.stringify(payload));
+      
+      // Add images
+      images.forEach((image) => {
+        formDataToSend.append("images", image);
+      });
+
+      const response = await PostService.createVehiclePost(payload, images);
+      
+      toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.listingId}`);
+      setTimeout(() => navigate(`/xe-dien/${response.listingId}`), 1500);
     } catch (error: any) {
+      console.error("❌ Error creating post:", error);
       toast.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng tin!");
     } finally {
       setSubmitting(false);

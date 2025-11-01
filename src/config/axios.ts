@@ -1,13 +1,13 @@
 import axios from "axios";
 
+const baseURL = "http://localhost:8080/evplatform";
+
+// Authenticated API
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/evplatform",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL,
+  headers: { "Content-Type": "application/json" },
 });
 
-// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("auth_token");
@@ -15,28 +15,34 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // ✅ FIX: Remove Content-Type for FormData requests
-    if (config.data instanceof FormData) {
+     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
-      window.location.href = "/dang-nhap";
+      const hasToken = localStorage.getItem("auth_token");
+      if (hasToken) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/dang-nhap";
+      }
     }
     return Promise.reject(error);
   }
 );
+
+// Guest API
+export const guestApi = axios.create({
+  baseURL,
+  headers: { "Content-Type": "application/json" },
+});
 
 export default api;
