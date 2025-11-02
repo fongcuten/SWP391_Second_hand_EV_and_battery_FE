@@ -11,6 +11,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("auth_token");
+    console.log("Request Interceptor - Retrieved token:", token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,7 +31,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const hasToken = localStorage.getItem("auth_token");
       if (hasToken) {
-        localStorage.removeItem("token");
+        localStorage.removeItem("auth_token");
         localStorage.removeItem("user");
         window.location.href = "/dang-nhap";
       }

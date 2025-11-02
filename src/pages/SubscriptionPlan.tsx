@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { AnimatedSection } from "../components/ui/AnimatedSection";
 import api from "../config/axios";
 import { useAuth } from "../contexts/AuthContext";
+import { UserSubscriptionService } from "../services/User/UserSubscriptionService"; // ✅ Imported
 
 // ===== TYPES =====
 
@@ -41,7 +42,7 @@ export const SubscriptionsPlan: React.FC = () => {
         setError("");
 
         try {
-            const response = await api.get("/plans", { skipAuth: true });
+            const response = await api.get("/plans");
             const data = response.data?.result;
 
             if (!Array.isArray(data)) {
@@ -63,6 +64,7 @@ export const SubscriptionsPlan: React.FC = () => {
     const handleSubscribe = async (planName: string) => {
         // Check authentication
         if (!user) {
+            toast.warning("Vui lòng đăng nhập để nâng cấp gói");
             navigate("/dang-nhap", { state: { from: "/ke-hoach" } });
             return;
         }
@@ -70,7 +72,7 @@ export const SubscriptionsPlan: React.FC = () => {
         setProcessingPlan(planName);
 
         try {
-            const response = await api.post("/users/me/plan/checkout", { planName });
+             const response = await api.post("/users/me/plan/checkout", { planName });
             const checkoutUrl = response.data?.result?.checkoutUrl;
 
             if (!checkoutUrl) {
@@ -78,19 +80,24 @@ export const SubscriptionsPlan: React.FC = () => {
                 return;
             }
 
+
+
+
             // Redirect to payment
             window.location.replace(checkoutUrl);
+
         } catch (error: any) {
             console.error("❌ Checkout error:", error);
 
-            // Handle specific errors
-            if (error.response?.status === 401) {
-                toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+            if (error.message.includes("Phiên đăng nhập hết hạn")) {
                 localStorage.removeItem("auth_token");
+                localStorage.removeItem("user");
+                toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
                 navigate("/dang-nhap");
+            } else if (error.message.includes("API endpoint không tồn tại")) {
+                toast.error("Tính năng thanh toán chưa được cấu hình.");
             } else {
-                const errorMsg = error.response?.data?.message || "Lỗi hệ thống, vui lòng thử lại sau.";
-                toast.error(errorMsg);
+                toast.error(error.message || "Lỗi hệ thống, vui lòng thử lại sau.");
             }
         } finally {
             setProcessingPlan(null);

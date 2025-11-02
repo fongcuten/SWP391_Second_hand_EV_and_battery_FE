@@ -14,64 +14,73 @@ export interface UserSubscriptionResponse {
   result: UserSubscription;
 }
 
-export const UserSubscriptionService = {
-  // Get current user's subscription plan
-  getCurrentSubscription: async (): Promise<UserSubscription> => {
+export interface CheckoutResponse {
+  sessionId: string;
+  url: string;
+}
+
+export class UserSubscriptionService {
+  /**
+   * Create Stripe checkout session
+   * POST /users/me/plan/checkout
+   */
+  static async createCheckout(planName: string): Promise<string> {
+    console.log("🛒 Creating checkout for plan:", planName);
+
     try {
-      const response = await api.get<UserSubscriptionResponse>("/users/me/plan");
-      console.log("📦 User subscription API response:", response.data);
+      // ✅ Correct endpoint matching backend
+      const response = await api.post("/users/me/plan/checkout", {
+        planName: planName,
+      });
 
-      return response.data.result;
+      console.log("✅ Checkout response:", response.data);
+
+      const result = response.data.result;
+      
+      // ✅ Return URL string directly
+      if (!result?.url) {
+        throw new Error("Không nhận được URL thanh toán từ server");
+      }
+
+      return result.url; // ✅ Return string, not object
+
     } catch (error: any) {
-      console.error("❌ Error fetching subscription:", error);
+      console.error("❌ Error creating checkout:", error);
 
-      // Default to Free tier if error or no subscription
-      return {
-        planId: 1,
-        planName: "Free",
-        price: 0,
-        status: "ACTIVE",
-        startAt: new Date().toISOString(),
-        endAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      };
+      if (error.response?.status === 404) {
+        throw new Error("API endpoint không tồn tại. Vui lòng kiểm tra cấu hình backend.");
+      }
+
+      if (error.response?.status === 401) {
+        throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+      }
+
+      const message = error.response?.data?.message || "Lỗi khi tạo thanh toán";
+      throw new Error(message);
     }
-  },
+  }
 
-  // Get priority level from plan name
-  getPriorityFromPlan: (planName: string): 1 | 2 | 3 => {
-    const normalizedPlan = planName.toUpperCase();
+  /**
+   * Activate plan from Stripe session
+   * POST /users/me/plan/checkout/activate-from-session
+   */
+  static async activateFromSession(sessionId: string): Promise<void> {
+    console.log("🎯 Activating plan from session:", sessionId);
 
-    if (normalizedPlan.includes("PREMIUM")) {
-      return 3;
-    } else if (normalizedPlan.includes("STANDARD")) {
-      return 2;
-    } else {
-      return 1; // Free or any other plan
+    try {
+      const response = await api.post(
+        "/users/me/plan/checkout/activate-from-session",
+        {
+          sessionId: sessionId,
+        }
+      );
+
+      console.log("✅ Plan activated:", response.data);
+    } catch (error: any) {
+      console.error("❌ Error activating plan:", error);
+
+      const message = error.response?.data?.message || "Lỗi khi kích hoạt gói";
+      throw new Error(message);
     }
-  },
-
-  // Get subscription tier from plan name
-  getSubscriptionTier: (planName: string): "FREE" | "STANDARD" | "PREMIUM" => {
-    const normalizedPlan = planName.toUpperCase();
-
-    if (normalizedPlan.includes("PREMIUM")) {
-      return "PREMIUM";
-    } else if (normalizedPlan.includes("STANDARD")) {
-      return "STANDARD";
-    } else {
-      return "FREE";
-    }
-  },
-
-  // Check if subscription is active
-  isSubscriptionActive: (subscription: UserSubscription): boolean => {
-    if (subscription.status !== "ACTIVE") {
-      return false;
-    }
-
-    const now = new Date();
-    const endDate = new Date(subscription.endAt);
-
-    return endDate > now;
-  },
-};
+  }
+}

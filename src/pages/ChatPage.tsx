@@ -1,275 +1,536 @@
-import React, { useState, useRef } from "react";
-import { Paperclip, Send, MoreVertical } from "lucide-react";
-
-interface Message {
-    id: number;
-    text?: string;
-    image?: string;
-    sender: "me" | "them";
-    time: string;
-}
-
-interface Chat {
-    id: number;
-    name: string;
-    avatar?: string;
-    messages: Message[];
-    active?: boolean;
-}
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+    Send,
+    Paperclip,
+    Search,
+    MoreVertical,
+    ArrowLeft,
+    Phone,
+    Video,
+    Smile,
+    CheckCheck,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import { ChatService, createConversationKey, type Conversation, type ChatMessage } from "../services/Chat/ChatService";
+import { WebSocketService } from "../services/Chat/WebSocketService";
+import { authService } from "../services/authService";
 
 const ChatPage: React.FC = () => {
-    const [chats, setChats] = useState<Chat[]>([
-        {
-            id: 1,
-            name: "Dong Tien Dat",
-            avatar: "https://ui-avatars.com/api/?name=Dong+Tien+Dat&background=random",
-            active: true,
-            messages: [
-                {
-                    id: 1,
-                    text: "Chào bạn, xe còn không ạ?",
-                    sender: "them",
-                    time: "10:15",
-                },
-                {
-                    id: 2,
-                    text: "Mình quan tâm xe đó nhé!",
-                    sender: "me",
-                    time: "09:20",
-                },
-            ],
-        },
-        {
-            id: 2,
-            name: "Tran Quang Kiet",
-            avatar: "https://ui-avatars.com/api/?name=Tran+Quang+Kiet&background=random",
-            messages: [
-                {
-                    id: 1,
-                    text: "Chào bạn, xe này bao nhiêu vậy?",
-                    sender: "them",
-                    time: "11:05",
-                },
-                {
-                    id: 2,
-                    text: "Xe mình bán 300 triệu nhé.",
-                    sender: "me",
-                    time: "11:07",
-                },
-            ],
-        },
-    ]);
+    const location = useLocation();
+    const navigate = useNavigate();
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const wsRef = useRef<WebSocketService | null>(null);
+    const urlProcessedRef = useRef(false);
 
-    const [message, setMessage] = useState("");
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const currentUser = authService.getCurrentUser();
 
-    const activeChat = chats.find((chat) => chat.active);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [activeChat, setActiveChat] = useState<Conversation | null>(null);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messageInput, setMessageInput] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
+    const [wsConnected, setWsConnected] = useState(false);
 
-    const handleSend = () => {
-        if (!activeChat || (!message.trim() && !imagePreview)) return;
+    // ============================================
+    // HELPER FUNCTIONS (useCallback)
+    // ============================================
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
 
-        const newMessage: Message = {
-            id: Date.now(),
-            text: message.trim() || undefined,
-            image: imagePreview || undefined,
-            sender: "me",
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    const loadMessageHistory = useCallback(async (conversation: Conversation) => {
+        console.log("📥 Loading message history for:", conversation.otherUser.name);
+        setLoading(true);
+        try {
+            const history = await ChatService.getConversationHistory(
+                conversation.otherUser.id
+            );
+            setMessages(history);
+            console.log("✅ Loaded", history.length, "messages");
+            setTimeout(() => scrollToBottom(), 100);
+        } catch (error) {
+            console.error("❌ Error loading message history:", error);
+            toast.error("Không thể tải lịch sử chat");
+            setMessages([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [scrollToBottom]);
+
+    const updateConversationLastMessage = useCallback((message: ChatMessage) => {
+        const normalizedKey = createConversationKey(message.senderId, message.receiverId);
+
+        setConversations((prev) => {
+            const convIndex = prev.findIndex(c => c.conversationKey === normalizedKey);
+
+            if (convIndex === -1) {
+                return prev;
+            }
+
+            const conv = prev[convIndex];
+
+            if (conv.lastMessage.content === message.content &&
+                conv.lastMessage.sentAt === message.sentAt) {
+                return prev;
+            }
+
+            const newConversations = [...prev];
+            newConversations[convIndex] = {
+                ...conv,
+                lastMessage: {
+                    content: message.content,
+                    sentAt: message.sentAt,
+                },
+            };
+
+            return newConversations;
+        });
+    }, []);
+
+    // ============================================
+    // LOAD CONVERSATIONS ON MOUNT
+    // ============================================
+    useEffect(() => {
+        if (!currentUser) {
+            toast.warning("Vui lòng đăng nhập để sử dụng chat");
+            navigate("/login");
+            return;
+        }
+
+        const loadConversations = async () => {
+            setLoading(true);
+            try {
+                const data = await ChatService.getConversations();
+                setConversations(data);
+                console.log("✅ Loaded conversations:", data);
+            } catch (error) {
+                console.error("❌ Error loading conversations:", error);
+                toast.error("Không thể tải danh sách chat");
+            } finally {
+                setLoading(false);
+            }
         };
 
-        setChats((prev) =>
-            prev.map((chat) =>
-                chat.id === activeChat.id
-                    ? { ...chat, messages: [...chat.messages, newMessage] }
-                    : chat
-            )
+        loadConversations();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount
+
+    // ============================================
+    // CONNECT WEBSOCKET
+    // ============================================
+    useEffect(() => {
+        const token = localStorage.getItem("auth_token");
+        if (!token || !currentUser?.id) {
+            console.warn("⚠️ Cannot connect WebSocket: missing token or user ID");
+            return;
+        }
+
+        console.log("🔌 Initializing WebSocket for user:", currentUser.id);
+
+        wsRef.current = new WebSocketService(token);
+
+        wsRef.current.connect(
+            (newMessage: ChatMessage) => {
+                console.log("📨 New message:", newMessage);
+
+                setMessages((prev) => {
+                    const exists = prev.some(m =>
+                        m.messageId === newMessage.messageId ||
+                        (m.content === newMessage.content && m.sentAt === newMessage.sentAt)
+                    );
+                    return exists ? prev : [...prev, newMessage];
+                });
+
+                updateConversationLastMessage(newMessage);
+            },
+            () => {
+                console.log("✅ WebSocket connected");
+                setWsConnected(true);
+                toast.success("Đã kết nối chat");
+            },
+            (error) => {
+                console.error("❌ WebSocket error:", error);
+                setWsConnected(false);
+            }
         );
 
-        setMessage("");
-        setImagePreview(null);
-    };
+        return () => {
+            console.log("🔌 Cleanup WebSocket");
+            wsRef.current?.disconnect();
+            wsRef.current = null;
+        };
+    }, [currentUser?.id, updateConversationLastMessage]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => setImagePreview(event.target?.result as string);
-            reader.readAsDataURL(file);
+    // ============================================
+    // SELECT CONVERSATION (useCallback + Guard)
+    // ============================================
+    const handleSelectConversation = useCallback((conversation: Conversation) => {
+        console.log("👆 Selecting conversation:", conversation.otherUser.name);
+
+        setActiveChat(prevActiveChat => {
+            if (prevActiveChat?.conversationKey === conversation.conversationKey) {
+                console.log("⚠️ Already viewing this conversation");
+                return prevActiveChat;
+            }
+
+            loadMessageHistory(conversation);
+            return conversation;
+        });
+    }, [loadMessageHistory]);
+
+    // ============================================
+    // HANDLE URL PARAMS (Only run ONCE)
+    // ============================================
+    useEffect(() => {
+        if (urlProcessedRef.current) {
+            return;
+        }
+
+        const params = new URLSearchParams(location.search);
+        const userId = params.get("userId");
+        const userName = params.get("userName");
+
+        if (!userId || !userName || !currentUser) return;
+
+        console.log("🔗 Processing URL params:", { userId, userName });
+        urlProcessedRef.current = true;
+
+        const normalizedKey = createConversationKey(currentUser.id, userId);
+
+        const existing = conversations.find(
+            (c) => c.conversationKey === normalizedKey
+        );
+
+        if (existing) {
+            console.log("✅ Found existing conversation");
+            setActiveChat(existing);
+            loadMessageHistory(existing);
+        } else {
+            console.log("➕ Creating new conversation");
+            const newConversation: Conversation = {
+                conversationKey: normalizedKey,
+                otherUser: {
+                    id: Number(userId),
+                    name: decodeURIComponent(userName),
+                    avatar: undefined,
+                },
+                lastMessage: {
+                    content: "",
+                    sentAt: new Date().toISOString(),
+                },
+                unreadCount: 0,
+            };
+
+            setActiveChat(newConversation);
+            setMessages([]);
+            setConversations((prev) => [newConversation, ...prev]);
+        }
+
+        navigate(location.pathname, { replace: true });
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    // ============================================
+    // SEND MESSAGE
+    // ============================================
+    const handleSendMessage = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+
+        if (!activeChat || !messageInput.trim() || !currentUser || sending) {
+            return;
+        }
+
+        const conversationKey = createConversationKey(currentUser.id, activeChat.otherUser.id);
+        const messageCopy = messageInput.trim();
+
+        const newMessage: ChatMessage = {
+            senderId: Number(currentUser.id),
+            receiverId: activeChat.otherUser.id,
+            content: messageCopy,
+            conversationKey,
+            sentAt: new Date().toISOString(),
+            messageType: "TEXT",
+        };
+
+        setMessageInput("");
+        setMessages((prev) => [...prev, newMessage]);
+        scrollToBottom();
+        setSending(true);
+
+        try {
+            if (wsRef.current?.isConnected()) {
+                wsRef.current.sendMessage(newMessage);
+            } else {
+                await ChatService.sendMessage(newMessage);
+            }
+
+            updateConversationLastMessage(newMessage);
+        } catch (error) {
+            console.error("❌ Error sending message:", error);
+            toast.error("Không thể gửi tin nhắn");
+            setMessageInput(messageCopy);
+            setMessages((prev) => prev.filter((msg) => msg.sentAt !== newMessage.sentAt));
+        } finally {
+            setSending(false);
         }
     };
 
-    const handleChatSelect = (id: number) => {
-        setChats((prev) =>
-            prev.map((chat) => ({ ...chat, active: chat.id === id }))
-        );
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    const formatTime = (timestamp: string) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now.getTime() - date.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) {
+            return date.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        } else if (days === 1) {
+            return "Hôm qua";
+        } else if (days < 7) {
+            return `${days} ngày trước`;
+        } else {
+            return date.toLocaleDateString("vi-VN");
+        }
     };
 
-    const handleDeleteChat = (id: number) => {
-        setChats((prev) => prev.filter((chat) => chat.id !== id));
-    };
+    const filteredConversations = conversations.filter((conv) =>
+        conv.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
+    if (!currentUser) {
+        return null;
+    }
+
+    // ============================================
+    // RENDER
+    // ============================================
     return (
-        <div className="flex h-[600px] bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-            {/* Sidebar */}
-            <div className="w-72 border-r border-gray-200 bg-gray-50">
-                <div className="p-4 border-b border-gray-200 font-semibold text-[#2C3E50]">
-                    Tin nhắn
-                </div>
-                <div className="overflow-y-auto h-full">
-                    {chats.length === 0 ? (
-                        <div className="text-gray-500 text-sm text-center mt-10">
-                            Chưa có cuộc trò chuyện nào
-                        </div>
-                    ) : (
-                        chats.map((chat) => (
-                            <div
-                                key={chat.id}
-                                onClick={() => handleChatSelect(chat.id)}
-                                className={`flex items-center gap-3 p-3 cursor-pointer border-b border-gray-100 ${chat.active ? "bg-white shadow-sm" : "hover:bg-gray-100"
-                                    }`}
-                            >
-                                <img
-                                    src={chat.avatar}
-                                    alt={chat.name}
-                                    className="w-10 h-10 rounded-full object-cover"
-                                />
-                                <div className="flex-1">
-                                    <div className="text-sm font-medium text-[#2C3E50]">
-                                        {chat.name}
-                                    </div>
-                                    <div className="text-xs text-gray-500 truncate">
-                                        {chat.messages[chat.messages.length - 1]?.text ||
-                                            "Hình ảnh"}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteChat(chat.id);
-                                    }}
-                                    className="text-gray-400 hover:text-red-500"
-                                >
-                                    <MoreVertical size={14} />
-                                </button>
-                            </div>
-                        ))
-                    )}
-                </div>
+        <div className="h-screen bg-gray-50 flex flex-col">
+            {/* Header */}
+            <div className="bg-white border-b px-4 py-3 flex items-center gap-3">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
+                <h1 className="text-xl font-bold text-gray-900">Tin nhắn</h1>
+                {wsConnected && (
+                    <span className="ml-auto text-xs text-green-600 flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
+                        Trực tuyến
+                    </span>
+                )}
             </div>
 
-            {/* Chat Window */}
-            <div className="flex-1 flex flex-col bg-gray-50">
-                {activeChat ? (
-                    <>
-                        {/* Header */}
-                        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white">
-                            <img
-                                src={activeChat.avatar}
-                                alt={activeChat.name}
-                                className="w-10 h-10 rounded-full object-cover"
+            <div className="flex-1 flex overflow-hidden">
+                {/* Conversations List */}
+                <div
+                    className={`w-full lg:w-80 bg-white border-r flex flex-col ${activeChat ? "hidden lg:flex" : "flex"
+                        }`}
+                >
+                    {/* Search */}
+                    <div className="p-3 border-b">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                             />
-                            <div>
-                                <div className="font-medium text-[#2C3E50]">{activeChat.name}</div>
-                            </div>
                         </div>
+                    </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            {activeChat.messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"
+                    {/* Conversation List */}
+                    <div className="flex-1 overflow-y-auto">
+                        {loading && conversations.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">
+                                Đang tải...
+                            </div>
+                        ) : filteredConversations.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">
+                                {searchTerm
+                                    ? "Không tìm thấy cuộc trò chuyện"
+                                    : "Chưa có cuộc trò chuyện nào"}
+                            </div>
+                        ) : (
+                            filteredConversations.map((conv) => (
+                                <button
+                                    key={conv.conversationKey}
+                                    onClick={() => handleSelectConversation(conv)}
+                                    className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition border-b ${activeChat?.conversationKey === conv.conversationKey
+                                        ? "bg-blue-50"
+                                        : ""
                                         }`}
                                 >
-                                    {msg.sender === "them" && (
-                                        <img
-                                            src={activeChat.avatar}
-                                            alt=""
-                                            className="w-8 h-8 rounded-full mr-2 mt-auto object-cover"
-                                        />
-                                    )}
-                                    <div
-                                        className={`max-w-xs px-3 py-2 rounded-2xl text-sm shadow ${msg.sender === "me"
-                                                ? "bg-[#2ECC71] text-white rounded-br-none"
-                                                : "bg-white text-gray-800 rounded-bl-none"
-                                            }`}
-                                    >
-                                        {msg.image && (
-                                            <img
-                                                src={msg.image}
-                                                alt="sent"
-                                                className="rounded-lg mb-1 max-w-[200px]"
-                                            />
-                                        )}
-                                        {msg.text && <p className="leading-snug">{msg.text}</p>}
-                                        <p
-                                            className={`text-[10px] mt-1 ${msg.sender === "me"
-                                                    ? "text-white/80 text-right"
-                                                    : "text-gray-400"
-                                                }`}
-                                        >
-                                            {msg.time}
+                                    <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0">
+                                        {conv.otherUser.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <h3 className="font-semibold text-gray-900 truncate">
+                                                {conv.otherUser.name}
+                                            </h3>
+                                            <span className="text-xs text-gray-500">
+                                                {formatTime(conv.lastMessage.sentAt)}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 truncate">
+                                            {conv.lastMessage.content || "Chưa có tin nhắn"}
                                         </p>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                    {conv.unreadCount && conv.unreadCount > 0 ? (
+                                        <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                            {conv.unreadCount}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
 
-                        {/* Image Preview */}
-                        {imagePreview && (
-                            <div className="px-4 pb-2">
-                                <div className="relative inline-block">
-                                    <img
-                                        src={imagePreview}
-                                        alt="preview"
-                                        className="w-24 h-24 object-cover rounded-lg border"
-                                    />
+                {/* Chat Area */}
+                <div
+                    className={`flex-1 flex flex-col bg-white ${!activeChat ? "hidden lg:flex" : "flex"
+                        }`}
+                >
+                    {activeChat ? (
+                        <>
+                            {/* Chat Header */}
+                            <div className="px-4 py-3 border-b flex items-center justify-between">
+                                <div className="flex items-center gap-3">
                                     <button
-                                        onClick={() => setImagePreview(null)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs"
+                                        onClick={() => setActiveChat(null)}
+                                        className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
                                     >
-                                        ✕
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                                        {activeChat.otherUser.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">
+                                            {activeChat.otherUser.name}
+                                        </h3>
+                                        <p className="text-xs text-gray-500">Đang hoạt động</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                                        <Phone className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                                        <Video className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                                        <MoreVertical className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Input */}
-                        <div className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-gray-500 hover:text-[#2ECC71]"
+                            {/* Messages */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                {loading ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        Đang tải tin nhắn...
+                                    </div>
+                                ) : messages.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        Chưa có tin nhắn nào. Bắt đầu cuộc trò chuyện!
+                                    </div>
+                                ) : (
+                                    messages.map((msg, index) => {
+                                        const isOwn = msg.senderId === Number(currentUser.id);
+                                        return (
+                                            <div
+                                                key={`${msg.messageId || index}-${msg.sentAt}`}
+                                                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                                            >
+                                                <div
+                                                    className={`max-w-[70%] rounded-2xl px-4 py-2 ${isOwn
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-white text-gray-900"
+                                                        } shadow-sm`}
+                                                >
+                                                    <p className="break-words">{msg.content}</p>
+                                                    <div
+                                                        className={`flex items-center gap-1 mt-1 text-xs ${isOwn ? "text-blue-100" : "text-gray-500"
+                                                            }`}
+                                                    >
+                                                        <span>{formatTime(msg.sentAt)}</span>
+                                                        {isOwn && <CheckCheck className="w-3 h-3" />}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {/* Input */}
+                            <form
+                                onSubmit={handleSendMessage}
+                                className="p-4 border-t bg-white"
                             >
-                                <Paperclip size={18} />
-                            </button>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Viết tin nhắn..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2ECC71]"
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                            />
-                            <button
-                                onClick={handleSend}
-                                className="bg-[#2ECC71] text-white p-2 rounded-lg hover:bg-[#27AE60]"
-                            >
-                                <Send size={16} />
-                            </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+                                    >
+                                        <Paperclip className="w-5 h-5" />
+                                    </button>
+                                    <input
+                                        type="text"
+                                        placeholder="Nhập tin nhắn..."
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        disabled={sending}
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:opacity-50"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+                                    >
+                                        <Smile className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={!messageInput.trim() || sending}
+                                        className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    >
+                                        <Send className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-gray-500">
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Send className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <p className="text-lg font-medium">Chọn một cuộc trò chuyện</p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                    Chọn từ danh sách bên trái để bắt đầu chat
+                                </p>
+                            </div>
                         </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-                        Chọn một cuộc trò chuyện để bắt đầu
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -20,10 +20,13 @@ import {
   Eye,
   Bookmark,
   AlertCircle,
+  X,
+  Flag, // ✅ Add Flag icon
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail } from "../services/Vehicle/ElectricDetailsService";
 import { FavoriteService } from "../services/FavoriteService";
+import { authService } from "../services/authService";
 
 const ElectricVehicleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +40,23 @@ const ElectricVehicleDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "specs">("overview");
+
+  // ✅ ADD: Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  // ✅ ADD: Report reasons
+  const reportReasons = [
+    { value: "SPAM", label: "Tin đăng spam hoặc lặp lại" },
+    { value: "FRAUD", label: "Tin đăng lừa đảo" },
+    { value: "WRONG_CATEGORY", label: "Sai danh mục" },
+    { value: "INAPPROPRIATE", label: "Nội dung không phù hợp" },
+    { value: "SOLD", label: "Xe đã bán nhưng chưa gỡ tin" },
+    { value: "WRONG_INFO", label: "Thông tin không chính xác" },
+    { value: "OTHER", label: "Lý do khác" },
+  ];
 
   // Load vehicle data
   useEffect(() => {
@@ -74,10 +94,25 @@ const ElectricVehicleDetailPage: React.FC = () => {
 
   // Event handlers
   const handleContact = (type: "phone" | "message") => {
-    if (type === "phone") {
-      toast.info("Chức năng gọi điện sẽ được bổ sung");
-    } else {
-      toast.info("Chức năng nhắn tin sẽ được bổ sung");
+    if (type === "message") {
+      const currentUser = authService.getCurrentUser();
+
+      if (!currentUser) {
+        toast.warning("Vui lòng đăng nhập để nhắn tin");
+        navigate("/dang-nhap");
+        return;
+      }
+
+      const sellerUsername = vehicle?.seller;
+
+      console.log("💬 Starting chat with seller:", { sellerUsername });
+
+      if (!sellerUsername) {
+        toast.error("Không thể mở chat: Thông tin người bán không hợp lệ");
+        return;
+      }
+
+      navigate(`/chat?username=${encodeURIComponent(sellerUsername)}&userName=${encodeURIComponent(sellerUsername)}`);
     }
   };
 
@@ -95,15 +130,11 @@ const ElectricVehicleDetailPage: React.FC = () => {
   };
 
   const handleToggleFavorite = async () => {
-    console.log("🔘 Toggle favorite clicked", { vehicle, id, isFavorite });
-
     if (!vehicle || !id) {
-      console.log("❌ No vehicle or id");
       return;
     }
 
     const token = localStorage.getItem("auth_token");
-    console.log("🔑 Token:", token ? "exists" : "missing");
 
     if (!token) {
       toast.warning("Vui lòng đăng nhập để lưu tin yêu thích");
@@ -115,14 +146,11 @@ const ElectricVehicleDetailPage: React.FC = () => {
 
     try {
       if (isFavorite) {
-        console.log("➖ Removing favorite...");
         await FavoriteService.removeFavorite(Number(id));
         setIsFavorite(false);
         toast.success("Đã xóa khỏi danh sách yêu thích");
       } else {
-        console.log("➕ Adding favorite...");
         const result = await FavoriteService.addFavorite(Number(id));
-        console.log("✅ Result:", result);
 
         if (result.code === 0) {
           setIsFavorite(true);
@@ -135,7 +163,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error("❌ Error toggling favorite:", err);
-      console.error("Response:", err.response?.data);
 
       if (err.response?.data?.message?.includes("owner")) {
         toast.error("Bạn không thể lưu tin đăng của chính mình");
@@ -162,6 +189,61 @@ const ElectricVehicleDetailPage: React.FC = () => {
     setSelectedImageIndex((prev) =>
       prev === vehicle.media.length - 1 ? 0 : prev + 1
     );
+  };
+
+  // ✅ ADD: Report Modal Handlers
+  const handleOpenReportModal = () => {
+    const token = localStorage.getItem("auth_token");
+
+    if (!token) {
+      toast.warning("Vui lòng đăng nhập để báo cáo tin đăng");
+      navigate("/dang-nhap");
+      return;
+    }
+
+    setShowReportModal(true);
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const handleCloseReportModal = () => {
+    setShowReportModal(false);
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportReason) {
+      toast.error("Vui lòng chọn lý do báo cáo");
+      return;
+    }
+
+    if (reportReason === "OTHER" && !reportDetails.trim()) {
+      toast.error("Vui lòng nhập chi tiết lý do báo cáo");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+
+    try {
+      // TODO: Replace with actual API call
+      // await ReportService.submitReport({
+      //   listingId: Number(id),
+      //   reason: reportReason,
+      //   details: reportDetails,
+      // });
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét trong thời gian sớm nhất.");
+      handleCloseReportModal();
+    } catch (error: any) {
+      console.error("❌ Error submitting report:", error);
+      toast.error("Không thể gửi báo cáo. Vui lòng thử lại sau.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
 
   // Loading state
@@ -296,8 +378,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                         key={image.mediaId}
                         onClick={() => setSelectedImageIndex(index)}
                         className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
-                            ? "ring-2 ring-blue-500"
-                            : "hover:ring-2 hover:ring-gray-300"
+                          ? "ring-2 ring-blue-500"
+                          : "hover:ring-2 hover:ring-gray-300"
                           }`}
                       >
                         <img
@@ -392,15 +474,15 @@ const ElectricVehicleDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Tabs - Only 2 tabs now */}
+            {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm">
               <div className="border-b border-gray-200">
                 <div className="flex">
                   <button
                     onClick={() => setActiveTab("overview")}
                     className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "overview"
-                        ? "text-blue-600 border-b-2 border-blue-600"
-                        : "text-gray-600 hover:text-gray-900"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
                       }`}
                   >
                     Tổng quan
@@ -408,8 +490,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                   <button
                     onClick={() => setActiveTab("specs")}
                     className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "specs"
-                        ? "text-blue-600 border-b-2 border-blue-600"
-                        : "text-gray-600 hover:text-gray-900"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
                       }`}
                   >
                     Thông số kỹ thuật
@@ -421,7 +503,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
                 {/* Overview Tab */}
                 {activeTab === "overview" && (
                   <div className="space-y-6">
-                    {/* Description */}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                         <FileText className="w-5 h-5 text-blue-600" />
@@ -437,7 +518,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
                 {/* Specs Tab */}
                 {activeTab === "specs" && (
                   <div className="space-y-6">
-                    {/* General Specs */}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Car className="w-5 h-5 text-blue-600" />
@@ -495,7 +575,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Engine & Performance */}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Zap className="w-5 h-5 text-blue-600" />
@@ -523,7 +602,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Legal & Registration */}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Shield className="w-5 h-5 text-blue-600" />
@@ -534,8 +612,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                           <span className="text-gray-600">Đăng kiểm</span>
                           <span
                             className={`font-medium ${vehiclePost.registration
-                                ? "text-green-600"
-                                : "text-red-600"
+                              ? "text-green-600"
+                              : "text-red-600"
                               }`}
                           >
                             {vehiclePost.registration ? "✓ Còn hạn" : "✗ Hết hạn"}
@@ -545,8 +623,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                           <span className="text-gray-600">Phụ kiện</span>
                           <span
                             className={`font-medium ${vehiclePost.accessories
-                                ? "text-green-600"
-                                : "text-gray-600"
+                              ? "text-green-600"
+                              : "text-gray-600"
                               }`}
                           >
                             {vehiclePost.accessories ? "✓ Có" : "✗ Không"}
@@ -560,10 +638,10 @@ const ElectricVehicleDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Sidebar - Sticky Contact & Seller Info */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-4">
-              {/* ✅ Seller Info Card */}
+              {/* Seller Info Card */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Người bán
@@ -598,7 +676,6 @@ const ElectricVehicleDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Seller Stats */}
                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
                   <div className="text-center p-2 bg-gray-50 rounded-lg">
                     <div className="text-lg font-bold text-blue-600">12</div>
@@ -634,8 +711,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                     onClick={handleToggleFavorite}
                     disabled={isAddingFavorite}
                     className={`w-full flex items-center justify-center gap-2 border-2 py-3 px-4 rounded-lg font-medium transition ${isFavorite
-                        ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100"
-                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       } ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {isAddingFavorite ? (
@@ -671,10 +748,13 @@ const ElectricVehicleDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Report */}
+              {/* ✅ FIXED: Report Button with onClick */}
               <div className="bg-white rounded-xl shadow-sm p-4">
-                <button className="w-full text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
+                <button
+                  onClick={handleOpenReportModal}
+                  className="w-full text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 hover:bg-red-50 py-2 rounded-lg transition"
+                >
+                  <Flag className="w-4 h-4" />
                   Báo cáo tin đăng
                 </button>
               </div>
@@ -682,6 +762,144 @@ const ElectricVehicleDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Flag className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Báo cáo tin đăng
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Chúng tôi sẽ xem xét báo cáo của bạn
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseReportModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                disabled={isSubmittingReport}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Reported Listing Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-1">Tin đăng:</p>
+                <p className="font-medium text-gray-900 line-clamp-1">
+                  {vehicle.title}
+                </p>
+              </div>
+
+              {/* Report Reason */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lý do báo cáo <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  {reportReasons.map((reason) => (
+                    <label
+                      key={reason.value}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${reportReason === reason.value
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                      <input
+                        type="radio"
+                        name="reportReason"
+                        value={reason.value}
+                        checked={reportReason === reason.value}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        disabled={isSubmittingReport}
+                      />
+                      <span className="ml-3 text-sm text-gray-700">
+                        {reason.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Details */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chi tiết{" "}
+                  {reportReason === "OTHER" && (
+                    <span className="text-red-500">*</span>
+                  )}
+                </label>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Mô tả chi tiết về vấn đề bạn gặp phải..."
+                  rows={4}
+                  maxLength={500}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  disabled={isSubmittingReport}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {reportDetails.length}/500 ký tự
+                </p>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">Lưu ý:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Báo cáo sai sự thật có thể bị xử lý</li>
+                      <li>• Chúng tôi sẽ xem xét trong vòng 24-48 giờ</li>
+                      <li>• Thông tin của bạn được bảo mật</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={handleCloseReportModal}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition"
+                disabled={isSubmittingReport}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmitReport}
+                disabled={!reportReason || isSubmittingReport}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmittingReport ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  <>
+                    <Flag className="w-4 h-4" />
+                    <span>Gửi báo cáo</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

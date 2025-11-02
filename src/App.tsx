@@ -116,7 +116,7 @@ const AppShell: React.FC = () => {
           <Route path="/so-sanh" element={<ComparePage />} />
           <Route path="/ho-tro" element={<SupportPage />} />
           <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
-
+          
           <Route
             path="/checkout/success"
             element={
@@ -135,6 +135,8 @@ const AppShell: React.FC = () => {
             }
           />
 
+
+          <Route path="/chat" element={<ChatPage />} />
           {/* Test API Location */}
           <Route path="/test-location" element={<LocationTest />} />
 
