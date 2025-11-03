@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Heart,
-  HeartOff,
   Eye,
   Calendar,
   MapPin,
@@ -13,7 +12,10 @@ import {
   List,
   Trash2,
   Share2,
+  Loader2,
 } from "lucide-react";
+import { FavoriteService, type FavoriteItem as ApiFavoriteItem } from "../../services/FavoriteService";
+import { toast } from "react-toastify";
 
 interface FavoriteItem {
   id: string;
@@ -33,6 +35,9 @@ interface FavoriteItem {
   mileage?: number;
   batteryCapacity?: number;
   condition: "excellent" | "good" | "fair" | "poor";
+  listingId: number;
+  username: string;
+  description: string;
 }
 
 const FavoritesPage: React.FC = () => {
@@ -40,82 +45,142 @@ const FavoritesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState("newest");
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - trong thực tế sẽ lấy từ API
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([
-    {
-      id: "1",
-      title: "Tesla Model 3 2020 - Xe điện cao cấp",
-      price: 850000000,
-      originalPrice: 1200000000,
-      image: "/api/placeholder/300/200",
-      location: "Hồ Chí Minh",
-      datePosted: "2024-01-15",
-      views: 1250,
-      isFavorite: true,
-      rating: 4.8,
-      type: "vehicle",
-      brand: "Tesla",
-      model: "Model 3",
-      year: 2020,
-      mileage: 25000,
-      condition: "excellent",
-    },
-    {
-      id: "2",
-      title: "Pin Lithium 60kWh - Tương thích Tesla Model S",
-      price: 45000000,
-      image: "/api/placeholder/300/200",
-      location: "Hà Nội",
-      datePosted: "2024-01-14",
-      views: 890,
-      isFavorite: true,
-      rating: 4.6,
-      type: "battery",
-      brand: "Tesla",
-      model: "Model S",
-      batteryCapacity: 60,
-      condition: "good",
-    },
-    {
-      id: "3",
-      title: "BMW i3 2019 - Xe điện đô thị",
-      price: 650000000,
-      originalPrice: 950000000,
-      image: "/api/placeholder/300/200",
-      location: "Đà Nẵng",
-      datePosted: "2024-01-13",
-      views: 2100,
-      isFavorite: true,
-      rating: 4.7,
-      type: "vehicle",
-      brand: "BMW",
-      model: "i3",
-      year: 2019,
-      mileage: 18000,
-      condition: "excellent",
-    },
-  ]);
+  // ✅ Load favorites from API
+  useEffect(() => {
+    loadFavorites();
+  }, []);
 
-  const handleRemoveFavorite = (id: string) => {
-    setFavorites(favorites.filter((item) => item.id !== id));
+  const loadFavorites = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("📥 Loading favorites from API...");
+
+      const apiFavorites = await FavoriteService.getCurrentUserFavorites();
+
+      console.log("✅ API Favorites received:", apiFavorites);
+      console.log("✅ Favorites count:", apiFavorites.length);
+
+      if (!apiFavorites || apiFavorites.length === 0) {
+        console.log("ℹ️ No favorites found");
+        setFavorites([]);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Transform API data to component format
+      const transformedFavorites: FavoriteItem[] = apiFavorites.map((item, index) => {
+        console.log(`🔄 Transforming item ${index + 1}:`, item);
+
+        const transformed = {
+          id: String(item.listingId),
+          listingId: item.listingId,
+          username: item.username || "Unknown",
+          description: item.description || "No description",
+          title: item.title || item.description || `${item.productType} #${item.listingId}`,
+          price: item.askPrice || 0,
+          originalPrice: undefined,
+          image: item.image || "https://via.placeholder.com/300x200?text=No+Image",
+          location: item.location || "Không xác định",
+          datePosted: item.createdAt || new Date().toISOString(),
+          views: item.views || 0,
+          isFavorite: true,
+          rating: item.rating || 0,
+          type: item.productType === "EV" ? "vehicle" as const : "battery" as const,
+          brand: item.brand || "Unknown",
+          model: item.model || "Unknown",
+          year: item.year,
+          mileage: item.mileage,
+          batteryCapacity: item.batteryCapacity,
+          condition: (item.condition || "good") as "excellent" | "good" | "fair" | "poor",
+        };
+
+        console.log(`✅ Transformed item ${index + 1}:`, transformed);
+        return transformed;
+      });
+
+      console.log("✅ All transformed favorites:", transformedFavorites);
+
+      setFavorites(transformedFavorites);
+    } catch (err: any) {
+      console.error("❌ Error loading favorites:", err);
+      setError(err.message || "Không thể tải danh sách yêu thích");
+      toast.error("Không thể tải danh sách yêu thích");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggleFavorite = (id: string) => {
-    setFavorites(
-      favorites.map((item) =>
-        item.id === id ? { ...item, isFavorite: !item.isFavorite } : item
-      )
-    );
+  const handleRemoveFavorite = async (listingId: number) => {
+    try {
+      console.log("🗑️ Removing favorite:", listingId);
+
+      await FavoriteService.removeFavorite(listingId);
+
+      // ✅ Update local state
+      setFavorites(prev => prev.filter((item) => item.listingId !== listingId));
+
+      toast.success("Đã xóa khỏi danh sách yêu thích");
+      console.log("✅ Favorite removed successfully");
+    } catch (err: any) {
+      console.error("❌ Error removing favorite:", err);
+      toast.error(err.message || "Không thể xóa khỏi yêu thích");
+    }
   };
 
-  const filteredFavorites = favorites.filter((item) => {
-    const matchesSearch = item.title
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesType = filterType === "all" || item.type === filterType;
-    return matchesSearch && matchesType;
-  });
+  const handleShare = (item: FavoriteItem) => {
+    const url = `${window.location.origin}/${item.type === "vehicle" ? "xe-dien" : "pin"}/${item.id}`;
+
+    if (navigator.share) {
+      navigator
+        .share({
+          title: item.title,
+          text: `Xem ${item.title} - ${formatPrice(item.price)}`,
+          url: url,
+        })
+        .then(() => toast.success("Đã chia sẻ thành công"))
+        .catch((err) => console.error("Share failed:", err));
+    } else {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => toast.success("Đã sao chép liên kết"))
+        .catch(() => toast.error("Không thể sao chép liên kết"));
+    }
+  };
+
+  // ✅ Apply filters and sorting
+  const filteredFavorites = favorites
+    .filter((item) => {
+      const matchesSearch = item.title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+        item.description
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+      const matchesType = filterType === "all" || item.type === filterType;
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.datePosted).getTime() - new Date(a.datePosted).getTime();
+        case "oldest":
+          return new Date(a.datePosted).getTime() - new Date(b.datePosted).getTime();
+        case "price-low":
+          return a.price - b.price;
+        case "price-high":
+          return b.price - a.price;
+        case "rating":
+          return b.rating - a.rating;
+        default:
+          return 0;
+      }
+    });
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -125,7 +190,12 @@ const FavoritesPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN");
+    const date = new Date(dateString);
+    return date.toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
   };
 
   const getConditionText = (condition: string) => {
@@ -135,7 +205,7 @@ const FavoritesPage: React.FC = () => {
       fair: "Khá",
       poor: "Trung bình",
     };
-    return conditions[condition as keyof typeof conditions];
+    return conditions[condition as keyof typeof conditions] || "Không xác định";
   };
 
   const getConditionColor = (condition: string) => {
@@ -145,8 +215,41 @@ const FavoritesPage: React.FC = () => {
       fair: "text-yellow-600 bg-yellow-100",
       poor: "text-red-600 bg-red-100",
     };
-    return colors[condition as keyof typeof colors];
+    return colors[condition as keyof typeof colors] || "text-gray-600 bg-gray-100";
   };
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Đang tải danh sách yêu thích...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Không thể tải danh sách yêu thích
+          </h3>
+          <p className="text-gray-500 mb-6">{error}</p>
+          <button
+            onClick={loadFavorites}
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -221,21 +324,19 @@ const FavoritesPage: React.FC = () => {
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`p-2 ${
-                    viewMode === "grid"
-                      ? "bg-green-600 text-white"
-                      : "text-gray-600 hover:text-green-600"
-                  }`}
+                  className={`p-2 ${viewMode === "grid"
+                    ? "bg-green-600 text-white"
+                    : "text-gray-600 hover:text-green-600"
+                    }`}
                 >
                   <Grid className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-2 ${
-                    viewMode === "list"
-                      ? "bg-green-600 text-white"
-                      : "text-gray-600 hover:text-green-600"
-                  }`}
+                  className={`p-2 ${viewMode === "list"
+                    ? "bg-green-600 text-white"
+                    : "text-gray-600 hover:text-green-600"
+                    }`}
                 >
                   <List className="h-4 w-4" />
                 </button>
@@ -249,17 +350,23 @@ const FavoritesPage: React.FC = () => {
           <div className="text-center py-12">
             <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Chưa có sản phẩm yêu thích
+              {searchQuery || filterType !== "all"
+                ? "Không tìm thấy sản phẩm"
+                : "Chưa có sản phẩm yêu thích"}
             </h3>
             <p className="text-gray-500 mb-6">
-              Hãy khám phá và thêm sản phẩm vào danh sách yêu thích của bạn
+              {searchQuery || filterType !== "all"
+                ? "Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm"
+                : "Hãy khám phá và thêm sản phẩm vào danh sách yêu thích của bạn"}
             </p>
-            <Link
-              to="/xe-dien"
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Khám phá xe điện
-            </Link>
+            {!searchQuery && filterType === "all" && (
+              <Link
+                to="/xe-dien"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Khám phá xe điện
+              </Link>
+            )}
           </div>
         ) : (
           <div
@@ -272,43 +379,35 @@ const FavoritesPage: React.FC = () => {
             {filteredFavorites.map((item) => (
               <div
                 key={item.id}
-                className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow ${
-                  viewMode === "list" ? "flex" : ""
-                }`}
+                className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow ${viewMode === "list" ? "flex" : ""
+                  }`}
               >
                 {/* Image */}
-                <div
-                  className={`${
-                    viewMode === "list" ? "w-48 flex-shrink-0" : ""
-                  }`}
-                >
+                <div className={`${viewMode === "list" ? "w-48 flex-shrink-0" : ""}`}>
                   <div className="relative">
                     <img
                       src={item.image}
                       alt={item.title}
-                      className={`w-full object-cover ${
-                        viewMode === "list" ? "h-32" : "h-48"
-                      }`}
+                      className={`w-full object-cover ${viewMode === "list" ? "h-full" : "h-48"}`}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://via.placeholder.com/300x200?text=No+Image";
+                      }}
                     />
                     <div className="absolute top-2 left-2">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
-                          item.condition
-                        )}`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(item.condition)}`}
                       >
                         {getConditionText(item.condition)}
                       </span>
                     </div>
                     <div className="absolute top-2 right-2">
                       <button
-                        onClick={() => handleToggleFavorite(item.id)}
+                        onClick={() => handleRemoveFavorite(item.listingId)}
                         className="p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                        title="Xóa khỏi yêu thích"
                       >
-                        {item.isFavorite ? (
-                          <Heart className="h-5 w-5 text-red-500 fill-current" />
-                        ) : (
-                          <HeartOff className="h-5 w-5 text-gray-400" />
-                        )}
+                        <Heart className="h-5 w-5 text-red-500 fill-current" />
                       </button>
                     </div>
                     {item.originalPrice && (
@@ -318,7 +417,7 @@ const FavoritesPage: React.FC = () => {
                           {Math.round(
                             ((item.originalPrice - item.price) /
                               item.originalPrice) *
-                              100
+                            100
                           )}
                           %
                         </span>
@@ -334,31 +433,40 @@ const FavoritesPage: React.FC = () => {
                       <h3 className="font-semibold text-gray-900 line-clamp-2 mb-1">
                         {item.title}
                       </h3>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Người đăng: {item.username}
+                      </p>
                       <div className="flex items-center space-x-2 text-sm text-gray-500">
                         <MapPin className="h-4 w-4" />
                         <span>{item.location}</span>
-                        <Calendar className="h-4 w-4 ml-2" />
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
+                        <Calendar className="h-4 w-4" />
                         <span>{formatDate(item.datePosted)}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center">
-                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium text-gray-900 ml-1">
-                          {item.rating}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Eye className="h-4 w-4 mr-1" />
-                        <span>{item.views.toLocaleString()}</span>
-                      </div>
+                  {(item.rating > 0 || item.views > 0) && (
+                    <div className="flex items-center space-x-3 mb-3">
+                      {item.rating > 0 && (
+                        <div className="flex items-center">
+                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                          <span className="text-sm font-medium text-gray-900 ml-1">
+                            {item.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                      {item.views > 0 && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Eye className="h-4 w-4 mr-1" />
+                          <span>{item.views.toLocaleString()}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
                       <div className="text-lg font-bold text-green-600">
                         {formatPrice(item.price)}
@@ -371,13 +479,14 @@ const FavoritesPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => handleRemoveFavorite(item.id)}
+                        onClick={() => handleRemoveFavorite(item.listingId)}
                         className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                         title="Xóa khỏi yêu thích"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => handleShare(item)}
                         className="p-2 text-gray-400 hover:text-green-500 transition-colors"
                         title="Chia sẻ"
                       >
@@ -386,12 +495,10 @@ const FavoritesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="pt-3 border-t border-gray-100">
                     <Link
-                      to={`/${item.type === "vehicle" ? "xe-dien" : "pin"}/${
-                        item.id
-                      }`}
-                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-center block"
+                      to={`/${item.type === "vehicle" ? "xe-dien" : "pin"}/${item.id}`}
+                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-center block text-sm font-medium"
                     >
                       Xem chi tiết
                     </Link>

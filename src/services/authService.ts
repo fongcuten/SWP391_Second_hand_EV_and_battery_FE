@@ -4,6 +4,7 @@ import type {
   RegisterRequest,
   AuthResponse,
 } from "../types/auth";
+import api from "../config/axios";
 
 const CURRENT_USER_KEY = "current_user";
 const AUTH_TOKEN_KEY = "auth_token";
@@ -47,104 +48,128 @@ const getMockUsers = (): User[] => {
 export const authService = {
   // Login with backend
   login: async (loginData: LoginRequest): Promise<AuthResponse> => {
+    console.log("🔐 Login attempt:", { username: loginData.email });
+
+    // 1. Get token from backend
     const response = await fetch(
       "http://localhost:8080/evplatform/auth/token",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: loginData.email,
+          username: loginData.email, // Actually username, not email
           password: loginData.password,
         }),
       }
     );
 
     const data = await response.json();
+    console.log("📡 Backend /auth/token response:", data);
 
     if (data.code !== 1000) {
       throw new Error(data.message || "Đăng nhập thất bại");
     }
 
     const token = data.result?.token;
-    console.log("Received token:", token);
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-    console.log("Stored token in localStorage:", localStorage.getItem(AUTH_TOKEN_KEY));
-    
     if (!token) throw new Error("No token received from server");
 
-    // Try to derive role from JWT if backend doesn't return role field
-    const deriveRoleFromToken = (jwt: string): User["role"] | null => {
-      try {
-        const parts = jwt.split(".");
-        if (parts.length !== 3) return null;
-        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const json = atob(base64);
-        const payload = JSON.parse(json);
-        const rawRole =
-          payload?.role ??
-          (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
-          (Array.isArray(payload?.authorities)
-            ? payload.authorities[0]
-            : null) ??
-          payload?.authority ??
-          payload?.scope ?? // lấy từ scope nếu có
-          null;
-        if (!rawRole) return null;
-        const normalized = String(rawRole).trim().toLowerCase();
-        if (normalized.includes("admin")) return "admin";
-        if (normalized.includes("user")) return "user";
-        return null;
-      } catch {
-        return null;
+    console.log("✅ Token received:", token.substring(0, 20) + "...");
+
+    // ✅ 2. Save token FIRST (so axios can use it in interceptor)
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    console.log("💾 Token saved to localStorage");
+
+    // ✅ 3. Fetch REAL user info from backend
+    try {
+      console.log("📥 Fetching user info from /users/myInfo...");
+
+      const userResponse = await api.get("/users/myInfo");
+      console.log("✅ User info response:", userResponse.data);
+
+      if (userResponse.data?.code === 1000 && userResponse.data?.result) {
+        const backendUser = userResponse.data.result;
+
+        // Derive role from token
+        const deriveRoleFromToken = (jwt: string): User["role"] => {
+          try {
+            const parts = jwt.split(".");
+            if (parts.length !== 3) return "user";
+            const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+            const json = atob(base64);
+            const payload = JSON.parse(json);
+            const rawRole =
+              payload?.role ??
+              payload?.scope ??
+              (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
+              null;
+            if (!rawRole) return "user";
+            const normalized = String(rawRole).trim().toLowerCase();
+            return normalized.includes("admin") ? "admin" : "user";
+          } catch {
+            return "user";
+          }
+        };
+
+        // ✅ Create user from BACKEND data
+        const user: User = {
+          id: String(backendUser.userId),
+          email: backendUser.email || loginData.email,
+          fullName:
+            `${backendUser.firstName || ""} ${backendUser.lastName || ""}`.trim() ||
+            backendUser.username ||
+            loginData.email,
+          phoneNumber: backendUser.phone || "",
+          role: deriveRoleFromToken(token),
+          createdAt: backendUser.createdAt || new Date().toISOString(),
+          isEmailVerified: true,
+        };
+
+        console.log("✅ Final user object:", user);
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+        return { user, token };
+      } else {
+        throw new Error("Invalid user info response");
       }
-    };
+    } catch (error) {
+      console.error("❌ Error fetching user info:", error);
 
-    // Try to derive user id from JWT if backend doesn't return it
-    const deriveUserIdFromToken = (jwt: string): string | null => {
-      try {
-        const parts = jwt.split(".");
-        if (parts.length !== 3) return null;
-        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const json = atob(base64);
-        const payload = JSON.parse(json);
-        // common claims where user id might live
-        const candidate =
-          payload?.userId ??
-          payload?.uid ??
-          payload?.sub ??
-          payload?.nameid ??
-          null;
-        return candidate ? String(candidate) : null;
-      } catch {
-        return null;
-      }
-    };
+      // ⚠️ Fallback: create minimal user (should rarely happen)
+      const deriveRoleFromToken = (jwt: string): User["role"] => {
+        try {
+          const parts = jwt.split(".");
+          if (parts.length !== 3) return "user";
+          const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+          const json = atob(base64);
+          const payload = JSON.parse(json);
+          const rawRole =
+            payload?.role ??
+            payload?.scope ??
+            (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
+            null;
+          if (!rawRole) return "user";
+          const normalized = String(rawRole).trim().toLowerCase();
+          return normalized.includes("admin") ? "admin" : "user";
+        } catch {
+          return "user";
+        }
+      };
 
-    const backendRole = data.result?.role as string | undefined;
-    const tokenRole = deriveRoleFromToken(token);
+      const user: User = {
+        id: loginData.email,
+        email: loginData.email,
+        fullName: loginData.email,
+        phoneNumber: "",
+        role: deriveRoleFromToken(token),
+        createdAt: new Date().toISOString(),
+        isEmailVerified: true,
+      };
 
-    const finalRole = (
-      backendRole
-        ? String(backendRole).trim().toLowerCase()
-        : tokenRole || "user"
-    ) as User["role"];
+      console.warn("⚠️ Using fallback user:", user);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
-    const user: User = {
-      // Prefer backend userId; then try token; finally fallback to email (stable per user)
-      id: String(
-        data.result?.userId ?? deriveUserIdFromToken(token) ?? loginData.email
-      ),
-      email: loginData.email,
-      fullName: data.result?.fullName || loginData.email,
-      phoneNumber: data.result?.phoneNumber || "",
-      role: finalRole,
-      createdAt: new Date().toISOString(),
-      isEmailVerified: true,
-    };
-    
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-
-    return { user, token };
+      return { user, token };
+    }
   },
 
   // Register (mock users only)
@@ -167,7 +192,6 @@ export const authService = {
     users.push(newUser);
     localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
 
-    // For register, we **don’t generate fake token**, user must login to get real token
     return { user: newUser, token: null };
   },
 
@@ -194,11 +218,10 @@ export const authService = {
         fullName: String(parsed.fullName || parsed.email || ""),
         phoneNumber: parsed.phoneNumber,
         avatar: parsed.avatar,
-        role: normalizedRole, // giữ nguyên role
+        role: normalizedRole,
         createdAt: String(parsed.createdAt || new Date().toISOString()),
         isEmailVerified: Boolean(parsed.isEmailVerified),
       };
-      // Persist normalized shape
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
       return normalizedUser;
     } catch {
