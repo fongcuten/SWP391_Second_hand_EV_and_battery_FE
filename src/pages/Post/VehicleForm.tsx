@@ -1,8 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { locationService, type Province, type District, type Ward } from "../../services/locationService";
-import { brandService, type Brand, type Model } from "../../services/Post/BrandService";
+import {
+  locationService,
+  type Province,
+  type District,
+  type Ward,
+} from "../../services/locationService";
+import {
+  brandService,
+  type Brand,
+  type Model,
+} from "../../services/Post/BrandService";
 import { PostService } from "../../services/Post/PostService"; // ✅ Changed import
 import { PriceSuggestionService } from "../../services/AI/AIPriceService";
 import { Loader2, CheckCircle, Sparkles } from "lucide-react";
@@ -159,7 +168,11 @@ const CreateVehiclePost: React.FC = () => {
     try {
       const data = await locationService.getDistricts(provinceCode);
       setDistricts(data);
-      setFormData(prev => ({ ...prev, district_code: null, ward_code: null }));
+      setFormData((prev) => ({
+        ...prev,
+        district_code: null,
+        ward_code: null,
+      }));
     } catch {
       toast.error("Không thể tải danh sách quận/huyện");
     } finally {
@@ -172,7 +185,7 @@ const CreateVehiclePost: React.FC = () => {
     try {
       const data = await locationService.getWards(districtCode);
       setWards(data);
-      setFormData(prev => ({ ...prev, ward_code: null }));
+      setFormData((prev) => ({ ...prev, ward_code: null }));
     } catch {
       toast.error("Không thể tải danh sách phường/xã");
     } finally {
@@ -201,16 +214,19 @@ const CreateVehiclePost: React.FC = () => {
       console.log(`📦 Loaded ${data.length} models for brandId ${brandId}`);
 
       // Additional validation: ensure all models belong to selected brand
-      const invalidModels = data.filter(m => m.brandId !== brandId);
+      const invalidModels = data.filter((m) => m.brandId !== brandId);
       if (invalidModels.length > 0) {
-        console.error("❌ Backend returned models from wrong brand:", invalidModels);
+        console.error(
+          "❌ Backend returned models from wrong brand:",
+          invalidModels
+        );
         toast.error("Lỗi: Dữ liệu mẫu xe không khớp với hãng!");
         setModels([]);
         return;
       }
 
       setModels(data);
-      setFormData(prev => ({ ...prev, modelId: null })); // Reset selected model
+      setFormData((prev) => ({ ...prev, modelId: null })); // Reset selected model
     } catch (error: any) {
       console.error("❌ Error loading models:", error);
       toast.error("Không thể tải danh sách mẫu xe");
@@ -231,26 +247,41 @@ const CreateVehiclePost: React.FC = () => {
 
   const resetModels = () => {
     setModels([]);
-    setFormData(prev => ({ ...prev, modelId: null }));
+    setFormData((prev) => ({ ...prev, modelId: null }));
   };
 
   // ===== HANDLERS =====
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
-    const numericFields = ["year", "mileage", "seats", "ownerCount", "ask_price", "province_code", "district_code", "ward_code", "brandId", "modelId"];
+    const numericFields = [
+      "year",
+      "mileage",
+      "seats",
+      "ownerCount",
+      "ask_price",
+      "province_code",
+      "district_code",
+      "ward_code",
+      "brandId",
+      "modelId",
+    ];
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: numericFields.includes(name) ? (Number(value) || null) : value,
+      [name]: numericFields.includes(name) ? Number(value) || null : value,
     }));
   };
 
   const handleToggle = (field: "transmission" | "fuelType", value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: prev[field].includes(value)
-        ? prev[field].filter(v => v !== value)
+        ? prev[field].filter((v) => v !== value)
         : [...prev[field], value],
     }));
   };
@@ -278,13 +309,15 @@ const CreateVehiclePost: React.FC = () => {
 
   const handleGetPriceSuggestion = async () => {
     // Validation
-    if (!formData.province_code) return toast.warning("Vui lòng chọn tỉnh/thành phố!");
-    if (!formData.brandId || !formData.modelId) return toast.warning("Vui lòng chọn hãng xe và mẫu xe!");
+    if (!formData.province_code)
+      return toast.warning("Vui lòng chọn tỉnh/thành phố!");
+    if (!formData.brandId || !formData.modelId)
+      return toast.warning("Vui lòng chọn hãng xe và mẫu xe!");
     if (!formData.year) return toast.warning("Vui lòng nhập năm sản xuất!");
     if (!formData.mileage) return toast.warning("Vui lòng nhập số km đã đi!");
 
-    const selectedBrand = brands.find(b => b.brandId === formData.brandId);
-    const selectedModel = models.find(m => m.modelId === formData.modelId);
+    const selectedBrand = brands.find((b) => b.brandId === formData.brandId);
+    const selectedModel = models.find((m) => m.modelId === formData.modelId);
 
     if (!selectedBrand || !selectedModel) {
       return toast.error("Không tìm thấy thông tin xe!");
@@ -310,7 +343,10 @@ const CreateVehiclePost: React.FC = () => {
         note: response.note,
       });
 
-      setFormData(prev => ({ ...prev, ask_price: response.suggestedPriceVND }));
+      setFormData((prev) => ({
+        ...prev,
+        ask_price: response.suggestedPriceVND,
+      }));
       toast.success("✨ Đã tính toán giá đề xuất từ AI!");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Không thể lấy gợi ý giá!");
@@ -338,14 +374,22 @@ const CreateVehiclePost: React.FC = () => {
   };
 
   const validateForm = () => {
-    if (images.length < 4) return toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
-    if (!formData.province_code || !formData.district_code || !formData.ward_code) {
+    if (images.length < 4)
+      return toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
+    if (
+      !formData.province_code ||
+      !formData.district_code ||
+      !formData.ward_code
+    ) {
       return toast.error("Vui lòng chọn đầy đủ địa chỉ!");
     }
     if (!formData.title.trim()) return toast.error("Vui lòng nhập tiêu đề!");
-    if (!formData.brandId || !formData.modelId) return toast.error("Vui lòng chọn hãng xe và mẫu xe!");
-    if (formData.transmission.length === 0) return toast.error("Vui lòng chọn loại hộp số!");
-    if (formData.fuelType.length === 0) return toast.error("Vui lòng chọn loại nhiên liệu!");
+    if (!formData.brandId || !formData.modelId)
+      return toast.error("Vui lòng chọn hãng xe và mẫu xe!");
+    if (formData.transmission.length === 0)
+      return toast.error("Vui lòng chọn loại hộp số!");
+    if (formData.fuelType.length === 0)
+      return toast.error("Vui lòng chọn loại nhiên liệu!");
     return true;
   };
 
@@ -375,7 +419,12 @@ const CreateVehiclePost: React.FC = () => {
           modelId: formData.modelId!,
           year: formData.year,
           odoKm: formData.mileage,
-          vin: formData.licensePlate || `VF${formData.year}XYZ${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+          vin:
+            formData.licensePlate ||
+            `VF${formData.year}XYZ${Math.random()
+              .toString(36)
+              .substr(2, 6)
+              .toUpperCase()}`,
           transmission: formData.transmission[0] || "AT",
           fuelType: formData.fuelType[0] || "EV",
           origin: "VN",
@@ -390,19 +439,21 @@ const CreateVehiclePost: React.FC = () => {
       // ✅ Call the new createPost method with proper FormData
       const formDataToSend = new FormData();
       formDataToSend.append("payload", JSON.stringify(payload));
-      
+
       // Add images
       images.forEach((image) => {
         formDataToSend.append("images", image);
       });
 
       const response = await PostService.createVehiclePost(payload, images);
-      
+
       toast.success(`🎉 Đăng tin thành công! Mã tin: ${response.listingId}`);
       setTimeout(() => navigate(`/xe-dien/${response.listingId}`), 1500);
     } catch (error: any) {
       console.error("❌ Error creating post:", error);
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng tin!");
+      toast.error(
+        error.response?.data?.message || "Có lỗi xảy ra khi đăng tin!"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -416,19 +467,28 @@ const CreateVehiclePost: React.FC = () => {
     return `${price.toLocaleString("vi-VN")} đ`;
   };
 
-  const inputClass = "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white";
+  const inputClass =
+    "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white";
   const labelClass = "block text-sm text-[#2C3E50] mb-1 font-medium";
-  const buttonClass = (active: boolean) => `px-4 py-1.5 rounded-full border text-sm transition ${active ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+  const buttonClass = (active: boolean) =>
+    `px-4 py-1.5 rounded-full border text-sm transition ${
+      active
+        ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
     }`;
 
   // ===== RENDER =====
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-gray-200 space-y-10">
-
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-gray-200 space-y-10"
+    >
       {/* Title */}
       <section>
-        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">Tiêu đề tin đăng</h2>
+        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
+          Tiêu đề tin đăng
+        </h2>
         <input
           name="title"
           value={formData.title}
@@ -441,11 +501,13 @@ const CreateVehiclePost: React.FC = () => {
 
       {/* Vehicle Info */}
       <section>
-        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">Thông tin chi tiết</h2>
+        <h2 className="text-xl font-semibold mb-5 text-[#2C3E50]">
+          Thông tin chi tiết
+        </h2>
 
         {/* Condition */}
         <div className="flex gap-3 mb-6">
-          {["Đã sử dụng", "Mới"].map(item => (
+          {["Đã sử dụng", "Mới"].map((item) => (
             <button
               key={item}
               type="button"
@@ -461,23 +523,61 @@ const CreateVehiclePost: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className={labelClass}>Hãng xe *</label>
-            <select name="brandId" value={formData.brandId || ""} onChange={handleChange} className={inputClass} disabled={loadingBrands} required>
-              <option value="">{loadingBrands ? "Đang tải..." : "Chọn hãng xe"}</option>
-              {brands.map(b => <option key={b.brandId} value={b.brandId}>{b.name}</option>)}
+            <select
+              name="brandId"
+              value={formData.brandId || ""}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={loadingBrands}
+              required
+            >
+              <option value="">
+                {loadingBrands ? "Đang tải..." : "Chọn hãng xe"}
+              </option>
+              {brands.map((b) => (
+                <option key={b.brandId} value={b.brandId}>
+                  {b.name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
             <label className={labelClass}>Mẫu xe *</label>
-            <select name="modelId" value={formData.modelId || ""} onChange={handleChange} className={inputClass} disabled={loadingModels || !formData.brandId} required>
-              <option value="">{loadingModels ? "Đang tải..." : !formData.brandId ? "Chọn hãng trước" : "Chọn mẫu xe"}</option>
-              {models.map(m => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
+            <select
+              name="modelId"
+              value={formData.modelId || ""}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={loadingModels || !formData.brandId}
+              required
+            >
+              <option value="">
+                {loadingModels
+                  ? "Đang tải..."
+                  : !formData.brandId
+                  ? "Chọn hãng trước"
+                  : "Chọn mẫu xe"}
+              </option>
+              {models.map((m) => (
+                <option key={m.modelId} value={m.modelId}>
+                  {m.name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
             <label className={labelClass}>Năm sản xuất *</label>
-            <input type="number" name="year" value={formData.year} onChange={handleChange} placeholder="2024" className={inputClass} required />
+            <input
+              type="number"
+              name="year"
+              value={formData.year}
+              onChange={handleChange}
+              placeholder="2024"
+              className={inputClass}
+              required
+            />
           </div>
         </div>
 
@@ -485,8 +585,13 @@ const CreateVehiclePost: React.FC = () => {
         <div className="mb-6">
           <label className={labelClass}>Hộp số *</label>
           <div className="flex flex-wrap gap-3">
-            {["Tự động", "Số sàn", "Bán tự động"].map(type => (
-              <button key={type} type="button" onClick={() => handleToggle("transmission", type)} className={buttonClass(formData.transmission.includes(type))}>
+            {["Tự động", "Số sàn", "Bán tự động"].map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => handleToggle("transmission", type)}
+                className={buttonClass(formData.transmission.includes(type))}
+              >
                 {type}
               </button>
             ))}
@@ -497,8 +602,13 @@ const CreateVehiclePost: React.FC = () => {
         <div className="mb-6">
           <label className={labelClass}>Nhiên liệu *</label>
           <div className="flex flex-wrap gap-3">
-            {["Xăng", "Dầu", "Động cơ Hybrid", "Điện"].map(fuel => (
-              <button key={fuel} type="button" onClick={() => handleToggle("fuelType", fuel)} className={buttonClass(formData.fuelType.includes(fuel))}>
+            {["Xăng", "Dầu", "Động cơ Hybrid", "Điện"].map((fuel) => (
+              <button
+                key={fuel}
+                type="button"
+                onClick={() => handleToggle("fuelType", fuel)}
+                className={buttonClass(formData.fuelType.includes(fuel))}
+              >
                 {fuel}
               </button>
             ))}
@@ -509,34 +619,70 @@ const CreateVehiclePost: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className={labelClass}>Số chỗ ngồi</label>
-            <input type="number" name="seats" value={formData.seats} onChange={handleChange} placeholder="2" className={inputClass} />
+            <input
+              type="number"
+              name="seats"
+              value={formData.seats}
+              onChange={handleChange}
+              placeholder="2"
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Màu sắc</label>
-            <input name="color" value={formData.color} onChange={handleChange} placeholder="Trắng, Đen..." className={inputClass} />
+            <input
+              name="color"
+              value={formData.color}
+              onChange={handleChange}
+              placeholder="Trắng, Đen..."
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Biển số xe</label>
-            <input name="licensePlate" value={formData.licensePlate} onChange={handleChange} placeholder="30A-12345" className={inputClass} />
+            <input
+              name="licensePlate"
+              value={formData.licensePlate}
+              onChange={handleChange}
+              placeholder="30A-12345"
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Số đời chủ</label>
-            <input type="number" name="ownerCount" value={formData.ownerCount} onChange={handleChange} placeholder="1" className={inputClass} />
+            <input
+              type="number"
+              name="ownerCount"
+              value={formData.ownerCount}
+              onChange={handleChange}
+              placeholder="1"
+              className={inputClass}
+            />
           </div>
         </div>
 
         {/* Registration */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {[{ label: "Còn đăng kiểm", key: "inspection" }, { label: "Còn hạn đăng kiểm", key: "registration" }].map(item => (
+          {[
+            { label: "Còn đăng kiểm", key: "inspection" },
+            { label: "Còn hạn đăng kiểm", key: "registration" },
+          ].map((item) => (
             <div key={item.key}>
               <label className={labelClass}>{item.label}</label>
               <div className="flex gap-3">
-                {["Có", "Không"].map(opt => (
+                {["Có", "Không"].map((opt) => (
                   <button
                     key={opt}
                     type="button"
-                    onClick={() => setFormData({ ...formData, [item.key]: opt } as VehicleFormData)}
-                    className={buttonClass(formData[item.key as keyof VehicleFormData] === opt)}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        [item.key]: opt,
+                      } as VehicleFormData)
+                    }
+                    className={buttonClass(
+                      formData[item.key as keyof VehicleFormData] === opt
+                    )}
                   >
                     {opt}
                   </button>
@@ -550,12 +696,28 @@ const CreateVehiclePost: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Số Km đã đi *</label>
-            <input type="number" name="mileage" value={formData.mileage} onChange={handleChange} placeholder="5000" className={inputClass} required />
+            <input
+              type="number"
+              name="mileage"
+              value={formData.mileage}
+              onChange={handleChange}
+              placeholder="5000"
+              className={inputClass}
+              required
+            />
           </div>
           <div>
             <label className={labelClass}>Giá bán (VNĐ) *</label>
             <div className="flex gap-2">
-              <input type="number" name="ask_price" value={formData.ask_price} onChange={handleChange} placeholder="19000000" className={`flex-1 ${inputClass}`} required />
+              <input
+                type="number"
+                name="ask_price"
+                value={formData.ask_price}
+                onChange={handleChange}
+                placeholder="19000000"
+                className={`flex-1 ${inputClass}`}
+                required
+              />
               <button
                 type="button"
                 onClick={handleGetPriceSuggestion}
@@ -585,13 +747,21 @@ const CreateVehiclePost: React.FC = () => {
                 </div>
                 <div className="space-y-2 text-sm">
                   <p className="text-gray-700">
-                    <span className="font-medium">Khoảng giá:</span> {formatPrice(priceSuggestion.min)} - {formatPrice(priceSuggestion.max)}
+                    <span className="font-medium">Khoảng giá:</span>{" "}
+                    {formatPrice(priceSuggestion.min)} -{" "}
+                    {formatPrice(priceSuggestion.max)}
                   </p>
                   <p className="bg-[#2ECC71] text-white px-3 py-2 rounded-lg">
                     <span className="font-medium">Giá đề xuất:</span>{" "}
-                    <span className="text-lg font-bold">{formatPrice(priceSuggestion.suggested)}</span>
+                    <span className="text-lg font-bold">
+                      {formatPrice(priceSuggestion.suggested)}
+                    </span>
                   </p>
-                  {priceSuggestion.note && <p className="text-gray-600 text-xs italic">💡 {priceSuggestion.note}</p>}
+                  {priceSuggestion.note && (
+                    <p className="text-gray-600 text-xs italic">
+                      💡 {priceSuggestion.note}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -605,55 +775,122 @@ const CreateVehiclePost: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className={labelClass}>Tỉnh/Thành phố *</label>
-            <select name="province_code" value={formData.province_code || ""} onChange={handleChange} className={inputClass} disabled={loadingLocation} required>
+            <select
+              name="province_code"
+              value={formData.province_code || ""}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={loadingLocation}
+              required
+            >
               <option value="">Chọn tỉnh/thành phố</option>
-              {provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
+              {provinces.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className={labelClass}>Quận/Huyện *</label>
-            <select name="district_code" value={formData.district_code || ""} onChange={handleChange} className={inputClass} disabled={loadingLocation || !formData.province_code} required>
+            <select
+              name="district_code"
+              value={formData.district_code || ""}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={loadingLocation || !formData.province_code}
+              required
+            >
               <option value="">Chọn quận/huyện</option>
-              {districts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
+              {districts.map((d) => (
+                <option key={d.code} value={d.code}>
+                  {d.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className={labelClass}>Phường/Xã *</label>
-            <select name="ward_code" value={formData.ward_code || ""} onChange={handleChange} className={inputClass} disabled={loadingLocation || !formData.district_code} required>
+            <select
+              name="ward_code"
+              value={formData.ward_code || ""}
+              onChange={handleChange}
+              className={inputClass}
+              disabled={loadingLocation || !formData.district_code}
+              required
+            >
               <option value="">Chọn phường/xã</option>
-              {wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}
+              {wards.map((w) => (
+                <option key={w.code} value={w.code}>
+                  {w.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
         <div>
           <label className={labelClass}>Địa chỉ chi tiết</label>
-          <input name="street" value={formData.street} onChange={handleChange} placeholder="Số nhà, tên đường..." className={inputClass} />
+          <input
+            name="street"
+            value={formData.street}
+            onChange={handleChange}
+            placeholder="Số nhà, tên đường..."
+            className={inputClass}
+          />
         </div>
       </section>
 
       {/* Images */}
       <section>
-        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">Hình ảnh *</h2>
-        <p className="text-sm text-gray-500 mb-3">Tải tối thiểu 4 hình, tối đa 10 hình</p>
+        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
+          Hình ảnh *
+        </h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Tải tối thiểu 4 hình, tối đa 10 hình
+        </p>
         <div className="flex flex-wrap gap-4">
           {images.map((file, i) => (
-            <div key={i} className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-200">
-              <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-              <button onClick={() => handleRemoveImage(i)} type="button" className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 hover:bg-red-700">
+            <div
+              key={i}
+              className="relative w-28 h-28 rounded-lg overflow-hidden border border-gray-200"
+            >
+              <img
+                src={URL.createObjectURL(file)}
+                alt="preview"
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => handleRemoveImage(i)}
+                type="button"
+                className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 hover:bg-red-700"
+              >
                 ✕
               </button>
             </div>
           ))}
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="w-28 h-28 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-[#2ECC71] hover:text-[#2ECC71] transition rounded-lg text-3xl">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-28 h-28 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-[#2ECC71] hover:text-[#2ECC71] transition rounded-lg text-3xl"
+          >
             +
           </button>
-          <input type="file" multiple accept="image/*" onChange={handleFileUpload} ref={fileInputRef} className="hidden" />
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileUpload}
+            ref={fileInputRef}
+            className="hidden"
+          />
         </div>
       </section>
 
       {/* Description */}
       <section>
-        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">Mô tả chi tiết</h2>
+        <h2 className="text-xl font-semibold mb-4 text-[#2C3E50]">
+          Mô tả chi tiết
+        </h2>
         <textarea
           name="description"
           placeholder="Mô tả chi tiết về xe..."
@@ -666,7 +903,11 @@ const CreateVehiclePost: React.FC = () => {
 
       {/* Submit */}
       <div className="flex justify-end">
-        <button type="submit" disabled={submitting} className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="bg-[#2ECC71] text-white font-medium px-8 py-2.5 rounded-lg hover:bg-[#27AE60] transition disabled:opacity-50 flex items-center gap-2"
+        >
           {submitting ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />

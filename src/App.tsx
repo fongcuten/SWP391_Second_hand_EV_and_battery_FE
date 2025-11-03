@@ -5,6 +5,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+import Authenticate from "./pages/auth/Authenticate";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -49,6 +50,7 @@ const AppShell: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/dang-nhap" element={<LoginPage />} />
           <Route path="/dang-ky" element={<RegisterPage />} />
+          <Route path="/authenticate" element={<Authenticate />} />
 
           {/* ✅ Protected User Routes */}
           <Route
@@ -116,7 +118,7 @@ const AppShell: React.FC = () => {
           <Route path="/so-sanh" element={<ComparePage />} />
           <Route path="/ho-tro" element={<SupportPage />} />
           <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
-          
+
           <Route
             path="/checkout/success"
             element={
@@ -134,7 +136,6 @@ const AppShell: React.FC = () => {
               </ProtectedRoute>
             }
           />
-
 
           <Route path="/chat" element={<ChatPage />} />
           {/* Test API Location */}

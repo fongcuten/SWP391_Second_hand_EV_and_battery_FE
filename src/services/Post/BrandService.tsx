@@ -41,9 +41,10 @@ export const brandService = {
 
   async getModelsByBrand(brandId: number): Promise<Model[]> {
     try {
-      const response = await guestApi.get<ApiResponse<Model[]>>(`/models`, {
-        params: { brandId }
-      });
+      // Use backend public endpoint that filters by brandId via path param
+      const response = await guestApi.get<ApiResponse<Model[]>>(
+        `/models/brand/${brandId}`
+      );
       console.log(`✅ Models for brandId ${brandId}:`, response.data.result);
       return response.data.result;
     } catch (error) {
@@ -54,7 +55,9 @@ export const brandService = {
 
   async getModelById(modelId: number): Promise<ModelDetail> {
     try {
-      const response = await guestApi.get<ApiResponse<ModelDetail>>(`/models/${modelId}`);
+      const response = await guestApi.get<ApiResponse<ModelDetail>>(
+        `/models/${modelId}`
+      );
       console.log("✅ Model details fetched:", response.data.result);
       return response.data.result;
     } catch (error) {

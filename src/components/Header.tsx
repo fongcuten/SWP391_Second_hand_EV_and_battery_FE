@@ -99,7 +99,7 @@ const Header: React.FC = () => {
                 <span className="text-sm font-medium">Yêu thích</span>
               </Link>
 
-              <Link
+              {/* <Link
                 to="/thong-bao"
                 className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all relative"
               >
@@ -108,12 +108,12 @@ const Header: React.FC = () => {
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   3
                 </span>
-              </Link>
+              </Link> */}
 
-              <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
+              {/* <button className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all">
                 <ShoppingCart className="h-5 w-5" />
                 <span className="text-sm font-medium">Giỏ hàng</span>
-              </button>
+              </button> */}
             </div>
 
             {/* Login/User */}

@@ -12,14 +12,14 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import type { LoginFormData } from "../../types/auth";
+import { OAuthConfig } from "../../config/configuration";
 import api from "../../config/axios";
 import { setToken } from "../../services/localStorageService";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, error, isAuthenticated, clearError, login, user } =
-    useAuth();
+  const { isLoading, error, isAuthenticated, clearError, login } = useAuth();
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -33,19 +33,33 @@ const LoginPage: React.FC = () => {
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleGoogleLogin = () => {
+    const state = crypto.getRandomValues(new Uint32Array(4)).join("-");
+    sessionStorage.setItem("oauth_state", state);
+
+    const url =
+      `${OAuthConfig.authUri}` +
+      `?client_id=${encodeURIComponent(OAuthConfig.clientId)}` +
+      `&redirect_uri=${encodeURIComponent(OAuthConfig.redirectUri)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent(OAuthConfig.scope)}` +
+      `&access_type=offline` + // nếu muốn refresh_token
+      `&include_granted_scopes=true` + // gộp scope đã cấp
+      `&approval_prompt=auto` + // tham số kiểu cũ (tương đương prompt)
+      `&state=${encodeURIComponent(state)}`;
+
+    window.location.href = url;
+  };
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const stateFrom = (location.state as { from?: { pathname: string } })
-        ?.from?.pathname;
-      // Admin luôn vào trang quản trị
-      if (user?.role === "admin") {
-        navigate("/admin", { replace: true });
-        return;
-      }
-      navigate(stateFrom || "/", { replace: true });
+      const from =
+        (location.state as { from?: { pathname: string } })?.from?.pathname ||
+        "/";
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, location]);
+  }, [isAuthenticated, navigate, location]);
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -277,6 +291,21 @@ const LoginPage: React.FC = () => {
             ) : (
               "Đăng nhập"
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-white border border-gray-300 hover:bg-gray-50"
+          >
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
+              className="w-5 h-5"
+            />
+            <span className="font-medium text-gray-700">
+              Tiếp tục với Google
+            </span>
           </button>
 
           {/* Register Link */}
