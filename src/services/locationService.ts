@@ -24,7 +24,8 @@ export interface LocationData {
 }
 
 class LocationService {
-  private baseUrl = "https://provinces.open-api.vn/api";
+  // ⚠️ Using HTTP instead of HTTPS (not secure)
+  private baseUrl = "http://provinces.open-api.vn/api";
 
   // Lấy danh sách tỉnh/thành phố
   async getProvinces(): Promise<Province[]> {
@@ -34,11 +35,11 @@ class LocationService {
         throw new Error("Failed to fetch provinces");
       }
       const data = await response.json();
-      console.log("Provinces API response:", data);
+      console.log("✅ Provinces loaded:", data.length);
       return data || [];
     } catch (error) {
-      console.error("Error fetching provinces:", error);
-      return [];
+      console.error("❌ Error fetching provinces:", error);
+      throw error;
     }
   }
 
@@ -50,11 +51,11 @@ class LocationService {
         throw new Error("Failed to fetch districts");
       }
       const data = await response.json();
-      console.log("Districts API response:", data);
+      console.log("✅ Districts loaded:", data.districts?.length || 0);
       return data.districts || [];
     } catch (error) {
-      console.error("Error fetching districts:", error);
-      return [];
+      console.error("❌ Error fetching districts:", error);
+      throw error;
     }
   }
 
@@ -66,11 +67,11 @@ class LocationService {
         throw new Error("Failed to fetch wards");
       }
       const data = await response.json();
-      console.log("Wards API response:", data);
+      console.log("✅ Wards loaded:", data.wards?.length || 0);
       return data.wards || [];
     } catch (error) {
-      console.error("Error fetching wards:", error);
-      return [];
+      console.error("❌ Error fetching wards:", error);
+      throw error;
     }
   }
 

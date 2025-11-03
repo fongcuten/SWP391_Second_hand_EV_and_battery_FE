@@ -21,6 +21,7 @@ export interface User {
     provinceCode: number;
     districtCode: number;
     wardCode: number;
+    street: string; // ✅ Added street field
     bio: string;
     plan: Plan | null;
     planStatus: string;
@@ -30,6 +31,18 @@ export interface User {
     updatedAt: string;
 }
 
+export interface UpdateUserRequest {
+    firstName: string;
+    lastName: string;
+    email: string;
+    provinceCode: number;
+    districtCode: number;
+    wardCode: number;
+    street: string; // ✅ Added street field
+    bio: string;
+    password?: string;
+}
+
 interface ApiResponse<T> {
     code: number;
     message: string;
@@ -37,17 +50,6 @@ interface ApiResponse<T> {
 }
 
 export const userService = {
-    // async getUserById(userId: number): Promise<User> {
-    //     try {
-    //         const response = await api.get<ApiResponse<User>>(`/users/${userId}`);
-    //         console.log("✅ User fetched:", response.data.result);
-    //         return response.data.result;
-    //     } catch (error: any) {
-    //         console.error("❌ Error fetching user:", error);
-    //         throw error;
-    //     }
-    // },
-
     async getCurrentUser(): Promise<User> {
         try {
             const response = await api.get<ApiResponse<User>>("/users/myInfo");
@@ -55,6 +57,17 @@ export const userService = {
             return response.data.result;
         } catch (error: any) {
             console.error("❌ Error fetching current user:", error);
+            throw error;
+        }
+    },
+
+    async updateUser(userId: number, data: UpdateUserRequest): Promise<User> {
+        try {
+            const response = await api.put<ApiResponse<User>>(`/users/${userId}`, data);
+            console.log("✅ User updated:", response.data.result);
+            return response.data.result;
+        } catch (error: any) {
+            console.error("❌ Error updating user:", error);
             throw error;
         }
     },
