@@ -6,18 +6,65 @@ export interface AddFavoriteRequest {
     listingId: number;
 }
 
-export interface FavoriteItem {
-    userId: number;
-    username: string;
+export interface FavoriteListingItem {
     listingId: number;
-    productType: "EV" | "BATTERY";
-    description: string;
+    productName: string;
     askPrice: number;
-    createdAt: string;
-    // Additional fields from listing details (may be undefined)
+    productType: string;
+    priorityLevel: number;
+    provinceCode: number;
+    districtCode: number;
+    wardCode: number;
+    street: string;
+    address: string;
+    coverThumb: string;
+}
+
+export interface PagedFavoritesResult {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    content: FavoriteListingItem[];
+    number: number;
+    sort: {
+        empty: boolean;
+        sorted: boolean;
+        unsorted: boolean;
+    };
+    numberOfElements: number;
+    pageable: {
+        offset: number;
+        sort: {
+            empty: boolean;
+            sorted: boolean;
+            unsorted: boolean;
+        };
+        pageNumber: number;
+        paged: boolean;
+        pageSize: number;
+        unpaged: boolean;
+    };
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+}
+
+export interface FavoriteItem {
+    userId?: number;
+    username?: string;
+    listingId: number;
+    productType: "EV" | "BATTERY" | string;
+    description?: string;
+    askPrice: number;
+    createdAt?: string;
     title?: string;
     image?: string;
     location?: string;
+    street?: string; // ✅ Added
+    provinceCode?: number; // ✅ Added
+    districtCode?: number; // ✅ Added
+    wardCode?: number; // ✅ Added
+    address?: string; // ✅ Added
     views?: number;
     rating?: number;
     brand?: string;
@@ -37,7 +84,7 @@ export interface FavoriteResponse {
 export interface FavoritesListResponse {
     code: number;
     message: string;
-    result: FavoriteItem[];
+    result: PagedFavoritesResult;
 }
 
 export class FavoriteService {
@@ -73,7 +120,6 @@ export class FavoriteService {
 
             console.log("✅ Add favorite response:", response.data);
 
-            // ✅ Check for success code (0 or 1000)
             if (response.data.code !== 0 && response.data.code !== 1000) {
                 throw new Error(response.data.message || "Failed to add to favorites");
             }
@@ -109,7 +155,6 @@ export class FavoriteService {
             const response = await api.delete<FavoriteResponse>(`/api/favorites/${listingId}`);
             console.log("✅ Remove favorite response:", response.data);
 
-            // ✅ Check for success code (0 or 1000)
             if (response.data.code !== 0 && response.data.code !== 1000) {
                 throw new Error(response.data.message || "Failed to remove from favorites");
             }
@@ -126,29 +171,69 @@ export class FavoriteService {
     }
 
     /**
-     * Get all favorites for a specific user
+     * Get all favorites for a specific user (with pagination)
      */
-    static async getUserFavoritesByUserId(userId: number): Promise<FavoriteItem[]> {
+    static async getUserFavoritesByUserId(
+        userId: number,
+        page: number = 0,
+        size: number = 100
+    ): Promise<FavoriteItem[]> {
         try {
             console.log("📋 Fetching favorites for userId:", userId);
 
             const response = await api.get<FavoritesListResponse>(
-                `/api/favorites/user/${userId}`
+                `/api/favorites/user/${userId}`,
+                {
+                    params: { page, size }
+                }
             );
 
             console.log("✅ API Response:", response.data);
             console.log("✅ Response code:", response.data.code);
             console.log("✅ Response result:", response.data.result);
 
-            // ✅ Check for success code (0 or 1000)
             if (response.data.code !== 0 && response.data.code !== 1000) {
                 console.error("❌ Non-success code:", response.data.code);
                 throw new Error(response.data.message || "Failed to load favorites");
             }
 
-            const favorites = response.data.result || [];
+            const pagedResult = response.data.result;
+
+            if (!pagedResult || !pagedResult.content) {
+                console.log("ℹ️ No favorites found (empty result)");
+                return [];
+            }
+
+            // ✅ Transform with ALL location fields included
+            const favorites: FavoriteItem[] = pagedResult.content.map(item => {
+                console.log("📍 Raw item location data:", {
+                    provinceCode: item.provinceCode,
+                    districtCode: item.districtCode,
+                    wardCode: item.wardCode,
+                    street: item.street,
+                    address: item.address
+                });
+
+                return {
+                    listingId: item.listingId,
+                    productType: item.productType,
+                    askPrice: item.askPrice,
+                    title: item.productName,
+                    description: item.productName,
+                    image: item.coverThumb,
+                    location: item.address,
+                    address: item.address,
+                    street: item.street, // ✅ Pass through
+                    provinceCode: item.provinceCode, // ✅ Pass through
+                    districtCode: item.districtCode, // ✅ Pass through
+                    wardCode: item.wardCode, // ✅ Pass through
+                    views: 0,
+                    rating: 0,
+                };
+            });
+
             console.log("✅ Parsed favorites count:", favorites.length);
-            console.log("✅ Favorites data:", favorites);
+            console.log("✅ Transformed favorites with location codes:", favorites);
 
             return favorites;
         } catch (error: any) {
@@ -161,7 +246,6 @@ export class FavoriteService {
                 return [];
             }
 
-            // Don't throw error, return empty array
             console.warn("⚠️ Returning empty array due to error");
             return [];
         }
@@ -191,7 +275,6 @@ export class FavoriteService {
             return await this.getUserFavoritesByUserId(userId);
         } catch (error: any) {
             console.error("❌ Error loading current user favorites:", error);
-            // Return empty array instead of throwing
             return [];
         }
     }

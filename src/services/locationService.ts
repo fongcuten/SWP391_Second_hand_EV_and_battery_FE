@@ -112,6 +112,82 @@ class LocationService {
       return null;
     }
   }
+
+
+  async getProvinceName(provinceCode: number): Promise<string> {
+    try {
+      const provinces = await this.getProvinces();
+      const province = provinces.find((p) => p.code === provinceCode);
+      return province ? province.name : "Không xác định";
+    } catch (error) {
+      console.error("❌ Error getting province name:", error);
+      return "Không xác định";
+    }
+  }
+
+  
+  async getDistrictName(
+    districtCode: number,
+    provinceCode?: number
+  ): Promise<string> {
+    try {
+      if (provinceCode) {
+        const districts = await this.getDistricts(provinceCode);
+        const district = districts.find((d) => d.code === districtCode);
+        return district ? district.name : "Không xác định";
+      }
+
+      // Search through all provinces (slower)
+      const provinces = await this.getProvinces();
+      for (const province of provinces) {
+        const districts = await this.getDistricts(province.code);
+        const district = districts.find((d) => d.code === districtCode);
+        if (district) {
+          return district.name;
+        }
+      }
+
+      return "Không xác định";
+    } catch (error) {
+      console.error("❌ Error getting district name:", error);
+      return "Không xác định";
+    }
+  }
+
+  async getWardName(wardCode: number, districtCode: number): Promise<string> {
+    try {
+      const wards = await this.getWards(districtCode);
+      const ward = wards.find((w) => w.code === wardCode);
+      return ward ? ward.name : "Không xác định";
+    } catch (error) {
+      console.error("❌ Error getting ward name:", error);
+      return "Không xác định";
+    }
+  }
+
+  async getFullAddress(
+    provinceCode: number,
+    districtCode: number,
+    wardCode: number,
+    street?: string
+  ): Promise<string> {
+    try {
+      const [provinceName, districtName, wardName] = await Promise.all([
+        this.getProvinceName(provinceCode),
+        this.getDistrictName(districtCode, provinceCode),
+        this.getWardName(wardCode, districtCode),
+      ]);
+
+      const parts = [street, wardName, districtName, provinceName].filter(
+        (part) => part && part !== "Không xác định"
+      );
+
+      return parts.join(", ") || "Không xác định";
+    } catch (error) {
+      console.error("❌ Error getting full address:", error);
+      return "Không xác định";
+    }
+  }
 }
 
 export const locationService = new LocationService();

@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { FavoriteService, type FavoriteItem as ApiFavoriteItem } from "../../services/FavoriteService";
+import { locationService } from "../../services/locationService";
 import { toast } from "react-toastify";
 
 interface FavoriteItem {
@@ -73,36 +74,83 @@ const FavoritesPage: React.FC = () => {
         return;
       }
 
-      // ✅ Transform API data to component format
-      const transformedFavorites: FavoriteItem[] = apiFavorites.map((item, index) => {
-        console.log(`🔄 Transforming item ${index + 1}:`, item);
+      // ✅ Transform with location conversion
+      const transformedFavorites: FavoriteItem[] = await Promise.all(
+        apiFavorites.map(async (item, index) => {
+          console.log(`🔄 Transforming item ${index + 1}:`, item);
+          console.log(`📍 Location codes for item ${index + 1}:`, {
+            provinceCode: item.provinceCode,
+            districtCode: item.districtCode,
+            wardCode: item.wardCode,
+            street: item.street
+          });
 
-        const transformed = {
-          id: String(item.listingId),
-          listingId: item.listingId,
-          username: item.username || "Unknown",
-          description: item.description || "No description",
-          title: item.title || item.description || `${item.productType} #${item.listingId}`,
-          price: item.askPrice || 0,
-          originalPrice: undefined,
-          image: item.image || "https://via.placeholder.com/300x200?text=No+Image",
-          location: item.location || "Không xác định",
-          datePosted: item.createdAt || new Date().toISOString(),
-          views: item.views || 0,
-          isFavorite: true,
-          rating: item.rating || 0,
-          type: item.productType === "EV" ? "vehicle" as const : "battery" as const,
-          brand: item.brand || "Unknown",
-          model: item.model || "Unknown",
-          year: item.year,
-          mileage: item.mileage,
-          batteryCapacity: item.batteryCapacity,
-          condition: (item.condition || "good") as "excellent" | "good" | "fair" | "poor",
-        };
+          // ✅ Convert location codes to readable address
+          let location = "Không xác định";
 
-        console.log(`✅ Transformed item ${index + 1}:`, transformed);
-        return transformed;
-      });
+          // Check if location codes exist (not undefined and not 0)
+          const hasValidLocationCodes =
+            item.provinceCode !== undefined && item.provinceCode !== 0 &&
+            item.districtCode !== undefined && item.districtCode !== 0 &&
+            item.wardCode !== undefined && item.wardCode !== 0;
+
+          console.log(`🔍 Has valid location codes for item ${index + 1}:`, hasValidLocationCodes);
+
+          if (hasValidLocationCodes) {
+            try {
+              console.log(`🌍 Converting location for item ${index + 1}...`);
+
+              location = await locationService.getFullAddress(
+                item.provinceCode!,
+                item.districtCode!,
+                item.wardCode!,
+                item.street
+              );
+
+              console.log(`✅ Converted location for item ${index + 1}:`, location);
+            } catch (locationError) {
+              console.error(`❌ Error converting location for item ${index + 1}:`, locationError);
+              // Fallback to existing location or default
+              location = item.location || item.address || "Không xác định";
+              console.log(`⚠️ Using fallback location for item ${index + 1}:`, location);
+            }
+          } else {
+            // Use existing location field if no codes available
+            location = item.location || item.address || "Không xác định";
+            console.log(`ℹ️ No valid codes, using existing location for item ${index + 1}:`, location);
+          }
+
+          // Determine product type
+          const normalizedType = item.productType?.toUpperCase() || "";
+          const isVehicle = normalizedType === "EV" || normalizedType === "VEHICLE";
+
+          const transformed: FavoriteItem = {
+            id: String(item.listingId),
+            listingId: item.listingId,
+            username: item.username || "Unknown",
+            description: item.description || item.title || "No description",
+            title: item.title || item.description || `${item.productType} #${item.listingId}`,
+            price: item.askPrice || 0,
+            originalPrice: undefined,
+            image: item.image || "https://via.placeholder.com/300x200?text=No+Image",
+            location, // ✅ Now contains real address
+            datePosted: item.createdAt || new Date().toISOString(),
+            views: item.views || 0,
+            isFavorite: true,
+            rating: item.rating || 0,
+            type: isVehicle ? "vehicle" : "battery",
+            brand: item.brand || "Unknown",
+            model: item.model || "Unknown",
+            year: item.year,
+            mileage: item.mileage,
+            batteryCapacity: item.batteryCapacity,
+            condition: (item.condition || "good") as "excellent" | "good" | "fair" | "poor",
+          };
+
+          console.log(`✅ Final transformed item ${index + 1}:`, transformed);
+          return transformed;
+        })
+      );
 
       console.log("✅ All transformed favorites:", transformedFavorites);
 
