@@ -185,12 +185,34 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
         provinceCode: formData.provinceCode,
         districtCode: formData.districtCode,
         wardCode: formData.wardCode,
-        street: formData.street.trim(), // ✅ Include street in update
+        street: formData.street.trim(),
         bio: formData.bio.trim(),
       };
 
       const updatedUser = await userService.updateUser(user.userId, updateData);
       setUser(updatedUser);
+
+      // ✅ Update localStorage current_user
+      const currentUserStr = localStorage.getItem("current_user");
+      if (currentUserStr) {
+        try {
+          const currentUser = JSON.parse(currentUserStr);
+          
+          // ✅ Merge updated data
+          const updatedLocalUser = {
+            ...currentUser,
+            email: updatedUser.email,
+            fullName: `${updatedUser.firstName} ${updatedUser.lastName}`.trim(),
+            phoneNumber: updatedUser.phone,
+            // Keep other fields like id, role, createdAt
+          };
+
+          console.log("✅ Updating localStorage user:", updatedLocalUser);
+          localStorage.setItem("current_user", JSON.stringify(updatedLocalUser));
+        } catch (err) {
+          console.error("❌ Error updating localStorage user:", err);
+        }
+      }
 
       toast.success("Cập nhật thông tin thành công!");
 
