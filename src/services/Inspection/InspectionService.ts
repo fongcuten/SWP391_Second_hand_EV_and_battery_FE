@@ -2,11 +2,12 @@ import api from "../../config/axios";
 
 export interface InspectionOrderRequest {
   listingId: number;
-  inspectionType: "SYSTEM_AUTO" | "MANUAL_DOCUMENT";
+  scheduledAt?: string;
   provinceCode?: number;
   districtCode?: number;
   wardCode?: number;
   street?: string;
+  price?: number;
 }
 
 export interface InspectionOrderResponse {
@@ -16,58 +17,59 @@ export interface InspectionOrderResponse {
   estimatedCompletionDate?: string;
 }
 
+export interface InspectionReportResponse {
+  reportId: number;
+  listingId: number;
+  inspectionOrderId: number;
+  sourceType: string;
+  provider: string;
+  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  result?: "PASS" | "FAIL";
+  reportUrl?: string;
+  approvedAt?: string;
+  createdAt: string;
+}
+
 export class InspectionService {
   /**
-   * Submit inspection order
-   * @param payload - Order details
-   * @param file - Optional PDF file for manual inspection
+   * Submit inspection order (System inspection)
    */
   static async submitInspectionOrder(
-    payload: InspectionOrderRequest,
-    file?: File
-  ): Promise<{
-    code: number;
-    message: string;
-    result: InspectionOrderResponse;
-  }> {
-    console.log("📤 Submitting inspection order:", payload);
-
+    payload: InspectionOrderRequest
+  ): Promise<number> {
     try {
-      // Backend expects JSON at /api/inspection-orders (no file upload endpoint)
-      const requestBody: any = {
-        listingId: payload.listingId,
-        scheduledAt: undefined,
-        provinceCode: payload.provinceCode,
-        districtCode: payload.districtCode,
-        wardCode: payload.wardCode,
-        street: payload.street,
-        price: undefined,
-      };
-
-      const response = await api.post("/api/inspection-orders", requestBody, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      console.log("✅ Inspection order created:", response.data);
-      return response.data;
+      const response = await api.post("/api/inspection-orders", payload);
+      return response.data; // ✅ Returns orderId directly
     } catch (error: any) {
-      console.error("❌ Error submitting inspection order:", error);
-      console.error("❌ Error response:", error.response?.data);
-      console.error("❌ Error status:", error.response?.status);
-
-      // Handle specific errors
-      if (error.response?.status === 415) {
-        throw new Error(
-          "Định dạng file không được hỗ trợ. Vui lòng chỉ tải lên file PDF."
-        );
-      }
-
-      if (error.response?.status === 413) {
-        throw new Error("File quá lớn. Vui lòng chọn file nhỏ hơn 10MB.");
-      }
-
       const message =
-        error.response?.data?.message || "Không thể gửi yêu cầu kiểm duyệt";
+        error.response?.data?.message ||
+        "Không thể gửi yêu cầu kiểm duyệt";
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Submit manual inspection report (Document upload)
+   */
+  static async submitManualInspection(
+    listingId: number,
+    file: File,
+    inspectionOrderId: number
+  ): Promise<InspectionReportResponse> {
+    try {
+      const formData = new FormData();
+      formData.append("listingId", listingId.toString());
+      formData.append("inspectionOrderId", inspectionOrderId.toString());
+      formData.append("sourceType", "USER");
+      formData.append("provider", "USER_UPLOAD");
+      formData.append("file", file);
+
+      const response = await api.post("/api/inspection-reports", formData);
+      return response.data; // ✅ Returns report response directly
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        "Không thể tải lên giấy tờ kiểm duyệt";
       throw new Error(message);
     }
   }
@@ -80,9 +82,9 @@ export class InspectionService {
       const response = await api.get(`/api/inspection-orders/${orderId}`);
       return response.data;
     } catch (error: any) {
-      console.error("❌ Error fetching inspection order:", error);
       throw new Error(
-        error.response?.data?.message || "Không thể tải thông tin kiểm duyệt"
+        error.response?.data?.message ||
+        "Không thể tải thông tin kiểm duyệt"
       );
     }
   }
@@ -95,9 +97,43 @@ export class InspectionService {
       const response = await api.get("/api/inspection-orders/my-orders");
       return response.data;
     } catch (error: any) {
-      console.error("❌ Error fetching inspection orders:", error);
       throw new Error(
-        error.response?.data?.message || "Không thể tải danh sách kiểm duyệt"
+        error.response?.data?.message ||
+        "Không thể tải danh sách kiểm duyệt"
+      );
+    }
+  }
+
+  /**
+   * Get inspection reports
+   */
+  static async getInspectionReports(listingId?: number) {
+    try {
+      const url = listingId
+        ? `/api/inspection-reports?listingId=${listingId}`
+        : "/api/inspection-reports";
+
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message ||
+        "Không thể tải báo cáo kiểm duyệt"
+      );
+    }
+  }
+
+  /**
+   * Get inspection report by ID
+   */
+  static async getInspectionReport(reportId: number) {
+    try {
+      const response = await api.get(`/api/inspection-reports/${reportId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message ||
+        "Không thể tải báo cáo kiểm duyệt"
       );
     }
   }

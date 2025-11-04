@@ -17,7 +17,7 @@ import {
 import { toast } from "react-toastify";
 import { UserPostService, type SalePost } from "../../services/User/UserPostService";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
-import { InspectionService } from "../../services/Inspection/InspectionService"; // ✅ Import inspection service
+import { InspectionService, type InspectionOrderRequest } from "../../services/Inspection/InspectionService"; // ✅ Update import
 
 // ===== TYPES =====
 
@@ -70,6 +70,7 @@ export default function UserPosts() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<string>(""); // ✅ Scheduled date state
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -217,6 +218,10 @@ export default function UserPosts() {
     setIsDragging(false);
   };
 
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+  };
+
   // ===== ACTION HANDLERS =====
   const handleSubmit = async () => {
     if (!inspectionType) {
@@ -224,17 +229,52 @@ export default function UserPosts() {
       return;
     }
 
-    // Validate location for system inspection
+    // Validate SYSTEM inspection
     if (inspectionType === "system") {
       if (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim()) {
         toast.warning("Vui lòng điền đầy đủ thông tin địa chỉ");
         return;
       }
+
+      if (!scheduledDate) {
+        toast.warning("Vui lòng chọn ngày hẹn kiểm duyệt");
+        return;
+      }
+
+      const selectedDateTime = new Date(scheduledDate);
+      const now = new Date();
+
+      if (selectedDateTime <= now) {
+        toast.warning("Vui lòng chọn ngày trong tương lai");
+        return;
+      }
+
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + 30);
+
+      if (selectedDateTime > maxDate) {
+        toast.warning("Vui lòng chọn ngày trong vòng 30 ngày tới");
+        return;
+      }
     }
 
-    if (inspectionType === "manual" && !uploadedFile) {
-      toast.warning("Vui lòng tải lên hồ sơ giấy tờ xe");
-      return;
+    // Validate MANUAL inspection
+    if (inspectionType === "manual") {
+      if (!uploadedFile) {
+        toast.warning("Vui lòng tải lên giấy tờ xe");
+        return;
+      }
+
+      const maxSize = 10 * 1024 * 1024;
+      if (uploadedFile.size > maxSize) {
+        toast.warning("Kích thước file không được vượt quá 10MB");
+        return;
+      }
+
+      if (uploadedFile.type !== "application/pdf") {
+        toast.warning("Chỉ chấp nhận file PDF");
+        return;
+      }
     }
 
     if (!selectedPost) return;
@@ -242,54 +282,63 @@ export default function UserPosts() {
     setSubmittingInspection(true);
 
     try {
-      // ✅ Prepare payload (same pattern as createSalePost)
-      const payload: InspectionOrderRequest = {
-        listingId: selectedPost.listingId,
-        inspectionType: inspectionType === "system" ? "SYSTEM_AUTO" : "MANUAL_DOCUMENT",
-      };
-
-      // Add location fields for system inspection
+      // Handle SYSTEM inspection
       if (inspectionType === "system") {
-        payload.provinceCode = selectedProvince!;
-        payload.districtCode = selectedDistrict!;
-        payload.wardCode = selectedWard!;
-        payload.street = street.trim();
-      }
+        const payload: InspectionOrderRequest = {
+          listingId: selectedPost.listingId,
+          scheduledAt: new Date(scheduledDate).toISOString(),
+          provinceCode: selectedProvince || undefined,
+          districtCode: selectedDistrict || undefined,
+          wardCode: selectedWard || undefined,
+          street: street.trim() || undefined,
+        };
 
-      console.log("📤 Submitting inspection request:", payload);
-      console.log("📎 File:", uploadedFile?.name);
+        await InspectionService.submitInspectionOrder(payload);
 
-      // ✅ Call API with payload and file separately
-      const response = await InspectionService.submitInspectionOrder(
-        payload,
-        inspectionType === "manual" ? uploadedFile : undefined
-      );
-
-      console.log("✅ Inspection order created:", response);
-
-      // Show success message
-      if (inspectionType === "system") {
         toast.success(
-          `Đã tạo lịch kiểm duyệt! Chúng tôi sẽ liên hệ với bạn sớm.${response.result?.scheduledDate
-            ? ` Ngày dự kiến: ${new Date(response.result.scheduledDate).toLocaleDateString("vi-VN")}`
-            : ""
-          }`
+          `Đã đặt lịch kiểm duyệt tự động ngày ${new Date(
+            scheduledDate
+          ).toLocaleDateString("vi-VN")}! Chúng tôi sẽ liên hệ xác nhận.`
         );
-      } else {
-        toast.success("Hồ sơ của bạn đã được gửi! Chúng tôi sẽ xem xét trong 1-2 ngày làm việc.");
       }
 
-      // Close modal and reload posts
+      // Handle MANUAL inspection
+      if (inspectionType === "manual" && uploadedFile) {
+        // Step 1: Create inspection order
+        const orderPayload: InspectionOrderRequest = {
+          listingId: selectedPost.listingId,
+        };
+
+        const inspectionOrderId = await InspectionService.submitInspectionOrder(orderPayload);
+
+        if (!inspectionOrderId) {
+          toast.error("Không thể tạo đơn kiểm duyệt");
+          return;
+        }
+
+        // Step 2: Upload document
+        const reportResponse = await InspectionService.submitManualInspection(
+          selectedPost.listingId,
+          uploadedFile,
+          inspectionOrderId
+        );
+
+        if (reportResponse?.reportId) {
+          toast.success(
+            `Đã tải lên giấy tờ kiểm duyệt! Mã báo cáo: #${reportResponse.reportId}. Chúng tôi sẽ phản hồi trong 24-48h.`
+          );
+        } else {
+          toast.success(
+            `Đã tải lên giấy tờ kiểm duyệt! Chúng tôi sẽ xem xét trong 24-48h.`
+          );
+        }
+      }
+
       closeModal();
       await loadPosts();
     } catch (error: any) {
       console.error("❌ Error submitting inspection:", error);
-
-      if (error.message) {
-        toast.error(error.message);
-      } else {
-        toast.error("Không thể gửi yêu cầu kiểm duyệt. Vui lòng thử lại!");
-      }
+      toast.error(error.message || "Không thể gửi yêu cầu kiểm duyệt. Vui lòng thử lại!");
     } finally {
       setSubmittingInspection(false);
     }
@@ -496,12 +545,7 @@ export default function UserPosts() {
       {/* Modal */}
       {isModalOpen && selectedPost && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto "
-            style={{
-              scrollbarWidth: 'none', /* Firefox */
-              msOverflowStyle: 'none', /* IE and Edge */
-            }}
-          >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30 z-10">
               <div>
@@ -538,14 +582,14 @@ export default function UserPosts() {
                 </div>
               </div>
 
-              {/* Inspection Type */}
+              {/* Inspection Type Selection */}
               <div>
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-3">
                   Chọn phương thức kiểm duyệt <span className="text-red-500">*</span>
                 </label>
 
                 <div className="space-y-3">
-                  {/* System Inspection */}
+                  {/* ✅ SYSTEM INSPECTION - Date + Location */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "system"
                       ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
@@ -563,16 +607,20 @@ export default function UserPosts() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <CheckCircle className="w-5 h-5 text-[#2ECC71]" />
-                        <span className="font-semibold text-[#2C3E50]">Kiểm duyệt tự động</span>
-                        <span className="text-xs bg-[#2ECC71] text-white px-2 py-0.5 rounded-full">Nhanh</span>
+                        <span className="font-semibold text-[#2C3E50]">
+                          Kiểm duyệt tự động tại nhà
+                        </span>
+                        <span className="text-xs bg-[#2ECC71] text-white px-2 py-0.5 rounded-full">
+                          Nhanh
+                        </span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Hệ thống sẽ tự động kiểm tra thông tin xe. Thời gian: <strong>5-10 phút</strong>
+                        Đặt lịch để chúng tôi đến tận nơi kiểm tra xe. Chọn ngày giờ phù hợp với bạn.
                       </p>
                     </div>
                   </label>
 
-                  {/* Manual Inspection */}
+                  {/* ✅ MANUAL INSPECTION - Document Upload */}
                   <label
                     className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "manual"
                       ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
@@ -590,24 +638,48 @@ export default function UserPosts() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="w-5 h-5 text-[#2ECC71]" />
-                        <span className="font-semibold text-[#2C3E50]">Kiểm duyệt thủ công</span>
-                        <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Chính xác</span>
+                        <span className="font-semibold text-[#2C3E50]">
+                          Kiểm duyệt qua giấy tờ
+                        </span>
+                        <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                          Tiện lợi
+                        </span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Gửi hồ sơ để thẩm định chi tiết. Thời gian: <strong>1-2 ngày</strong>
+                        Tải lên giấy tờ đăng kiểm/bảo hiểm xe để kiểm duyệt. Kết quả trong 24-48h.
                       </p>
                     </div>
                   </label>
                 </div>
               </div>
 
-              {/* ✅ NEW: Location Selection for System Inspection */}
+              {/* ✅ SYSTEM INSPECTION - Location + Date */}
               {inspectionType === "system" && (
                 <div className="animate-fade-in space-y-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-blue-900 mb-1">📍 Địa điểm kiểm duyệt</p>
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      📍 Thông tin kiểm duyệt tại nhà
+                    </p>
                     <p className="text-xs text-blue-800">
-                      Vui lòng chọn địa điểm để chúng tôi sắp xếp lịch kiểm duyệt xe tại nhà
+                      Vui lòng chọn địa điểm và ngày giờ để chúng tôi đến kiểm tra xe
+                    </p>
+                  </div>
+
+                  {/* Date Picker */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">
+                      Ngày hẹn <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={getMinDate()}
+                      max={getMaxDate()}
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all"
+                    />
+                    <p className="text-xs text-[#2C3E50]/60 mt-1">
+                      💡 Chọn ngày trong vòng 30 ngày tới
                     </p>
                   </div>
 
@@ -642,7 +714,7 @@ export default function UserPosts() {
                       value={selectedDistrict || ""}
                       onChange={(e) => setSelectedDistrict(Number(e.target.value) || null)}
                       disabled={!selectedProvince || loadingDistricts}
-                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100"
                     >
                       <option value="">
                         {!selectedProvince
@@ -668,7 +740,7 @@ export default function UserPosts() {
                       value={selectedWard || ""}
                       onChange={(e) => setSelectedWard(Number(e.target.value) || null)}
                       disabled={!selectedDistrict || loadingWards}
-                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100"
                     >
                       <option value="">
                         {!selectedDistrict
@@ -701,61 +773,94 @@ export default function UserPosts() {
                       💡 Nhập số nhà, tên đường để chúng tôi dễ dàng tìm đến
                     </p>
                   </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-green-900 mb-2">
+                      ✅ Quy trình kiểm duyệt tại nhà:
+                    </p>
+                    <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
+                      <li>Chúng tôi sẽ liên hệ xác nhận trước 24h</li>
+                      <li>Kiểm tra xe tận nơi, thời gian 30-45 phút</li>
+                      <li>Kết quả kiểm duyệt trong vòng 1-2 ngày</li>
+                      <li>Miễn phí di chuyển trong khu vực nội thành</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
-              {/* File Upload for Manual Inspection */}
+              {/* ✅ MANUAL INSPECTION - File Upload Only */}
               {inspectionType === "manual" && (
-                <div className="animate-fade-in">
-                  <label className="block text-sm font-semibold text-[#2C3E50] mb-3">
-                    Tải lên hồ sơ <span className="text-red-500">*</span>
-                  </label>
+                <div className="animate-fade-in space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      📄 Tải lên giấy tờ xe
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      Vui lòng tải lên giấy tờ đăng kiểm hoặc bảo hiểm xe (định dạng PDF)
+                    </p>
+                  </div>
 
+                  {/* File Upload Area */}
                   <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
                     className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging
-                      ? "border-[#2ECC71] bg-[#2ECC71]/5 scale-105"
-                      : uploadedFile
-                        ? "border-[#2ECC71] bg-[#2ECC71]/5"
-                        : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/50"
+                      ? "border-[#2ECC71] bg-[#2ECC71]/5"
+                      : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/80 hover:bg-[#F7F9F9]"
                       }`}
                   >
+                    <input
+                      type="file"
+                      id="file-upload"
+                      onChange={handleFileChange}
+                      accept=".pdf"
+                      className="hidden"
+                    />
+
                     {uploadedFile ? (
                       <div className="space-y-3">
-                        <FileText className="w-16 h-16 mx-auto text-[#2ECC71]" />
-                        <p className="font-semibold text-[#2C3E50]">{uploadedFile.name}</p>
-                        <p className="text-sm text-[#2C3E50]/60">
+                        <FileText className="w-12 h-12 text-[#2ECC71] mx-auto" />
+                        <p className="text-sm font-semibold text-[#2C3E50]">
+                          {uploadedFile.name}
+                        </p>
+                        <p className="text-xs text-[#2C3E50]/60">
                           {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                         <button
-                          onClick={() => setUploadedFile(null)}
-                          className="text-sm text-red-500 hover:text-red-600 font-medium"
+                          onClick={handleRemoveFile}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium"
                         >
-                          Xóa file
+                          Xóa tệp
                         </button>
                       </div>
                     ) : (
-                      <>
-                        <Upload className="w-16 h-16 mx-auto text-[#2ECC71] mb-4" />
-                        <p className="text-[#2C3E50] font-medium mb-2">Kéo thả file PDF vào đây hoặc</p>
-                        <label className="inline-block bg-[#2ECC71] hover:bg-[#29b765] text-white px-6 py-2 rounded-lg cursor-pointer transition-colors font-medium">
-                          Chọn file
-                          <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
-                        </label>
-                        <p className="text-xs text-[#2C3E50]/60 mt-3">Chỉ chấp nhận PDF, tối đa 10MB</p>
-                      </>
+                      <div className="space-y-3">
+                        <Upload className="w-12 h-12 text-[#A8E6CF] mx-auto" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#2C3E50] mb-1">
+                            Kéo thả tệp vào đây hoặc{" "}
+                            <label
+                              htmlFor="file-upload"
+                              className="text-[#2ECC71] hover:text-[#29b765] cursor-pointer"
+                            >
+                              chọn tệp
+                            </label>
+                          </p>
+                          <p className="text-xs text-[#2C3E50]/60">
+                            Chỉ hỗ trợ file PDF, tối đa 10MB
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-blue-900 mb-2">📋 Giấy tờ cần thiết:</p>
-                    <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                      <li>Giấy chứng nhận đăng ký xe (Bản sao có công chứng)</li>
-                      <li>CMND/CCCD của chủ xe</li>
-                      <li>Giấy chứng nhận bảo hiểm (nếu có)</li>
-                      <li>Giấy kiểm định kỹ thuật (nếu có)</li>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-yellow-900 mb-2">
+                      ⚠️ Yêu cầu về giấy tờ:
+                    </p>
+                    <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                      <li>Giấy đăng kiểm còn hiệu lực hoặc bảo hiểm xe</li>
+                      <li>Hình ảnh rõ ràng, không bị mờ hoặc che khuất</li>
+                      <li>File PDF dung lượng không quá 10MB</li>
+                      <li>Thời gian xử lý: 24-48 giờ làm việc</li>
                     </ul>
                   </div>
                 </div>
@@ -767,7 +872,7 @@ export default function UserPosts() {
               <button
                 onClick={closeModal}
                 disabled={submittingInspection}
-                className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors disabled:opacity-50"
               >
                 Hủy
               </button>
@@ -776,10 +881,15 @@ export default function UserPosts() {
                 disabled={
                   submittingInspection ||
                   !inspectionType ||
-                  (inspectionType === "system" && (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim())) ||
+                  (inspectionType === "system" &&
+                    (!selectedProvince ||
+                      !selectedDistrict ||
+                      !selectedWard ||
+                      !street.trim() ||
+                      !scheduledDate)) ||
                   (inspectionType === "manual" && !uploadedFile)
                 }
-                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                className="flex-1 px-6 py-3 bg-[#2ECC71] text-white rounded-lg font-semibold hover:bg-[#29b765] disabled:opacity-50 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
                 {submittingInspection ? (
                   <>
@@ -797,3 +907,17 @@ export default function UserPosts() {
     </div>
   );
 }
+
+// ✅ Helper to get minimum date (tomorrow)
+const getMinDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split("T")[0];
+};
+
+// ✅ Helper to get maximum date (30 days from now)
+const getMaxDate = () => {
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 30);
+  return maxDate.toISOString().split("T")[0];
+};
