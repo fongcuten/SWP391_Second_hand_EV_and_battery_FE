@@ -43,9 +43,9 @@ const LoginPage: React.FC = () => {
       `&redirect_uri=${encodeURIComponent(OAuthConfig.redirectUri)}` +
       `&response_type=code` +
       `&scope=${encodeURIComponent(OAuthConfig.scope)}` +
-      `&access_type=offline` + // nếu muốn refresh_token
-      `&include_granted_scopes=true` + // gộp scope đã cấp
-      `&approval_prompt=auto` + // tham số kiểu cũ (tương đương prompt)
+      `&access_type=offline` +
+      `&include_granted_scopes=true` +
+      `&prompt=select_account` +
       `&state=${encodeURIComponent(state)}`;
 
     window.location.href = url;

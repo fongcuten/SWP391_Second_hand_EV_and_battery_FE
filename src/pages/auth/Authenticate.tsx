@@ -48,42 +48,139 @@ export default function Authenticate() {
           { method: "POST", headers: { Accept: "application/json" } }
         );
 
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch((err) => {
+          console.error("Failed to parse response:", err);
+          return {};
+        });
+
+        console.log("OAuth response:", data);
+
         if (!res.ok || data.code !== 1000) {
+          console.error("OAuth error:", data);
           throw new Error(data.message || `Đổi code thất bại (${res.status})`);
         }
 
         const token: string | undefined = data?.result?.token;
-        const user: any = data?.result?.user;
 
-        if (!token) throw new Error("Backend không trả về token.");
+        if (!token) {
+          console.error("No token in response:", data);
+          throw new Error("Backend không trả về token.");
+        }
 
-        // ✅ Lưu đúng key mà axios interceptor đang đọc
+        // ✅ Lưu token trước để axios interceptor có thể dùng
         localStorage.setItem(AUTH_TOKEN_KEY, token);
 
-        // ✅ Lưu current user (nếu BE trả) — nếu không, bạn có thể gọi /me để lấy
-        if (user) {
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-        } else {
-          // Fallback: gọi /me để lấy user (nếu bạn có endpoint này)
-          try {
-            const meRes = await fetch(
-              "http://localhost:8080/evplatform/users/myInfo",
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            if (meRes.ok) {
-              const me = await meRes.json();
-              // tuỳ cấu trúc me, có thể cần me.result
-              localStorage.setItem(
-                CURRENT_USER_KEY,
-                JSON.stringify(me.result ?? me)
-              );
+        // ✅ Lấy user info từ backend và format đúng như authService.login()
+        try {
+          console.log("📥 Fetching user info from /users/myInfo...");
+          const meRes = await fetch(
+            "http://localhost:8080/evplatform/users/myInfo",
+            {
+              headers: { Authorization: `Bearer ${token}` },
             }
-          } catch {
-            /* ignore nếu chưa có /me */
+          );
+
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            console.log("✅ User info response:", meData);
+
+            if (meData?.code === 1000 && meData?.result) {
+              const backendUser = meData.result;
+
+              // Derive role from token
+              const deriveRoleFromToken = (jwt: string): "user" | "admin" => {
+                try {
+                  const parts = jwt.split(".");
+                  if (parts.length !== 3) return "user";
+                  const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+                  const json = atob(base64);
+                  const payload = JSON.parse(json);
+                  const rawRole =
+                    payload?.role ??
+                    payload?.scope ??
+                    (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
+                    null;
+                  if (!rawRole) return "user";
+                  const normalized = String(rawRole).trim().toLowerCase();
+                  return normalized.includes("admin") ? "admin" : "user";
+                } catch {
+                  return "user";
+                }
+              };
+
+              // ✅ Format user object giống authService.login()
+              const user = {
+                id: String(backendUser.userId || ""),
+                email: backendUser.email || backendUser.username || "",
+                fullName:
+                  `${backendUser.firstName || ""} ${
+                    backendUser.lastName || ""
+                  }`.trim() ||
+                  backendUser.username ||
+                  backendUser.email ||
+                  "",
+                phoneNumber: backendUser.phone || "",
+                role: deriveRoleFromToken(token),
+                createdAt: backendUser.createdAt || new Date().toISOString(),
+                isEmailVerified: true,
+              };
+
+              console.log("✅ Final user object:", user);
+              localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+            } else {
+              throw new Error("Invalid user info response");
+            }
+          } else {
+            throw new Error(`Failed to fetch user info: ${meRes.status}`);
           }
+        } catch (error) {
+          console.error("❌ Error fetching user info:", error);
+          // Fallback: tạo minimal user từ token
+          const deriveRoleFromToken = (jwt: string): "user" | "admin" => {
+            try {
+              const parts = jwt.split(".");
+              if (parts.length !== 3) return "user";
+              const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+              const json = atob(base64);
+              const payload = JSON.parse(json);
+              const rawRole =
+                payload?.role ??
+                payload?.scope ??
+                (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
+                null;
+              if (!rawRole) return "user";
+              const normalized = String(rawRole).trim().toLowerCase();
+              return normalized.includes("admin") ? "admin" : "user";
+            } catch {
+              return "user";
+            }
+          };
+
+          const subject = (() => {
+            try {
+              const parts = token.split(".");
+              if (parts.length !== 3) return "";
+              const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+              const json = atob(base64);
+              const payload = JSON.parse(json);
+              return payload?.sub || "";
+            } catch {
+              return "";
+            }
+          })();
+
+          const fallbackUser = {
+            id: subject || "unknown",
+            email: subject || "",
+            fullName: subject || "Google User",
+            phoneNumber: "",
+            role: deriveRoleFromToken(token),
+            createdAt: new Date().toISOString(),
+            isEmailVerified: true,
+          };
+
+          console.warn("⚠️ Using fallback user:", fallbackUser);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
         }
 
         // 🔧 Dọn query cho đẹp URL & tránh re-run khi refresh
@@ -97,7 +194,9 @@ export default function Authenticate() {
           "/";
         sessionStorage.removeItem("post_login_redirect");
 
-        navigate(from, { replace: true });
+        // ✅ Reload page để AuthContext đọc lại user từ localStorage
+        // Điều này đảm bảo user state được cập nhật trong toàn bộ app
+        window.location.href = from;
       } catch (err) {
         console.error(err);
         navigate("/dang-nhap", {
