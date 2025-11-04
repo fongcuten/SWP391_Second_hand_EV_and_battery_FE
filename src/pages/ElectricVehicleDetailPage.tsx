@@ -27,6 +27,7 @@ import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail } from "../services/Vehicle/ElectricDetailsService";
 import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
+import { ChatService } from "../services/Chat/ChatService"; // ✅ Import ChatService
 
 const ElectricVehicleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -93,8 +94,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
   };
 
   // Event handlers
-  const handleContact = (type: "phone" | "message") => {
-    if (type === "message") {
+  const handleContact = async (type: "phone" | "message") => {
       const currentUser = authService.getCurrentUser();
 
       if (!currentUser) {
@@ -103,17 +103,80 @@ const ElectricVehicleDetailPage: React.FC = () => {
         return;
       }
 
+      // ✅ Get sellerId from vehicle data
       const sellerUsername = vehicle?.seller;
+      const sellerId = vehicle?.sellerId;
 
-      console.log("💬 Starting chat with seller:", { sellerUsername });
+      console.log("💬 Starting chat with seller:", {
+        sellerUsername,
+        sellerId,
+        currentUserId: currentUser.id,
+      });
 
-      if (!sellerUsername) {
-        toast.error("Không thể mở chat: Thông tin người bán không hợp lệ");
+      // ✅ Validate sellerId
+      if (!sellerId || sellerId === 0) {
+        console.error("❌ Invalid sellerId:", {
+          sellerId,
+          vehicleSeller: vehicle?.seller,
+        });
+        toast.error("Không thể mở chat: ID người bán không hợp lệ");
         return;
       }
 
-      navigate(`/chat?username=${encodeURIComponent(sellerUsername)}&userName=${encodeURIComponent(sellerUsername)}`);
-    }
+      if (!sellerUsername) {
+        toast.error("Không thể mở chat: Tên người bán không hợp lệ");
+        return;
+      }
+
+      // ✅ Check if trying to message yourself
+      if (sellerId === Number(currentUser.id)) {
+        toast.warning("Bạn không thể nhắn tin cho chính mình");
+        return;
+      }
+
+      try {
+        console.log("📞 Creating conversation via API...");
+
+        // ✅ Create conversation on backend FIRST
+        const conversationKey = await ChatService.createConversation(
+          Number(currentUser.id),
+          sellerId
+        );
+
+        console.log("✅ Conversation created:", conversationKey);
+
+        // ✅ Navigate with state (NOT query params)
+        console.log("✅ Navigating to chat with state:", {
+          sellerId,
+          sellerName: sellerUsername,
+          productTitle: vehicle?.title,
+        });
+
+        navigate("/chat", {
+          state: {
+            sellerId: sellerId,
+            sellerName: sellerUsername,
+            productTitle: vehicle?.title,
+          },
+        });
+
+        console.log("✅ Navigation called");
+      } catch (error: any) {
+        console.error("❌ Error creating conversation:", error);
+
+        if (error.response?.status === 409) {
+          // Conversation already exists - that's fine, navigate anyway
+          console.log("⚠️ Conversation already exists, navigating anyway");
+          navigate("/chat", {
+            state: {
+              sellerId: sellerId,
+              sellerName: sellerUsername,
+            },
+          });
+        } else {
+          toast.error("Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
+        }
+      }
   };
 
   const handleShare = () => {
@@ -811,8 +874,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
                     <label
                       key={reason.value}
                       className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${reportReason === reason.value
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                         }`}
                     >
                       <input

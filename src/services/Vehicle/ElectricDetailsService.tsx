@@ -29,6 +29,7 @@ export interface VehiclePost {
 export interface VehicleDetail {
   listingId: number;
   seller: string;
+  sellerId: number; // ✅ ADDED
   productType: "VEHICLE" | "BATTERY";
   askPrice: number;
   title: string;
@@ -50,6 +51,12 @@ export const VehicleDetailService = {
     try {
       const response = await api.get(`/api/sale-posts/${listingId}`);
       console.log("📦 Vehicle detail response:", response.data);
+      
+      // ✅ Validate sellerId exists
+      if (!response.data.sellerId) {
+        console.warn("⚠️ sellerId is missing in API response");
+      }
+      
       return response.data;
     } catch (error: any) {
       console.error("❌ Error loading vehicle detail:", error);

@@ -31,7 +31,7 @@ import BatteriesPage from "./pages/BatteriesPage";
 import BatteryDetailPage from "./pages/BatteryDetailPage";
 import ComparePage from "./pages/ComparePage";
 import SupportPage from "./pages/SupportPage";
-import ChatPage from "./pages/ChatPage";
+import ChatPage from "./pages/Chat/ChatPage";
 import SubscriptionsPlan from "./pages/SubscriptionPlan";
 import PaymentResult from "./pages/Payment/PaymentResult";
 import AdminPage from "./pages/Admin/AdminPage";
