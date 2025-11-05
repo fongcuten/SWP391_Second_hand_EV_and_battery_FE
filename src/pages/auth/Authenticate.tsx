@@ -108,10 +108,16 @@ export default function Authenticate() {
                 }
               };
 
-              // ✅ Format user object giống authService.login()
+              // ✅ Format user object giống authService.login(), đảm bảo email luôn là email
+              const normalizedEmail = String(
+                backendUser.email || backendUser.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
               const user = {
                 id: String(backendUser.userId || ""),
-                email: backendUser.email || backendUser.username || "",
+                email: normalizedEmail,
                 fullName:
                   `${backendUser.firstName || ""} ${
                     backendUser.lastName || ""

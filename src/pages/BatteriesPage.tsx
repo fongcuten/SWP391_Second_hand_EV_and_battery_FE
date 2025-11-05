@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Filter, Grid, List } from "lucide-react";
 import BatteryCard from "../components/BatteryCard";
 import type { Battery, BatteryFilter, BatterySort } from "../types/battery";
-import { ListPostService } from "../services/Vehicle/ElectricVehiclesPageService";
+import api from "../config/axios";
 
 // Mock data - thay thế bằng API call thực tế
 const mockBatteries: Battery[] = [
@@ -186,13 +186,14 @@ const BatteriesPage: React.FC = () => {
     const loadBatteries = async () => {
       setLoading(true);
       try {
-        const resp = await ListPostService.getSalePosts(
-          0,
-          20,
-          "createdAt,desc",
-          { productType: "BATTERY" }
-        );
-        const mapped: Battery[] = (resp.content || []).map((p: any) => ({
+        const resp = await api.get("/api/sale-posts/batteries", {
+          params: {
+            page: 0,
+            size: 20,
+            sortBy: "createdAt,desc",
+          },
+        });
+        const mapped: Battery[] = (resp.data?.content || []).map((p: any) => ({
           id: String(p.listingId),
           brand: p.productName || "Pin xe điện",
           model: "",
