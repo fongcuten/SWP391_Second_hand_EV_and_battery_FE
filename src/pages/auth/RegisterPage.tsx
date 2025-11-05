@@ -7,13 +7,14 @@ import { useToast } from "../../contexts/ToastContext";
 export const RegisterPage = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
-    
+
     const [formData, setFormData] = useState({
         username: "",
         password: "",
         confirmPassword: "",
         firstName: "",
         lastName: "",
+        phone: "",
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +29,7 @@ export const RegisterPage = () => {
             ...prev,
             [name]: value
         }));
-        
+
         // Clear error for this field when user types
         if (errors[name]) {
             setErrors(prev => ({
@@ -54,6 +55,12 @@ export const RegisterPage = () => {
 
         if (!formData.lastName.trim()) {
             newErrors.lastName = "Vui lòng nhập họ";
+        }
+
+        if (!formData.phone.trim()) {
+            newErrors.phone = "Vui lòng nhập số điện thoại";
+        } else if (!/^(0[3|5|7|8|9])+([0-9]{8})\b/.test(formData.phone)) {
+            newErrors.phone = "Số điện thoại không hợp lệ";
         }
 
         if (!formData.password) {
@@ -90,6 +97,7 @@ export const RegisterPage = () => {
                 password: formData.password,
                 firstName: formData.firstName.trim(),
                 lastName: formData.lastName.trim(),
+                phone: formData.phone.trim(),
             };
 
             console.log("Sending registration request:", payload);
@@ -103,14 +111,14 @@ export const RegisterPage = () => {
 
             // Success
             showToast("Đăng ký thành công! Vui lòng đăng nhập", "success");
-            
+
             // Redirect to login page after short delay
             setTimeout(() => {
-                navigate("/dang-nhap", { 
-                    state: { 
+                navigate("/dang-nhap", {
+                    state: {
                         email: formData.username,
-                        message: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục" 
-                    } 
+                        message: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục"
+                    }
                 });
             }, 1500);
 
@@ -166,11 +174,10 @@ export const RegisterPage = () => {
                                 name="firstName"
                                 value={formData.firstName}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 rounded-xl border ${
-                                    errors.firstName 
-                                        ? "border-red-300 focus:ring-red-200" 
-                                        : "border-gray-300 focus:ring-green-200"
-                                } focus:ring-2 focus:outline-none transition-all`}
+                                className={`w-full px-4 py-3 rounded-xl border ${errors.firstName
+                                    ? "border-red-300 focus:ring-red-200"
+                                    : "border-gray-300 focus:ring-green-200"
+                                    } focus:ring-2 focus:outline-none transition-all`}
                                 placeholder="Nhập tên của bạn"
                             />
                             {errors.firstName && (
@@ -191,17 +198,40 @@ export const RegisterPage = () => {
                                 name="lastName"
                                 value={formData.lastName}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 rounded-xl border ${
-                                    errors.lastName 
-                                        ? "border-red-300 focus:ring-red-200" 
-                                        : "border-gray-300 focus:ring-green-200"
-                                } focus:ring-2 focus:outline-none transition-all`}
+                                className={`w-full px-4 py-3 rounded-xl border ${errors.lastName
+                                    ? "border-red-300 focus:ring-red-200"
+                                    : "border-gray-300 focus:ring-green-200"
+                                    } focus:ring-2 focus:outline-none transition-all`}
                                 placeholder="Nhập họ của bạn"
                             />
                             {errors.lastName && (
                                 <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
                                     <XCircle className="w-4 h-4" />
                                     {errors.lastName}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Phone */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Số điện thoại <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-3 rounded-xl border ${errors.phone
+                                    ? "border-red-300 focus:ring-red-200"
+                                    : "border-gray-300 focus:ring-green-200"
+                                    } focus:ring-2 focus:outline-none transition-all`}
+                                placeholder="Nhập số điện thoại"
+                            />
+                            {errors.phone && (
+                                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                    <XCircle className="w-4 h-4" />
+                                    {errors.phone}
                                 </p>
                             )}
                         </div>
@@ -216,11 +246,10 @@ export const RegisterPage = () => {
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 rounded-xl border ${
-                                    errors.username 
-                                        ? "border-red-300 focus:ring-red-200" 
-                                        : "border-gray-300 focus:ring-green-200"
-                                } focus:ring-2 focus:outline-none transition-all`}
+                                className={`w-full px-4 py-3 rounded-xl border ${errors.username
+                                    ? "border-red-300 focus:ring-red-200"
+                                    : "border-gray-300 focus:ring-green-200"
+                                    } focus:ring-2 focus:outline-none transition-all`}
                                 placeholder="Nhập tên đăng nhập"
                                 autoComplete="username"
                             />
@@ -243,11 +272,10 @@ export const RegisterPage = () => {
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${
-                                        errors.password 
-                                            ? "border-red-300 focus:ring-red-200" 
-                                            : "border-gray-300 focus:ring-green-200"
-                                    } focus:ring-2 focus:outline-none transition-all`}
+                                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${errors.password
+                                        ? "border-red-300 focus:ring-red-200"
+                                        : "border-gray-300 focus:ring-green-200"
+                                        } focus:ring-2 focus:outline-none transition-all`}
                                     placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
                                     autoComplete="new-password"
                                 />
@@ -282,11 +310,10 @@ export const RegisterPage = () => {
                                     name="confirmPassword"
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${
-                                        errors.confirmPassword 
-                                            ? "border-red-300 focus:ring-red-200" 
-                                            : "border-gray-300 focus:ring-green-200"
-                                    } focus:ring-2 focus:outline-none transition-all`}
+                                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${errors.confirmPassword
+                                        ? "border-red-300 focus:ring-red-200"
+                                        : "border-gray-300 focus:ring-green-200"
+                                        } focus:ring-2 focus:outline-none transition-all`}
                                     placeholder="Nhập lại mật khẩu"
                                     autoComplete="new-password"
                                 />
