@@ -27,7 +27,7 @@ const Header: React.FC = () => {
     { label: "Trang chủ", href: "/", primary: true },
     { label: "Xe điện", href: "/xe-dien", primary: true },
     { label: "Pin", href: "/pin", primary: true },
-    { label: "Gói đăng ký", href: "/ke-hoach", primary: true },
+    { label: "Gói đăng ký", href: "/goi-dang-ky", primary: true },
     { label: "Thương hiệu", href: "/thuong-hieu", primary: false },
     { label: "So sánh", href: "/so-sanh", primary: false },
     { label: "Hỗ trợ", href: "/ho-tro", primary: false },
@@ -64,9 +64,8 @@ const Header: React.FC = () => {
           {/* Search Bar - Enhanced */}
           <div className="flex-1 max-w-2xl mx-4 lg:mx-8">
             <div
-              className={`relative transition-all duration-200 ${
-                isSearchFocused ? "scale-105" : ""
-              }`}
+              className={`relative transition-all duration-200 ${isSearchFocused ? "scale-105" : ""
+                }`}
             >
               <div className="flex">
                 <div className="relative flex-1">
@@ -249,19 +248,17 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${
-                    location.pathname === item.href
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${location.pathname === item.href
                       ? "text-green-600"
                       : "text-gray-700 hover:text-green-600"
-                  }`}
+                    }`}
                 >
                   {item.label}
                   <span
-                    className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${
-                      location.pathname === item.href
+                    className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${location.pathname === item.href
                         ? "w-full"
                         : "w-0 group-hover:w-full"
-                    }`}
+                      }`}
                   ></span>
                 </Link>
               ))}
@@ -271,11 +268,10 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`text-sm font-medium transition-colors duration-200 ${
-                    location.pathname === item.href
+                  className={`text-sm font-medium transition-colors duration-200 ${location.pathname === item.href
                       ? "text-green-600"
                       : "text-gray-600 hover:text-green-600"
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </Link>
@@ -365,11 +361,10 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${
-                    location.pathname === item.href
+                  className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${location.pathname === item.href
                       ? "text-green-600 bg-green-50"
                       : "text-gray-700 hover:text-green-600 hover:bg-green-50"
-                  }`}
+                    }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
@@ -386,11 +381,10 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                    location.pathname === item.href
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === item.href
                       ? "text-green-600 bg-green-50"
                       : "text-gray-600 hover:text-green-600 hover:bg-green-50"
-                  }`}
+                    }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}

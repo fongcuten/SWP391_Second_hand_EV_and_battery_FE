@@ -602,7 +602,7 @@ const CreateVehiclePost: React.FC = () => {
         <div className="mb-6">
           <label className={labelClass}>Nhiên liệu *</label>
           <div className="flex flex-wrap gap-3">
-            {["Xăng", "Dầu", "Động cơ Hybrid", "Điện"].map((fuel) => (
+            {["Động cơ Hybrid", "Điện"].map((fuel) => (
               <button
                 key={fuel}
                 type="button"
