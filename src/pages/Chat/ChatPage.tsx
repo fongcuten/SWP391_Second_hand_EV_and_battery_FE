@@ -236,7 +236,7 @@ const ChatPage: React.FC = () => {
             try {
                 const conversationKey = await ChatService.createConversation(
                     Number(currentUser.id),
-                    navState.sellerId
+                    navState.sellerId!
                 );
 
                 setState(prev => {
@@ -305,8 +305,6 @@ const ChatPage: React.FC = () => {
             // ✅ Send to REST API (for saving) AND WebSocket (for broadcasting)
             // The REST call is now redundant if the WebSocket handler saves the message,
             // but we'll keep it for now as a fallback.
-            await ChatService.sendMessage(msg);
-
             if (wsRef.current?.isConnected()) {
                 wsRef.current.sendMessage(msg);
                 console.log("✅ Message sent via WebSocket for broadcast.");

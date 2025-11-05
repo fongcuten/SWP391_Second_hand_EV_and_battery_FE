@@ -378,7 +378,8 @@ class ChatServiceClass {
 
             const response = await api.post<CreateConversationResponse>(
                 "/api/messages/conversation",
-                null, // No request body needed
+                null,
+                 // No request body needed
                 {
                     params: {
                         senderId,
