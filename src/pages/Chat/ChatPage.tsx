@@ -351,9 +351,16 @@ const ChatPage: React.FC = () => {
     }
 
     return (
-        <div className="h-screen bg-gray-50 flex flex-col">
-            <div className="flex-1 flex overflow-hidden">
-                <div className={state.activeChatKey ? "hidden lg:block" : "block"}>
+        <div className="h-[86vh] bg-gray-100 flex flex-col overflow-hidden">
+            <div className="flex-1 flex overflow-hidden min-h-0">
+                {/* Sidebar */}
+                <div
+                    className={`
+                        w-full lg:w-96 lg:flex-shrink-0
+                        transition-all duration-300 ease-in-out
+                        ${state.activeChatKey ? "hidden lg:flex" : "flex"}
+                    `}
+                >
                     <ChatSidebar
                         conversations={state.conversations}
                         activeChatKey={state.activeChatKey}
@@ -363,7 +370,14 @@ const ChatPage: React.FC = () => {
                     />
                 </div>
 
-                <div className={state.activeChatKey ? "block w-full" : "hidden lg:block lg:flex-1"}>
+                {/* Chat Window */}
+                <div
+                    className={`
+                        flex-1 flex flex-col h-full
+                        transition-all duration-300 ease-in-out
+                        ${state.activeChatKey ? "flex" : "hidden lg:flex"}
+                    `}
+                >
                     <ChatWindow
                         currentUser={currentUser}
                         activeChat={activeChat}

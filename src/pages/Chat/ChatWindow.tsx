@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, CheckCheck } from "lucide-react";
+import { Send, ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, CheckCheck, MessageSquare } from "lucide-react";
 import type { Conversation, ChatMessage } from "../../services/Chat/ChatService";
 
 interface Props {
@@ -22,33 +22,16 @@ const ChatWindow: React.FC<Props> = ({
     const [messageInput, setMessageInput] = useState("");
     const endRef = useRef<HTMLDivElement>(null);
 
-    // ✅ Add render counter
-    const renderCountRef = useRef(0);
-    renderCountRef.current++;
-
-    // ✅ Log when messages prop changes
-    useEffect(() => {
-        console.log(`💬 ChatWindow render #${renderCountRef.current}`, {
-            messagesCount: messages.length,
-            activeChat: activeChat?.otherUser.name,
-            lastMessage: messages[messages.length - 1]?.content,
-        });
-    }, [messages, messages.length, activeChat]);
-
-    // ✅ Only scroll, no state updates
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages.length]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!messageInput.trim() || !activeChat) {
-            return;
-        }
+        if (!messageInput.trim() || !activeChat) return;
 
         const msg: ChatMessage = {
-            senderId: Number(currentUser.id), // ✅ Ensure it's a number
+            senderId: Number(currentUser.id),
             receiverId: activeChat.otherUser.id,
             content: messageInput.trim(),
             conversationKey: activeChat.conversationKey,
@@ -56,8 +39,8 @@ const ChatWindow: React.FC<Props> = ({
             messageType: "TEXT",
         };
 
-        setMessageInput("");
         onSendMessage(msg);
+        setMessageInput("");
     };
 
     const formatTime = (timestamp: string) => {
@@ -67,11 +50,9 @@ const ChatWindow: React.FC<Props> = ({
 
     if (!activeChat) {
         return (
-            <div className="flex-1 hidden lg:flex items-center justify-center text-gray-500 bg-white">
-                <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Send className="w-8 h-8 text-gray-400" />
-                    </div>
+            <div className="flex-1 hidden lg:flex items-center justify-center bg-gray-50 h-full">
+                <div className="text-center text-gray-500">
+                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-lg font-medium">Chọn một cuộc trò chuyện</p>
                     <p className="text-sm text-gray-400 mt-1">Chọn từ danh sách bên trái để bắt đầu chat</p>
                 </div>
@@ -80,36 +61,36 @@ const ChatWindow: React.FC<Props> = ({
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-white">
+        <div className="flex flex-col bg-gray-50 h-full">
             {/* Header */}
-            <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
+            <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
-                        <ArrowLeft className="w-5 h-5" />
+                    <button onClick={onBack} className="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+                        <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
                         {activeChat.otherUser.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-900">{activeChat.otherUser.name}</h3>
-                        <p className="text-xs text-gray-500">Đang hoạt động</p>
+                        <p className="text-xs text-green-600 font-medium">Đang hoạt động</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                <div className="flex items-center gap-1">
+                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
                         <Phone className="w-5 h-5" />
                     </button>
-                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
                         <Video className="w-5 h-5" />
                     </button>
-                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
                         <MoreVertical className="w-5 h-5" />
                     </button>
                 </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-6 space-y-2">
                 {loading ? (
                     <div className="text-center py-8 text-gray-500">Đang tải tin nhắn...</div>
                 ) : messages.length === 0 ? (
@@ -118,39 +99,25 @@ const ChatWindow: React.FC<Props> = ({
                     </div>
                 ) : (
                     messages.map((msg, index) => {
-                        // ✅ FIX: Convert both to numbers for comparison
                         const isOwn = Number(msg.senderId) === Number(currentUser.id);
-
-                        // ✅ DEBUG (remove after testing)
-                        if (index === 0) {
-                            console.log("💬 Message alignment check:", {
-                                msgSenderId: msg.senderId,
-                                msgSenderIdType: typeof msg.senderId,
-                                currentUserId: currentUser.id,
-                                currentUserIdType: typeof currentUser.id,
-                                isOwn,
-                                numberComparison: Number(msg.senderId) === Number(currentUser.id)
-                            });
-                        }
-
                         return (
                             <div
                                 key={`${msg.messageId || index}-${msg.sentAt}`}
-                                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                                className={`flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
                             >
                                 <div
-                                    className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isOwn
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white text-gray-900 border border-gray-200"
+                                    className={`max-w-[65%] rounded-2xl px-4 py-2.5 ${isOwn
+                                        ? "bg-blue-600 text-white rounded-br-lg"
+                                        : "bg-white text-gray-800 border border-gray-200 rounded-bl-lg"
                                         }`}
                                 >
-                                    <p className="break-words">{msg.content}</p>
+                                    <p className="break-words leading-snug">{msg.content}</p>
                                     <div
-                                        className={`flex items-center gap-1 mt-1 text-xs ${isOwn ? "text-blue-100" : "text-gray-500"
+                                        className={`flex items-center gap-1.5 mt-1.5 text-xs ${isOwn ? "text-blue-200" : "text-gray-400"
                                             }`}
                                     >
                                         <span>{formatTime(msg.sentAt)}</span>
-                                        {isOwn && <CheckCheck className="w-3 h-3" />}
+                                        {isOwn && <CheckCheck className="w-4 h-4" />}
                                     </div>
                                 </div>
                             </div>
@@ -161,9 +128,9 @@ const ChatWindow: React.FC<Props> = ({
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t bg-white">
+            <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
                 <div className="flex items-center gap-2">
-                    <button type="button" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 flex-shrink-0">
+                    <button type="button" className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full flex-shrink-0 transition">
                         <Paperclip className="w-5 h-5" />
                     </button>
                     <input
@@ -171,15 +138,12 @@ const ChatWindow: React.FC<Props> = ({
                         placeholder="Nhập tin nhắn..."
                         value={messageInput}
                         onChange={(e) => setMessageInput(e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        className="flex-1 px-4 py-2.5 border border-gray-300 bg-gray-100 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white outline-none transition"
                     />
-                    <button type="button" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 flex-shrink-0">
-                        <Smile className="w-5 h-5" />
-                    </button>
                     <button
                         type="submit"
                         disabled={!messageInput.trim()}
-                        className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex-shrink-0"
+                        className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex-shrink-0"
                     >
                         <Send className="w-5 h-5" />
                     </button>

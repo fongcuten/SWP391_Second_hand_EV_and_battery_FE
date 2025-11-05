@@ -3,7 +3,8 @@ export interface User {
   email: string;
   fullName: string;
   phoneNumber?: string;
-  avatar?: string;
+  avatarUrl?: string; // Main avatar URL
+  avatarThumbUrl?: string; // Thumbnail URL
   role: "user" | "admin";
   createdAt: string;
   isEmailVerified: boolean;

@@ -41,11 +41,12 @@ import CheckoutSuccessPage from "./pages/Payment/inspectionCheckout";
 const AppShell: React.FC = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isChatRoute = location.pathname.startsWith("/chat");
 
   return (
     <div className="min-h-screen flex flex-col">
       {!isAdminRoute && <Header />}
-      <main className="flex-1">
+      <main className={`flex-1 ${isChatRoute ? 'h-[calc(100vh-var(--header-height,80px))]' : ''}`}>
         <Routes>
           {/* ✅ Public Routes */}
           <Route path="/" element={<HomePage />} />
@@ -110,7 +111,6 @@ const AppShell: React.FC = () => {
           <Route path="/xe-dien" element={<ElectricVehiclesPage />} />
           <Route path="/xe-dien/:id" element={<ElectricVehicleDetailPage />} />
 
-          <Route path="/chat" element={<ChatPage />} />
           {/* Battery Pages */}
           <Route path="/pin" element={<BatteriesPage />} />
           <Route path="/pin/:id" element={<BatteryDetailPage />} />
@@ -138,10 +138,10 @@ const AppShell: React.FC = () => {
             }
           />
 
-        
-        {/* ... your other routes ... */}
+
+          {/* ... your other routes ... */}
           <Route path="/inspectionCheckout/success" element={<CheckoutSuccessPage />} />
-        
+
 
           <Route path="/chat" element={<ChatPage />} />
           {/* Test API Location */}
@@ -163,7 +163,7 @@ const AppShell: React.FC = () => {
           />
         </Routes>
       </main>
-      {!isAdminRoute && <Footer />}
+      {!isAdminRoute && !isChatRoute && <Footer />}
     </div>
   );
 };
