@@ -248,7 +248,7 @@ const ElectricVehiclesPage: React.FC = () => {
         undefined
       );
       const vehiclePostsRaw =
-        response.content?.filter((post) => post.productType === "VEHICLE") || [];
+        response.content|| [];
 
       // ✅ 2. Transform posts to include full address, like in FavoritesPage
       const transformedPosts = await Promise.all(

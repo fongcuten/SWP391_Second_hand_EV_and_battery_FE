@@ -9,7 +9,7 @@ import api from "../config/axios";
 const CURRENT_USER_KEY = "current_user";
 const AUTH_TOKEN_KEY = "auth_token";
 
-// Mock users for frontend UI purposes only
+// Mock users for frontend UI purposes
 const MOCK_USERS_KEY = "mock_users";
 
 const initializeMockUsers = () => {
@@ -122,6 +122,8 @@ export const authService = {
           role: deriveRoleFromToken(token),
           createdAt: backendUser.createdAt || new Date().toISOString(),
           isEmailVerified: true,
+          avatarUrl: backendUser.avatarUrl || undefined,
+          avatarThumbUrl: backendUser.avatarThumbUrl || undefined,
         };
 
         console.log("✅ Final user object:", user);
@@ -217,11 +219,13 @@ export const authService = {
         email: String(parsed.email || ""),
         fullName: String(parsed.fullName || parsed.email || ""),
         phoneNumber: parsed.phoneNumber,
-        avatar: parsed.avatar,
+        avatarUrl: parsed.avatarUrl, // Correctly read avatarUrl
+        avatarThumbUrl: parsed.avatarThumbUrl, // Correctly read avatarThumbUrl
         role: normalizedRole,
         createdAt: String(parsed.createdAt || new Date().toISOString()),
         isEmailVerified: Boolean(parsed.isEmailVerified),
       };
+
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
       return normalizedUser;
     } catch {

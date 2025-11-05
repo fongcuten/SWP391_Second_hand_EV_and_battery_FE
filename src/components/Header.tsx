@@ -123,11 +123,19 @@ const Header: React.FC = () => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
                   >
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
-                        {user.fullName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    {user.avatarThumbUrl ? (
+                      <img
+                        src={user.avatarThumbUrl}
+                        alt={user.fullName}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {user.fullName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div className="hidden sm:block text-left">
                       <div className="text-sm font-medium">{user.fullName}</div>
                       <div className="text-xs text-gray-500">
@@ -249,15 +257,15 @@ const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${location.pathname === item.href
-                      ? "text-green-600"
-                      : "text-gray-700 hover:text-green-600"
+                    ? "text-green-600"
+                    : "text-gray-700 hover:text-green-600"
                     }`}
                 >
                   {item.label}
                   <span
                     className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${location.pathname === item.href
-                        ? "w-full"
-                        : "w-0 group-hover:w-full"
+                      ? "w-full"
+                      : "w-0 group-hover:w-full"
                       }`}
                   ></span>
                 </Link>
@@ -269,8 +277,8 @@ const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   className={`text-sm font-medium transition-colors duration-200 ${location.pathname === item.href
-                      ? "text-green-600"
-                      : "text-gray-600 hover:text-green-600"
+                    ? "text-green-600"
+                    : "text-gray-600 hover:text-green-600"
                     }`}
                 >
                   {item.label}
@@ -294,11 +302,19 @@ const Header: React.FC = () => {
               {isAuthenticated && user ? (
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
-                        {user.fullName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    {user.avatarThumbUrl ? (
+                      <img
+                        src={user.avatarThumbUrl}
+                        alt={user.fullName}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {user.fullName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <div className="text-sm font-medium text-gray-700">
                         {user.fullName}
@@ -362,8 +378,8 @@ const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${location.pathname === item.href
-                      ? "text-green-600 bg-green-50"
-                      : "text-gray-700 hover:text-green-600 hover:bg-green-50"
+                    ? "text-green-600 bg-green-50"
+                    : "text-gray-700 hover:text-green-600 hover:bg-green-50"
                     }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -382,8 +398,8 @@ const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   className={`block px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === item.href
-                      ? "text-green-600 bg-green-50"
-                      : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                    ? "text-green-600 bg-green-50"
+                    : "text-gray-600 hover:text-green-600 hover:bg-green-50"
                     }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

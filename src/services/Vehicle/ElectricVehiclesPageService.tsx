@@ -28,15 +28,6 @@ export interface PageableResponse<T> {
     empty: boolean;
 }
 
-export interface ListPostFilters {
-    productType?: "VEHICLE" | "BATTERY";
-    minPrice?: number;
-    maxPrice?: number;
-    provinceCode?: number;
-    districtCode?: number;
-    wardCode?: number;
-}
-
 export const ListPostService = {
     async getSalePosts(
         page: number = 0,
@@ -58,7 +49,7 @@ export const ListPostService = {
 
             console.log("📤 Fetching posts with params:", params);
 
-            const response = await api.get<PageResponse<ListPostSummary>>("/api/sale-posts", {
+            const response = await api.get<PageResponse<ListPostSummary>>("/api/sale-posts/vehicles", {
                 params,
             });
 

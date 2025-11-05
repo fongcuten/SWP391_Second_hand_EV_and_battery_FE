@@ -89,15 +89,18 @@ export default function ProfileCard() {
 
     setIsAvatarUploading(true);
     try {
-      const updatedUser = await UserService.uploadAvatar(file);
-      setUser(updatedUser);
-      toast.success("Cập nhật ảnh đại diện thành công!");
+      // The API call is made to update the avatar on the server.
+      await UserService.uploadAvatar(file);
+
+      // The setUser call is removed. The component's state is not updated.
+      // The UI will not re-render with the new image.
+
+      toast.success("Cập nhật ảnh đại diện thành công! Tải lại trang để xem thay đổi.");
     } catch (error) {
-      console.error("❌ Error uploading avatar:", error);
+      console.error("❌ [AVATAR_UPLOAD] Error uploading avatar:", error);
       toast.error("Không thể tải lên ảnh đại diện.");
     } finally {
       setIsAvatarUploading(false);
-      // Reset file input value to allow re-uploading the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -109,16 +112,15 @@ export default function ProfileCard() {
 
     setIsAvatarUploading(true);
     try {
+      // The API call is made to delete the avatar on the server.
       await UserService.deleteAvatar();
-      // Manually update user state to remove avatar URLs
-      setUser((prevUser) =>
-        prevUser
-          ? { ...prevUser, avatarUrl: "", avatarThumbUrl: "", avatarPublicId: "" }
-          : null
-      );
-      toast.success("Đã xóa ảnh đại diện.");
+
+      // The setUser call is removed. The component's state is not updated.
+      // The UI will not re-render.
+
+      toast.success("Đã xóa ảnh đại diện. Tải lại trang để xem thay đổi.");
     } catch (error) {
-      console.error("❌ Error deleting avatar:", error);
+      console.error("❌ [AVATAR_DELETE] Error deleting avatar:", error);
       toast.error("Không thể xóa ảnh đại diện.");
     } finally {
       setIsAvatarUploading(false);
