@@ -10,6 +10,14 @@ export interface MediaItem {
   sortOrder: number;
 }
 
+// ✅ ADDED: Interface for battery-specific details
+export interface BatteryPost {
+  chemistryName: string;
+  capacityKwh: number;
+  sohPercent: number;
+  cycleCount: number;
+}
+
 export interface VehiclePost {
   modelName: string;
   brandName: string;
@@ -26,10 +34,14 @@ export interface VehiclePost {
   registration: boolean;
 }
 
+// ✅ FIX: Updated VehicleDetail interface to match the new API response
 export interface VehicleDetail {
   listingId: number;
-  seller: string;
-  sellerId: number; // ✅ ADDED
+  sellerId: number;
+  sellerUsername: string;
+  sellerAvatarUrl: string;
+  sellerAvatarThumbUrl: string;
+  sellerPhone: string;
   productType: "VEHICLE" | "BATTERY";
   askPrice: number;
   title: string;
@@ -41,22 +53,18 @@ export interface VehicleDetail {
   street: string;
   priorityLevel: number;
   createdAt: string;
-  batteryPost: null;
-  vehiclePost: VehiclePost;
+  batteryPost: BatteryPost | null; // Can be null if it's a vehicle post
+  vehiclePost: VehiclePost | null; // Can be null if it's a battery post
   media: MediaItem[];
 }
 
 export const VehicleDetailService = {
   getVehicleDetail: async (listingId: number): Promise<VehicleDetail> => {
     try {
+      // The endpoint is now /api/sale-posts/{listingId}
       const response = await api.get(`/api/sale-posts/${listingId}`);
       console.log("📦 Vehicle detail response:", response.data);
-      
-      // ✅ Validate sellerId exists
-      if (!response.data.sellerId) {
-        console.warn("⚠️ sellerId is missing in API response");
-      }
-      
+      // The new response is not nested under a 'result' key
       return response.data;
     } catch (error: any) {
       console.error("❌ Error loading vehicle detail:", error);

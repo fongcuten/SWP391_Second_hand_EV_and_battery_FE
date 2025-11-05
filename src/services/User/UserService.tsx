@@ -1,5 +1,6 @@
 import api from "../../config/axios";
 
+// ✅ FIX: Updated Plan interface to match the new API response
 export interface Plan {
     name: string;
     description: string;
@@ -10,6 +11,7 @@ export interface Plan {
     priorityLevel: number;
 }
 
+// ✅ FIX: Updated User interface to match the new API response
 export interface User {
     userId: number;
     username: string;
@@ -21,9 +23,11 @@ export interface User {
     provinceCode: number;
     districtCode: number;
     wardCode: number;
-    street: string; // ✅ Added street field
     bio: string;
-    plan: Plan | null;
+    avatarUrl: string;
+    avatarPublicId: string;
+    avatarThumbUrl: string;
+    plan: Plan;
     planStatus: string;
     startAt: string;
     endAt: string;
@@ -31,43 +35,65 @@ export interface User {
     updatedAt: string;
 }
 
-export interface UpdateUserRequest {
-    firstName: string;
-    lastName: string;
-    email: string;
-    provinceCode: number;
-    districtCode: number;
-    wardCode: number;
-    street: string; // ✅ Added street field
-    bio: string;
-    password?: string;
-}
-
-interface ApiResponse<T> {
-    code: number;
-    message: string;
-    result: T;
-}
-
-export const userService = {
-    async getCurrentUser(): Promise<User> {
+export const UserService = {
+    /**
+     * Fetches the current logged-in user's information.
+     */
+    async getMyInfo(): Promise<User> {
         try {
-            const response = await api.get<ApiResponse<User>>("/users/myInfo");
-            console.log("✅ Current user fetched:", response.data.result);
+            const response = await api.get("/users/myInfo");
+            // ✅ FIX: Return the nested 'result' object from the response
             return response.data.result;
         } catch (error: any) {
-            console.error("❌ Error fetching current user:", error);
+            console.error("❌ Error fetching user info:", error);
             throw error;
         }
     },
 
-    async updateUser(userId: number, data: UpdateUserRequest): Promise<User> {
+    /**
+     * Updates the current user's profile information.
+     * @param profileData - The data to update.
+     */
+    async updateMyInfo(profileData: Partial<User>): Promise<User> {
         try {
-            const response = await api.put<ApiResponse<User>>(`/users/${userId}`, data);
-            console.log("✅ User updated:", response.data.result);
+            const response = await api.put("/users/myInfo", profileData);
+            // ✅ FIX: Return the nested 'result' object from the response
             return response.data.result;
         } catch (error: any) {
-            console.error("❌ Error updating user:", error);
+            console.error("❌ Error updating user info:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * Uploads a new avatar for the current user.
+     * @param file The image file to upload.
+     */
+    async uploadAvatar(file: File): Promise<User> {
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            // ✅ FIX: Removed manual headers. The browser will set the correct
+            // Content-Type with the required boundary for multipart/form-data.
+            const response = await api.post("/users/me/avatar", formData);
+
+            // Assuming the response contains the updated user object in the 'result' field
+            return response.data.result;
+        } catch (error: any) {
+            console.error("❌ Error uploading avatar:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * Deletes the current user's avatar.
+     */
+    async deleteAvatar(): Promise<void> {
+        try {
+            await api.delete("/users/me/avatar");
+        } catch (error: any) {
+            console.error("❌ Error deleting avatar:", error);
             throw error;
         }
     },

@@ -28,6 +28,13 @@ import {
   type Brand,
   type Model,
 } from "../services/Post/BrandService";
+// ✅ 1. Import the location service
+import {
+  locationService,
+  type Province,
+  type District,
+  type Ward,
+} from "../services/locationService";
 
 // Constants
 const PAGE_SIZE = 12;
@@ -112,13 +119,23 @@ const ElectricVehiclesPage: React.FC = () => {
 
   // Filter State
   const [searchTerm, setSearchTerm] = useState("");
-  const [provinceSearch, setProvinceSearch] = useState("");
+  // ❌ Remove old province search state
+  // const [provinceSearch, setProvinceSearch] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [yearRange, setYearRange] = useState("");
   const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState("newest");
+
+  // ✅ Add state for location filters
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState<number | null>(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
+  const [selectedWardCode, setSelectedWardCode] = useState<number | null>(null);
+  const [loadingLocations, setLoadingLocations] = useState(false);
 
   // Brand/Model State
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -129,7 +146,7 @@ const ElectricVehiclesPage: React.FC = () => {
   // Computed
   const hasActiveFilters =
     searchTerm ||
-    provinceSearch ||
+    selectedProvinceCode || // ✅ Use new state
     priceRange ||
     yearRange ||
     selectedBrandId ||
@@ -139,16 +156,30 @@ const ElectricVehiclesPage: React.FC = () => {
   // Data Loading
   useEffect(() => {
     loadBrands();
+    // ✅ Load provinces on initial render
+    loadProvinces();
   }, []);
 
+  // ✅ Add effects to handle location dropdown changes
   useEffect(() => {
-    if (selectedBrandId) {
-      loadModels(selectedBrandId);
+    if (selectedProvinceCode) {
+      loadDistricts(selectedProvinceCode);
     } else {
-      setModels([]);
-      setSelectedModelId(null);
+      setDistricts([]);
+      setWards([]);
+      setSelectedDistrictCode(null);
+      setSelectedWardCode(null);
     }
-  }, [selectedBrandId]);
+  }, [selectedProvinceCode]);
+
+  useEffect(() => {
+    if (selectedDistrictCode) {
+      loadWards(selectedDistrictCode);
+    } else {
+      setWards([]);
+      setSelectedWardCode(null);
+    }
+  }, [selectedDistrictCode]);
 
   useEffect(() => {
     loadPosts();
@@ -166,17 +197,42 @@ const ElectricVehiclesPage: React.FC = () => {
     }
   };
 
-  const loadModels = async (brandId: number) => {
-    setLoadingModels(true);
+  // ✅ Add functions to load location data
+  const loadProvinces = async () => {
+    setLoadingLocations(true);
     try {
-      const data = await brandService.getModelsByBrand(brandId);
-      setModels(data);
-      setSelectedModelId(null);
+      const data = await locationService.getProvinces();
+      setProvinces(data);
     } catch (error) {
-      console.error("❌ Error loading models:", error);
-      setModels([]);
+      console.error("❌ Error loading provinces:", error);
     } finally {
-      setLoadingModels(false);
+      setLoadingLocations(false);
+    }
+  };
+
+  const loadDistricts = async (provinceCode: number) => {
+    setLoadingLocations(true);
+    try {
+      const data = await locationService.getDistricts(provinceCode);
+      setDistricts(data);
+    } catch (error) {
+      console.error("❌ Error loading districts:", error);
+      setDistricts([]);
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const loadWards = async (districtCode: number) => {
+    setLoadingLocations(true);
+    try {
+      const data = await locationService.getWards(districtCode);
+      setWards(data);
+    } catch (error) {
+      console.error("❌ Error loading wards:", error);
+      setWards([]);
+    } finally {
+      setLoadingLocations(false);
     }
   };
 
@@ -191,12 +247,36 @@ const ElectricVehiclesPage: React.FC = () => {
         "",
         undefined
       );
-      const vehiclePosts =
+      const vehiclePostsRaw =
         response.content?.filter((post) => post.productType === "VEHICLE") || [];
 
-      setPosts(vehiclePosts);
+      // ✅ 2. Transform posts to include full address, like in FavoritesPage
+      const transformedPosts = await Promise.all(
+        vehiclePostsRaw.map(async (post) => {
+          let fullAddress = post.address || "Không xác định"; // Fallback
+
+          const hasValidCodes = post.provinceCode && post.districtCode && post.wardCode;
+
+          if (hasValidCodes) {
+            try {
+              fullAddress = await locationService.getFullAddress(
+                post.provinceCode,
+                post.districtCode,
+                post.wardCode,
+                post.street
+              );
+            } catch (locationError) {
+              console.error(`❌ Error converting location for post ${post.listingId}:`, locationError);
+            }
+          }
+          // Return a new object with the updated address
+          return { ...post, address: fullAddress };
+        })
+      );
+
+      setPosts(transformedPosts);
       setTotalPages(response.totalPages || 0);
-      setTotalElements(vehiclePosts.length);
+      setTotalElements(transformedPosts.length);
     } catch (error) {
       console.error("❌ Error loading posts:", error);
       setError("Không thể tải danh sách xe điện");
@@ -214,10 +294,14 @@ const ElectricVehiclesPage: React.FC = () => {
         post.address?.toLowerCase().includes(searchTerm.toLowerCase())
         : true;
 
-      // Province
-      const matchesProvince = provinceSearch
-        ? post.address?.toLowerCase().includes(provinceSearch.toLowerCase())
+      // ✅ 3. Update filter logic to use location codes
+      const matchesProvince = selectedProvinceCode
+        ? post.provinceCode === selectedProvinceCode
         : true;
+      const matchesDistrict = selectedDistrictCode
+        ? post.districtCode === selectedDistrictCode
+        : true;
+      const matchesWard = selectedWardCode ? post.wardCode === selectedWardCode : true;
 
       // Brand
       let matchesBrand = true;
@@ -254,6 +338,8 @@ const ElectricVehiclesPage: React.FC = () => {
       return (
         matchesSearch &&
         matchesProvince &&
+        matchesDistrict &&
+        matchesWard &&
         matchesBrand &&
         matchesModel &&
         matchesPriorityFilter &&
@@ -298,12 +384,16 @@ const ElectricVehiclesPage: React.FC = () => {
 
   const resetFilters = () => {
     setSearchTerm("");
-    setProvinceSearch("");
+    // setProvinceSearch(""); // ❌ Remove
     setPriceRange("");
     setYearRange("");
     setSelectedBrandId(null);
     setSelectedModelId(null);
     setSelectedPriority([]);
+    // ✅ Reset location filters
+    setSelectedProvinceCode(null);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
   };
 
   // Loading State
@@ -401,19 +491,86 @@ const ElectricVehiclesPage: React.FC = () => {
 
             {/* Filters */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              {/* Location */}
+              {/* ✅ 4. Replace location text input with dropdowns */}
+              {/* Province */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
                   <MapPin className="inline h-4 w-4 mr-1" />
-                  Khu vực
+                  Tỉnh/Thành phố
                 </label>
-                <input
-                  type="text"
-                  placeholder="Tìm theo tỉnh/thành phố..."
-                  value={provinceSearch}
-                  onChange={(e) => setProvinceSearch(e.target.value)}
+                <select
+                  value={selectedProvinceCode || ""}
+                  onChange={(e) =>
+                    setSelectedProvinceCode(e.target.value ? Number(e.target.value) : null)
+                  }
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none"
-                />
+                  disabled={loadingLocations}
+                >
+                  <option value="">{loadingLocations ? "Đang tải..." : "Tất cả tỉnh"}</option>
+                  {provinces.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* District */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  <MapPin className="inline h-4 w-4 mr-1" />
+                  Quận/Huyện
+                </label>
+                <select
+                  value={selectedDistrictCode || ""}
+                  onChange={(e) =>
+                    setSelectedDistrictCode(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none"
+                  disabled={!selectedProvinceCode || loadingLocations}
+                >
+                  <option value="">
+                    {!selectedProvinceCode
+                      ? "Chọn tỉnh trước"
+                      : loadingLocations
+                        ? "Đang tải..."
+                        : "Tất cả quận/huyện"}
+                  </option>
+                  {districts.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ward */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  <MapPin className="inline h-4 w-4 mr-1" />
+                  Phường/Xã
+                </label>
+                <select
+                  value={selectedWardCode || ""}
+                  onChange={(e) =>
+                    setSelectedWardCode(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none"
+                  disabled={!selectedDistrictCode || loadingLocations}
+                >
+                  <option value="">
+                    {!selectedDistrictCode
+                      ? "Chọn quận/huyện trước"
+                      : loadingLocations
+                        ? "Đang tải..."
+                        : "Tất cả phường/xã"}
+                  </option>
+                  {wards.map((w) => (
+                    <option key={w.code} value={w.code}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Brand */}
@@ -554,8 +711,8 @@ const ElectricVehiclesPage: React.FC = () => {
                     key={priority}
                     onClick={() => togglePriority(priorityNum)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${selectedPriority.includes(priorityNum)
-                        ? config.badge + " shadow-lg"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? config.badge + " shadow-lg"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -583,8 +740,8 @@ const ElectricVehiclesPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`p-2 transition ${viewMode === "grid"
-                      ? "bg-[#2ECC71] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
+                    ? "bg-[#2ECC71] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                 >
                   <Grid3x3 className="w-5 h-5" />
@@ -592,8 +749,8 @@ const ElectricVehiclesPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("list")}
                   className={`p-2 transition ${viewMode === "list"
-                      ? "bg-[#2ECC71] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
+                    ? "bg-[#2ECC71] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                 >
                   <List className="w-5 h-5" />
@@ -914,8 +1071,8 @@ const Pagination: React.FC<{
           key={i}
           onClick={() => onPageChange(i)}
           className={`min-w-[44px] h-11 rounded-lg font-medium transition ${currentPage === i
-              ? "bg-[#2ECC71] text-white shadow-lg"
-              : "border-2 border-gray-200 text-gray-700 hover:bg-gray-50"
+            ? "bg-[#2ECC71] text-white shadow-lg"
+            : "border-2 border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
         >
           {i + 1}

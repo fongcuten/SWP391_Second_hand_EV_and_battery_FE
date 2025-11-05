@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Loader2, Crown, Calendar } from "lucide-react";
+import { Loader2, Crown, Calendar, Upload, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { userService, type User } from "../services/User/UserService";
+import { UserService, type User } from "../services/User/UserService";
 
 // ===== UTILITIES =====
 
@@ -55,6 +55,8 @@ export default function ProfileCard() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== DATA LOADING =====
 
@@ -65,13 +67,61 @@ export default function ProfileCard() {
   const loadUserData = async () => {
     setLoading(true);
     try {
-      const userData = await userService.getCurrentUser();
+      const userData = await UserService.getMyInfo();
       setUser(userData);
     } catch (error: any) {
       console.error("❌ Error loading user:", error);
       toast.error("Không thể tải thông tin người dùng");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ===== AVATAR ACTIONS =====
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsAvatarUploading(true);
+    try {
+      const updatedUser = await UserService.uploadAvatar(file);
+      setUser(updatedUser);
+      toast.success("Cập nhật ảnh đại diện thành công!");
+    } catch (error) {
+      console.error("❌ Error uploading avatar:", error);
+      toast.error("Không thể tải lên ảnh đại diện.");
+    } finally {
+      setIsAvatarUploading(false);
+      // Reset file input value to allow re-uploading the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!user?.avatarUrl) return;
+
+    setIsAvatarUploading(true);
+    try {
+      await UserService.deleteAvatar();
+      // Manually update user state to remove avatar URLs
+      setUser((prevUser) =>
+        prevUser
+          ? { ...prevUser, avatarUrl: "", avatarThumbUrl: "", avatarPublicId: "" }
+          : null
+      );
+      toast.success("Đã xóa ảnh đại diện.");
+    } catch (error) {
+      console.error("❌ Error deleting avatar:", error);
+      toast.error("Không thể xóa ảnh đại diện.");
+    } finally {
+      setIsAvatarUploading(false);
     }
   };
 
@@ -84,8 +134,8 @@ export default function ProfileCard() {
 
     return (
       <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isPremium
-          ? "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300"
-          : "bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300"
+        ? "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300"
+        : "bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300"
         }`}>
         {isPremium && <Crown className="w-3 h-3" />}
         {user.plan.name}
@@ -109,13 +159,54 @@ export default function ProfileCard() {
       <div className="relative bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg p-6 border border-gray-100">
         <div className="flex items-center gap-5">
           {/* Avatar */}
-          <div className="relative flex-shrink-0">
+          <div className="relative flex-shrink-0 group">
             <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-2 ring-green-200">
-              <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl font-bold bg-gradient-to-br from-green-100 to-green-200">
-                {getInitial(user)}
-              </div>
+              {user?.avatarThumbUrl ? (
+                <img
+                  src={user.avatarThumbUrl}
+                  alt={getFullName(user)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl font-bold bg-gradient-to-br from-green-100 to-green-200">
+                  {getInitial(user)}
+                </div>
+              )}
             </div>
             <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
+
+            {/* Avatar Actions Overlay */}
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full transition-all duration-300 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
+              {isAvatarUploading ? (
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+              ) : (
+                <>
+                  <button
+                    onClick={handleUploadClick}
+                    className="w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center text-gray-700 transition"
+                    title="Tải ảnh mới"
+                  >
+                    <Upload className="w-5 h-5" />
+                  </button>
+                  {user?.avatarUrl && (
+                    <button
+                      onClick={handleDeleteAvatar}
+                      className="w-10 h-10 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white transition"
+                      title="Xóa ảnh"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/png, image/jpeg, image/gif"
+            />
           </div>
 
           {/* User Info */}
@@ -161,14 +252,14 @@ export default function ProfileCard() {
                 <Link
                   to={item.to}
                   className={`flex items-center gap-3 px-5 py-3 transition-all relative group ${active
-                      ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium"
-                      : "hover:bg-gray-50"
+                    ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium"
+                    : "hover:bg-gray-50"
                     }`}
                 >
                   <div
                     className={`flex items-center justify-center w-9 h-9 rounded-full shadow-inner backdrop-blur-sm ${active
-                        ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-500 group-hover:bg-gray-200"
+                      ? "bg-green-100 text-green-600"
+                      : "bg-gray-100 text-gray-500 group-hover:bg-gray-200"
                       } transition-all duration-200`}
                   >
                     {item.icon}

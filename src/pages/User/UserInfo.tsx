@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+// ✅ FIX: Removed unused UpdateUserRequest import
 import {
-  userService,
+  UserService,
   type User,
-  type UpdateUserRequest,
 } from "../../services/User/UserService";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
+import { Loader2 } from "lucide-react";
 
 interface UserInfoFormProps {
   onSave?: () => void;
@@ -24,7 +25,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     provinceCode: 0,
     districtCode: 0,
     wardCode: 0,
-    street: "", // ✅ Added street field
+    // street: "", // Street is not a direct field in the new User model, handled by address components
     bio: "",
   });
 
@@ -45,7 +46,8 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     if (formData.provinceCode) {
       loadDistricts(formData.provinceCode);
     } else {
-      resetDistricts();
+      setDistricts([]);
+      setWards([]);
     }
   }, [formData.provinceCode]);
 
@@ -54,14 +56,15 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     if (formData.districtCode) {
       loadWards(formData.districtCode);
     } else {
-      resetWards();
+      setWards([]);
     }
   }, [formData.districtCode]);
 
   const loadUserData = async () => {
     try {
       setLoading(true);
-      const userData = await userService.getCurrentUser();
+      // ✅ FIX: Use the new getMyInfo service function
+      const userData = await UserService.getMyInfo();
       setUser(userData);
 
       // Populate form with existing data
@@ -72,13 +75,12 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
         provinceCode: userData.provinceCode || 0,
         districtCode: userData.districtCode || 0,
         wardCode: userData.wardCode || 0,
-        street: userData.street || "", // ✅ Load street from user data
         bio: userData.bio || "",
       };
 
       setFormData(initialData);
 
-      // ✅ Load location data based on existing codes
+      // Load location data based on existing codes
       if (userData.provinceCode) {
         await loadDistricts(userData.provinceCode);
       }
@@ -110,10 +112,6 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     try {
       const data = await locationService.getDistricts(provinceCode);
       setDistricts(data);
-      // ✅ Only reset if user is changing province (not on initial load)
-      if (formData.provinceCode !== provinceCode) {
-        setFormData(prev => ({ ...prev, districtCode: 0, wardCode: 0 }));
-      }
     } catch {
       toast.error("Không thể tải danh sách quận/huyện");
     } finally {
@@ -126,24 +124,11 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     try {
       const data = await locationService.getWards(districtCode);
       setWards(data);
-      // ✅ Only reset if user is changing district (not on initial load)
-      if (formData.districtCode !== districtCode) {
-        setFormData(prev => ({ ...prev, wardCode: 0 }));
-      }
     } catch {
       toast.error("Không thể tải danh sách phường/xã");
     } finally {
       setLoadingLocation(false);
     }
-  };
-
-  const resetDistricts = () => {
-    setDistricts([]);
-    setWards([]);
-  };
-
-  const resetWards = () => {
-    setWards([]);
   };
 
   const handleSave = async () => {
@@ -152,23 +137,11 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
       return;
     }
 
-    // Validation
-    if (!formData.firstName.trim()) {
-      toast.error("Vui lòng nhập họ");
+    // Validation (remains the same)
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
+      toast.error("Vui lòng điền đầy đủ họ, tên và email.");
       return;
     }
-
-    if (!formData.lastName.trim()) {
-      toast.error("Vui lòng nhập tên");
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      toast.error("Vui lòng nhập email");
-      return;
-    }
-
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       toast.error("Email không hợp lệ");
@@ -178,41 +151,20 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     setSaving(true);
 
     try {
-      const updateData: UpdateUserRequest = {
+      // ✅ FIX: Create a Partial<User> object for the update
+      const updateData: Partial<User> = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
         provinceCode: formData.provinceCode,
         districtCode: formData.districtCode,
         wardCode: formData.wardCode,
-        street: formData.street.trim(),
         bio: formData.bio.trim(),
       };
 
-      const updatedUser = await userService.updateUser(user.userId, updateData);
+      // ✅ FIX: Use the new updateMyInfo service function
+      const updatedUser = await UserService.updateMyInfo(updateData);
       setUser(updatedUser);
-
-      // ✅ Update localStorage current_user
-      const currentUserStr = localStorage.getItem("current_user");
-      if (currentUserStr) {
-        try {
-          const currentUser = JSON.parse(currentUserStr);
-          
-          // ✅ Merge updated data
-          const updatedLocalUser = {
-            ...currentUser,
-            email: updatedUser.email,
-            fullName: `${updatedUser.firstName} ${updatedUser.lastName}`.trim(),
-            phoneNumber: updatedUser.phone,
-            // Keep other fields like id, role, createdAt
-          };
-
-          console.log("✅ Updating localStorage user:", updatedLocalUser);
-          localStorage.setItem("current_user", JSON.stringify(updatedLocalUser));
-        } catch (err) {
-          console.error("❌ Error updating localStorage user:", err);
-        }
-      }
 
       toast.success("Cập nhật thông tin thành công!");
 
@@ -221,16 +173,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
       }
     } catch (error: any) {
       console.error("❌ Error updating user:", error);
-
-      if (error.response?.status === 400) {
-        toast.error(error.response.data?.message || "Thông tin không hợp lệ");
-      } else if (error.response?.status === 401) {
-        toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-      } else if (error.response?.status === 403) {
-        toast.error("Bạn không có quyền cập nhật thông tin này");
-      } else {
-        toast.error("Không thể cập nhật thông tin. Vui lòng thử lại.");
-      }
+      toast.error(error.response?.data?.message || "Không thể cập nhật thông tin.");
     } finally {
       setSaving(false);
     }
@@ -242,8 +185,8 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2ECC71]"></div>
+      <div className="flex items-center justify-center p-10">
+        <Loader2 className="animate-spin h-12 w-12 text-[#2ECC71]" />
       </div>
     );
   }
@@ -252,108 +195,94 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     <div>
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-10">
         {/* Header */}
-        <div className="border-b border-gray-100 px-8 py-6 bg-gradient-to-r from-[#A8E6CF] to-white">
-          <h2 className="text-2xl font-semibold text-[#2C3E50]">
+        <div className="border-b border-gray-100 px-8 py-6 bg-gradient-to-r from-green-50 to-white">
+          <h2 className="text-2xl font-semibold text-gray-800">
             Hồ sơ cá nhân
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Quản lý thông tin cá nhân, địa chỉ và bảo mật tài khoản của bạn
+            Quản lý thông tin cá nhân và địa chỉ của bạn.
           </p>
         </div>
 
         {/* Content */}
         <div className="p-8 space-y-10">
-          {/* Thông tin cơ bản */}
+          {/* Basic Info */}
           <section>
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Thông tin cơ bản
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* First Name */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Họ
                 </label>
-                <div className="border border-gray-300 rounded-lg">
-                  <input
-                    type="text"
-                    placeholder="Nhập họ"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, firstName: e.target.value })
-                    }
-                    className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50]"
-                  />
-                </div>
+                <input
+                  type="text"
+                  placeholder="Nhập họ"
+                  value={formData.firstName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
+                  className="w-full rounded-lg px-3 py-2.5 text-sm border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71]"
+                />
               </div>
 
               {/* Last Name */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tên
                 </label>
-                <div className="border border-gray-300 rounded-lg">
-                  <input
-                    type="text"
-                    placeholder="Nhập tên"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastName: e.target.value })
-                    }
-                    className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50]"
-                  />
-                </div>
+                <input
+                  type="text"
+                  placeholder="Nhập tên"
+                  value={formData.lastName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
+                  className="w-full rounded-lg px-3 py-2.5 text-sm border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71]"
+                />
               </div>
             </div>
 
             {/* Phone (Read-only) */}
             <div className="mt-5">
-              <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Số điện thoại
               </label>
-              <div className="border border-gray-300 rounded-lg">
-                <input
-                  type="text"
-                  value={user?.phone || ""}
-                  readOnly
-                  disabled
-                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-300 opacity-75"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Số điện thoại không thể thay đổi
-              </p>
+              <input
+                type="text"
+                value={user?.phone || ""}
+                readOnly
+                disabled
+                className="w-full rounded-lg px-3 py-2.5 text-sm bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300"
+              />
             </div>
 
             {/* Username (Read-only) */}
             <div className="mt-5">
-              <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tên đăng nhập
               </label>
-              <div className="border border-gray-300 rounded-lg">
-                <input
-                  type="text"
-                  value={user?.username || ""}
-                  readOnly
-                  disabled
-                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-300 opacity-75"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Tên đăng nhập không thể thay đổi
-              </p>
+              <input
+                type="text"
+                value={user?.username || ""}
+                readOnly
+                disabled
+                className="w-full rounded-lg px-3 py-2.5 text-sm bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300"
+              />
             </div>
           </section>
 
-          {/* Địa chỉ */}
+          {/* Address */}
           <section>
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Địa chỉ
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-4">
               {/* Province */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tỉnh/Thành phố
                 </label>
                 <select
@@ -362,10 +291,12 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
                     setFormData({
                       ...formData,
                       provinceCode: parseInt(e.target.value) || 0,
+                      districtCode: 0, // Reset district on province change
+                      wardCode: 0,     // Reset ward on province change
                     })
                   }
                   disabled={loadingLocation}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] disabled:bg-gray-100"
                 >
                   <option value="">Chọn tỉnh/thành phố</option>
                   {provinces.map((p) => (
@@ -378,7 +309,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
 
               {/* District */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quận/Huyện
                 </label>
                 <select
@@ -387,14 +318,15 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
                     setFormData({
                       ...formData,
                       districtCode: parseInt(e.target.value) || 0,
+                      wardCode: 0, // Reset ward on district change
                     })
                   }
                   disabled={loadingLocation || !formData.provinceCode}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] disabled:bg-gray-100"
                 >
                   <option value="">
                     {!formData.provinceCode
-                      ? "Chọn tỉnh/thành phố trước"
+                      ? "Chọn tỉnh trước"
                       : "Chọn quận/huyện"}
                   </option>
                   {districts.map((d) => (
@@ -407,7 +339,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
 
               {/* Ward */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Phường/Xã
                 </label>
                 <select
@@ -419,7 +351,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
                     })
                   }
                   disabled={loadingLocation || !formData.districtCode}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] disabled:bg-gray-100"
                 >
                   <option value="">
                     {!formData.districtCode
@@ -434,98 +366,71 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
                 </select>
               </div>
             </div>
-
-            {/* ✅ Street Address Input */}
-            <div>
-              <label className="block text-sm font-medium text-[#2C3E50] mb-1">
-                Địa chỉ chi tiết
-              </label>
-              <input
-                type="text"
-                placeholder="Số nhà, tên đường..."
-                value={formData.street}
-                onChange={(e) =>
-                  setFormData({ ...formData, street: e.target.value })
-                }
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50]"
-              />
-            </div>
           </section>
 
-          {/* Giới thiệu */}
+          {/* Bio */}
           <section>
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Giới thiệu
             </h3>
             <div>
-              <label className="block text-sm font-medium text-[#2C3E50] mb-1">
-                Giới thiệu
-              </label>
-              <div className="border border-gray-300 rounded-lg">
-                <textarea
-                  rows={3}
-                  placeholder="Viết đôi dòng giới thiệu về bạn hoặc cửa hàng của bạn..."
-                  value={formData.bio}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bio: e.target.value })
-                  }
-                  maxLength={500}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-[#2C3E50] placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-[#2ECC71]"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.bio.length}/500 ký tự
+              <textarea
+                rows={3}
+                placeholder="Viết đôi dòng giới thiệu về bạn..."
+                value={formData.bio}
+                onChange={(e) =>
+                  setFormData({ ...formData, bio: e.target.value })
+                }
+                maxLength={500}
+                className="w-full rounded-lg px-3 py-2.5 text-sm border border-gray-300 resize-none focus:ring-2 focus:ring-[#2ECC71]"
+              />
+              <p className="text-xs text-gray-500 mt-1 text-right">
+                {formData.bio.length}/500
               </p>
             </div>
           </section>
 
-          {/* Thông tin bảo mật */}
+          {/* Security */}
           <section>
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-2">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
               Thông tin bảo mật
             </h3>
-            <p className="text-sm text-gray-500 mb-5">
-              Chỉ bạn có thể xem và chỉnh sửa các thông tin này.
-            </p>
-
             <div className="space-y-5">
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
-                <div className="border border-gray-300 rounded-lg">
-                  <input
-                    type="email"
-                    placeholder="example@email.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] bg-white text-[#2C3E50]"
-                  />
-                </div>
+                <input
+                  type="email"
+                  placeholder="example@email.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full rounded-lg px-3 py-2.5 text-sm border border-gray-300 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71]"
+                />
               </div>
             </div>
           </section>
 
           {/* Save Buttons */}
-          <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
+          <div className="pt-6 border-t border-gray-200 flex justify-end gap-3">
             <button
               onClick={handleCancel}
               disabled={saving}
-              className="bg-gray-200 text-gray-700 text-sm font-medium px-8 py-2.5 rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50"
+              className="bg-gray-200 text-gray-800 text-sm font-medium px-8 py-2.5 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
             >
-              Hủy thay đổi
+              Hủy
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-[#2ECC71] text-white text-sm font-medium px-8 py-2.5 rounded-lg shadow hover:bg-[#27AE60] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-[#2ECC71] text-white text-sm font-medium px-8 py-2.5 rounded-lg shadow hover:bg-[#27AE60] transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {saving ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Đang lưu...</span>
                 </>
               ) : (

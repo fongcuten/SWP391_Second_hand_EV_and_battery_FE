@@ -27,7 +27,9 @@ import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail } from "../services/Vehicle/ElectricDetailsService";
 import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
-import { ChatService } from "../services/Chat/ChatService"; // ✅ Import ChatService
+import { ChatService } from "../services/Chat/ChatService";
+// ✅ 1. Import locationService
+import { locationService } from "../services/locationService";
 
 const ElectricVehicleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +43,8 @@ const ElectricVehicleDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "specs">("overview");
+  // ✅ 2. Add state for the full address
+  const [fullAddress, setFullAddress] = useState<string | null>(null);
 
   // ✅ ADD: Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -74,6 +78,16 @@ const ElectricVehicleDetailPage: React.FC = () => {
       try {
         const data = await VehicleDetailService.getVehicleDetail(Number(id));
         setVehicle(data);
+
+        // ✅ 3. Convert location codes to a full address string
+        if (data.provinceCode && data.districtCode && data.wardCode) {
+          locationService
+            .getFullAddress(data.provinceCode, data.districtCode, data.wardCode, data.street)
+            .then(setFullAddress)
+            .catch(() => setFullAddress("Không thể tải địa chỉ"));
+        } else {
+          setFullAddress("Chưa cung cấp địa chỉ");
+        }
       } catch (err) {
         console.error("❌ Error loading vehicle:", err);
         setError("Không thể tải thông tin xe điện");
@@ -95,88 +109,88 @@ const ElectricVehicleDetailPage: React.FC = () => {
 
   // Event handlers
   const handleContact = async (type: "phone" | "message") => {
-      const currentUser = authService.getCurrentUser();
+    const currentUser = authService.getCurrentUser();
 
-      if (!currentUser) {
-        toast.warning("Vui lòng đăng nhập để nhắn tin");
-        navigate("/dang-nhap");
-        return;
-      }
+    if (!currentUser) {
+      toast.warning("Vui lòng đăng nhập để nhắn tin");
+      navigate("/dang-nhap");
+      return;
+    }
 
-      // ✅ Get sellerId from vehicle data
-      const sellerUsername = vehicle?.seller;
-      const sellerId = vehicle?.sellerId;
+    // ✅ 4. Get seller info from the new vehicle data structure
+    const sellerUsername = vehicle?.sellerUsername;
+    const sellerId = vehicle?.sellerId;
 
-      console.log("💬 Starting chat with seller:", {
-        sellerUsername,
+    console.log("💬 Starting chat with seller:", {
+      sellerUsername,
+      sellerId,
+      currentUserId: currentUser.id,
+    });
+
+    // ✅ Validate sellerId
+    if (!sellerId || sellerId === 0) {
+      console.error("❌ Invalid sellerId:", {
         sellerId,
-        currentUserId: currentUser.id,
+        vehicleSeller: vehicle?.sellerUsername, // ✅ Use new field for logging
+      });
+      toast.error("Không thể mở chat: ID người bán không hợp lệ");
+      return;
+    }
+
+    if (!sellerUsername) {
+      toast.error("Không thể mở chat: Tên người bán không hợp lệ");
+      return;
+    }
+
+    // ✅ Check if trying to message yourself
+    if (sellerId === Number(currentUser.id)) {
+      toast.warning("Bạn không thể nhắn tin cho chính mình");
+      return;
+    }
+
+    try {
+      console.log("📞 Creating conversation via API...");
+
+      // ✅ Create conversation on backend FIRST
+      const conversationKey = await ChatService.createConversation(
+        Number(currentUser.id),
+        sellerId
+      );
+
+      console.log("✅ Conversation created:", conversationKey);
+
+      // ✅ Navigate with state (NOT query params)
+      console.log("✅ Navigating to chat with state:", {
+        sellerId,
+        sellerName: sellerUsername,
+        productTitle: vehicle?.title,
       });
 
-      // ✅ Validate sellerId
-      if (!sellerId || sellerId === 0) {
-        console.error("❌ Invalid sellerId:", {
-          sellerId,
-          vehicleSeller: vehicle?.seller,
-        });
-        toast.error("Không thể mở chat: ID người bán không hợp lệ");
-        return;
-      }
-
-      if (!sellerUsername) {
-        toast.error("Không thể mở chat: Tên người bán không hợp lệ");
-        return;
-      }
-
-      // ✅ Check if trying to message yourself
-      if (sellerId === Number(currentUser.id)) {
-        toast.warning("Bạn không thể nhắn tin cho chính mình");
-        return;
-      }
-
-      try {
-        console.log("📞 Creating conversation via API...");
-
-        // ✅ Create conversation on backend FIRST
-        const conversationKey = await ChatService.createConversation(
-          Number(currentUser.id),
-          sellerId
-        );
-
-        console.log("✅ Conversation created:", conversationKey);
-
-        // ✅ Navigate with state (NOT query params)
-        console.log("✅ Navigating to chat with state:", {
-          sellerId,
+      navigate("/chat", {
+        state: {
+          sellerId: sellerId,
           sellerName: sellerUsername,
           productTitle: vehicle?.title,
-        });
+        },
+      });
 
+      console.log("✅ Navigation called");
+    } catch (error: any) {
+      console.error("❌ Error creating conversation:", error);
+
+      if (error.response?.status === 409) {
+        // Conversation already exists - that's fine, navigate anyway
+        console.log("⚠️ Conversation already exists, navigating anyway");
         navigate("/chat", {
           state: {
             sellerId: sellerId,
             sellerName: sellerUsername,
-            productTitle: vehicle?.title,
           },
         });
-
-        console.log("✅ Navigation called");
-      } catch (error: any) {
-        console.error("❌ Error creating conversation:", error);
-
-        if (error.response?.status === 409) {
-          // Conversation already exists - that's fine, navigate anyway
-          console.log("⚠️ Conversation already exists, navigating anyway");
-          navigate("/chat", {
-            state: {
-              sellerId: sellerId,
-              sellerName: sellerUsername,
-            },
-          });
-        } else {
-          toast.error("Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
-        }
+      } else {
+        toast.error("Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
       }
+    }
   };
 
   const handleShare = () => {
@@ -334,6 +348,30 @@ const ElectricVehicleDetailPage: React.FC = () => {
             </h1>
             <p className="text-gray-600 mb-6">
               {error || "Xe điện bạn đang tìm kiếm không tồn tại hoặc đã bị xóa."}
+            </p>
+            <button
+              onClick={() => navigate("/xe-dien")}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Quay lại danh sách
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 5. Add a check for vehiclePost before destructuring
+  if (!vehicle.vehiclePost) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-20">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              Lỗi dữ liệu sản phẩm
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Tin đăng này không phải là một chiếc xe.
             </p>
             <button
               onClick={() => navigate("/xe-dien")}
@@ -710,13 +748,24 @@ const ElectricVehicleDetailPage: React.FC = () => {
                   Người bán
                 </h3>
 
+                {/* ✅ 6. Update Seller Info Card with new data */}
                 <div className="flex items-start gap-4 mb-4 p-4 bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-100">
-                  <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0">
-                    {vehicle.seller.charAt(0).toUpperCase()}
+                  <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 overflow-hidden">
+                    {vehicle.sellerAvatarThumbUrl ? (
+                      <img
+                        src={vehicle.sellerAvatarThumbUrl}
+                        alt={vehicle.sellerUsername}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-blue-600">
+                        {vehicle.sellerUsername.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-gray-900 mb-1 truncate">
-                      {vehicle.seller}
+                      {vehicle.sellerUsername}
                     </h4>
                     <p className="text-xs text-gray-600">Cá nhân</p>
                   </div>
@@ -726,8 +775,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
                   <div className="flex items-start gap-2">
                     <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <span className="line-clamp-2">
-                      {vehicle.street && `${vehicle.street}, `}
-                      Mã vùng: {vehicle.wardCode}
+                      {fullAddress || "Đang tải địa chỉ..."}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
