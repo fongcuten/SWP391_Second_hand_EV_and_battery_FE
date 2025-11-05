@@ -72,17 +72,13 @@ export const SubscriptionsPlan: React.FC = () => {
         setProcessingPlan(planName);
 
         try {
-             const response = await api.post("/users/me/plan/checkout", { planName });
+            const response = await api.post("/users/me/plan/checkout", { planName });
             const checkoutUrl = response.data?.result?.checkoutUrl;
 
             if (!checkoutUrl) {
                 toast.error("Không nhận được URL thanh toán. Vui lòng thử lại.");
                 return;
             }
-
-
-
-
             // Redirect to payment
             window.location.replace(checkoutUrl);
 

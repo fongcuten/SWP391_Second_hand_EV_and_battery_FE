@@ -36,6 +36,7 @@ import SubscriptionsPlan from "./pages/SubscriptionPlan";
 import PaymentResult from "./pages/Payment/PaymentResult";
 import AdminPage from "./pages/Admin/AdminPage";
 import LocationTest from "./components/LocationTest";
+import CheckoutSuccessPage from "./pages/Payment/inspectionCheckout";
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -117,7 +118,7 @@ const AppShell: React.FC = () => {
           {/* Other pages */}
           <Route path="/so-sanh" element={<ComparePage />} />
           <Route path="/ho-tro" element={<SupportPage />} />
-          <Route path="/ke-hoach" element={<SubscriptionsPlan />} />
+          <Route path="/goi-dang-ky" element={<SubscriptionsPlan />} />
 
           <Route
             path="/checkout/success"
@@ -136,6 +137,11 @@ const AppShell: React.FC = () => {
               </ProtectedRoute>
             }
           />
+
+        
+        {/* ... your other routes ... */}
+          <Route path="/inspectionCheckout/success" element={<CheckoutSuccessPage />} />
+        
 
           <Route path="/chat" element={<ChatPage />} />
           {/* Test API Location */}

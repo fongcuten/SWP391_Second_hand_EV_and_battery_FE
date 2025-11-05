@@ -54,12 +54,17 @@ export class InspectionService {
   static async submitManualInspection(
     listingId: number,
     file: File,
-    inspectionOrderId: number
+    inspectionOrderId: number | null // ✅ Allow null for inspectionOrderId
   ): Promise<InspectionReportResponse> {
     try {
       const formData = new FormData();
       formData.append("listingId", listingId.toString());
-      formData.append("inspectionOrderId", inspectionOrderId.toString());
+
+      // ✅ Only append inspectionOrderId if it's not null
+      if (inspectionOrderId !== null) {
+        formData.append("inspectionOrderId", inspectionOrderId.toString());
+      }
+
       formData.append("sourceType", "USER");
       formData.append("provider", "USER_UPLOAD");
       formData.append("file", file);
@@ -135,6 +140,19 @@ export class InspectionService {
         error.response?.data?.message ||
         "Không thể tải báo cáo kiểm duyệt"
       );
+    }
+  }
+
+
+   static async confirmInspectionPayment(orderId: number): Promise<void> {
+    try {
+      // The empty object {} is sent as the request body.
+      const response = await api.post(`/api/inspection-orders/${orderId}/confirm`, {});
+      console.log(`✅ Payment confirmed for order ID: ${orderId}`, response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error(`❌ Error confirming payment for order ID: ${orderId}`, error);
+      throw error;
     }
   }
 }

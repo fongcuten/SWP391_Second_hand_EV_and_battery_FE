@@ -18,6 +18,7 @@ import { toast } from "react-toastify";
 import { UserPostService, type SalePost } from "../../services/User/UserPostService";
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
 import { InspectionService, type InspectionOrderRequest } from "../../services/Inspection/InspectionService"; // ✅ Update import
+import api from "../../config/axios";
 
 // ===== TYPES =====
 
@@ -293,7 +294,23 @@ export default function UserPosts() {
           street: street.trim() || undefined,
         };
 
-        await InspectionService.submitInspectionOrder(payload);
+        const inspectionOrderId = await InspectionService.submitInspectionOrder(payload);
+        console.log("✅ Created inspection order with ID:", inspectionOrderId);
+        if (!inspectionOrderId) {
+          toast.error("Không thể tạo đơn kiểm duyệt");
+          return;
+        }
+
+                localStorage.setItem("pendingInspectionOrderId", inspectionOrderId.toString());
+
+        const response = await api.post(`/api/inspection-orders/${inspectionOrderId}/checkout`, {});
+        const checkoutUrl = response.data?.url;
+        if (!checkoutUrl){
+          toast.error("Không thể trả check out URL");  
+          return;
+        }
+
+        window.location.replace(checkoutUrl);
 
         toast.success(
           `Đã đặt lịch kiểm duyệt tự động ngày ${new Date(
@@ -303,24 +320,12 @@ export default function UserPosts() {
       }
 
       // Handle MANUAL inspection
-      if (inspectionType === "manual" && uploadedFile) {
-        // Step 1: Create inspection order
-        const orderPayload: InspectionOrderRequest = {
-          listingId: selectedPost.listingId,
-        };
-
-        const inspectionOrderId = await InspectionService.submitInspectionOrder(orderPayload);
-
-        if (!inspectionOrderId) {
-          toast.error("Không thể tạo đơn kiểm duyệt");
-          return;
-        }
-
-        // Step 2: Upload document
+      if (inspectionType === "manual" && uploadedFile) {  
+        // ✅ Directly submit the manual inspection with a null order ID
         const reportResponse = await InspectionService.submitManualInspection(
           selectedPost.listingId,
           uploadedFile,
-          inspectionOrderId
+          null // Pass null for inspectionOrderId
         );
 
         if (reportResponse?.reportId) {
@@ -333,6 +338,7 @@ export default function UserPosts() {
           );
         }
       }
+
 
       closeModal();
       await loadPosts();

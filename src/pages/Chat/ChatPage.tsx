@@ -12,7 +12,7 @@ const ChatPage: React.FC = () => {
     const location = useLocation();
     const wsRef = useRef<WebSocketService | null>(null);
     const currentUser = authService.getCurrentUser();
-    
+
     // ✅ Track if we already handled navigation state
     const handledNavStateRef = useRef(false);
 
@@ -77,22 +77,20 @@ const ChatPage: React.FC = () => {
 
         wsRef.current.connect(
             (newMessage: ChatMessage) => {
-                console.log("📨 Message received:", newMessage.content);
+                console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                console.log("📨 WebSocket message received!");
+                console.log("📦 Content:", newMessage.content);
+                console.log("📦 From:", newMessage.senderId);
+                console.log("📦 To:", newMessage.receiverId);
+                console.log("📦 Conv Key:", newMessage.conversationKey);
+                console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
                 setState((prevState) => {
-                    // Duplicate check
-                    const exists = prevState.messages.some(
-                        (m) =>
-                            m.messageId === newMessage.messageId ||
-                            (m.content === newMessage.content &&
-                                m.sentAt === newMessage.sentAt &&
-                                Number(m.senderId) === Number(newMessage.senderId))
-                    );
+                    console.log("🔍 Before update:", {
+                        messagesCount: prevState.messages.length,
+                        activeChatKey: prevState.activeChatKey,
+                    });
 
-                    if (exists) {
-                        console.log("⚠️ Duplicate");
-                        return prevState;
-                    }
 
                     const messageConvKey = createConversationKey(
                         newMessage.senderId,
@@ -101,16 +99,22 @@ const ChatPage: React.FC = () => {
 
                     const isActiveConv = prevState.activeChatKey === messageConvKey;
 
-                    console.log("🔍 Active?", isActiveConv, messageConvKey, "vs", prevState.activeChatKey);
+                    console.log("🔍 Conv key comparison:", {
+                        messageKey: messageConvKey,
+                        activeKey: prevState.activeChatKey,
+                        match: isActiveConv,
+                    });
 
-                    // ✅ FORCE NEW ARRAY REFERENCE
+                    // ✅ FORCE NEW ARRAY
                     const newMessages = isActiveConv
                         ? [...prevState.messages, newMessage]
                         : prevState.messages;
 
-                    if (isActiveConv) {
-                        console.log("✅ Added! Count:", newMessages.length);
-                    }
+                    console.log("🔍 After update:", {
+                        oldCount: prevState.messages.length,
+                        newCount: newMessages.length,
+                        added: isActiveConv,
+                    });
 
                     // Update conversations
                     const newConversations = prevState.conversations.map((conv) => {
@@ -138,7 +142,8 @@ const ChatPage: React.FC = () => {
                         }
                     }
 
-                    // ✅ RETURN NEW STATE
+                    console.log("✅ Returning new state");
+
                     return {
                         ...prevState,
                         messages: newMessages,
@@ -291,43 +296,53 @@ const ChatPage: React.FC = () => {
     }, []);
 
     const handleSendMessage = useCallback(async (msg: ChatMessage) => {
-        console.log("📤 Sending:", msg.content);
+        console.log("📤 Sending message to backend:", msg.content);
 
-        // Optimistic update
-        setState(prev => ({ ...prev, messages: [...prev.messages, msg] }));
+        // ❌ REMOVE THE OPTIMISTIC UPDATE
+        // setState(prev => ({ ...prev, messages: [...prev.messages, msg] }));
 
         try {
+            // ✅ Send to REST API (for saving) AND WebSocket (for broadcasting)
+            // The REST call is now redundant if the WebSocket handler saves the message,
+            // but we'll keep it for now as a fallback.
             await ChatService.sendMessage(msg);
 
             if (wsRef.current?.isConnected()) {
                 wsRef.current.sendMessage(msg);
+                console.log("✅ Message sent via WebSocket for broadcast.");
+            } else {
+                toast.error("Không thể gửi tin nhắn. Mất kết nối chat.");
+                return; // Don't update UI if not connected
             }
 
+            // ✅ This part is still good - it updates the conversation list on the side
             const conversationKey = createConversationKey(msg.senderId, msg.receiverId);
             setState(prev => {
                 const index = prev.conversations.findIndex(c => c.conversationKey === conversationKey);
                 if (index === -1) return prev;
 
                 const updated = [...prev.conversations];
-                updated[index] = {
-                    ...updated[index],
-                    lastMessage: {
-                        content: msg.content,
-                        sentAt: msg.sentAt,
-                    },
-                    isTemporary: false,
+                const convToUpdate = { ...updated[index] };
+
+                convToUpdate.lastMessage = {
+                    content: msg.content,
+                    sentAt: msg.sentAt,
                 };
+                convToUpdate.isTemporary = false;
+
+                // Move conversation to the top
+                updated.splice(index, 1);
+                updated.unshift(convToUpdate);
+
                 return { ...prev, conversations: updated };
             });
+
         } catch (error) {
             console.error("❌ Send error:", error);
             toast.error("Không thể gửi tin nhắn");
-            setState(prev => ({
-                ...prev,
-                messages: prev.messages.filter((m) => m.sentAt !== msg.sentAt)
-            }));
+            // Since we removed optimistic update, we don't need to revert state here.
         }
-    }, []);
+    }, []); // Keep dependencies empty
 
     const handleBack = useCallback(() => {
         setState(prev => ({ ...prev, activeChatKey: null }));

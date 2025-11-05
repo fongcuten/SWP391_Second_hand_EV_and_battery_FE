@@ -1,3 +1,4 @@
+// SWP391_Second_hand_EV_and_battery_FE/src/services/Chat/WebSocketService.ts
 // services/Chat/WebSocketService.ts
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -28,9 +29,8 @@ export class WebSocketService {
             console.log("🔌 Connecting via SockJS...");
 
             this.client = new Client({
-                webSocketFactory: () => {
-                    return new SockJS(`http://localhost:8080/evplatform/ws-chat?token=${this.token}`);
-                },
+                webSocketFactory: () =>
+                    new WebSocket(`ws://localhost:8080/evplatform/ws-chat?token=${this.token}`),
 
                 connectHeaders: {
                     Authorization: `Bearer ${this.token}`,
@@ -46,38 +46,53 @@ export class WebSocketService {
 
                 onConnect: (frame) => {
                     console.log("✅ WebSocket connected via SockJS!");
+                    console.log("📦 Connection frame:", frame);
                     this.isConnecting = false;
 
-                    // Subscribe to personal message queue
-                    this.client?.subscribe("/user/queue/messages", (message) => {
-                        console.log("📨 Received WebSocket message:", message.body);
-                        try {
-                            const data = JSON.parse(message.body);
+                    // ✅ Subscribe to personal message queue
+                    const subscription = this.client?.subscribe(
+                        "/user/queue/messages",
+                        (message) => {
+                            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                            console.log("📨 RAW WebSocket message received");
+                            console.log("📨 Body:", message.body);
+                            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-                            // ✅ Transform backend format to frontend format
-                            const chatMessage: ChatMessage = {
-                                messageId: data.messageId,
-                                senderId: data.senderId,
-                                senderName: data.senderName,
-                                receiverId: data.receiverId,
-                                receiverName: data.receiverName,
-                                content: data.body, // ✅ Map 'body' to 'content'
-                                conversationKey: data.conversationKey,
-                                sentAt: data.sentAt,
-                                messageType: "TEXT",
-                            };
+                            try {
+                                const data = JSON.parse(message.body);
+                                console.log("📦 Parsed backend data:", data);
 
-                            onMessageReceived(chatMessage);
-                        } catch (error) {
-                            console.error("❌ Error parsing message:", error);
+                                // ✅ Transform backend format to frontend format
+                                const chatMessage: ChatMessage = {
+                                    messageId: data.messageId,
+                                    senderId: data.senderId,
+                                    senderName: data.senderName,
+                                    receiverId: data.receiverId,
+                                    receiverName: data.receiverName,
+                                    content: data.body || data.content, // ✅ Support both
+                                    conversationKey: data.conversationKey,
+                                    sentAt: data.sentAt,
+                                    messageType: "TEXT",
+                                };
+
+                                console.log("✅ Transformed to ChatMessage:", chatMessage);
+                                onMessageReceived(chatMessage);
+                            } catch (error) {
+                                console.error("❌ Error parsing message:", error);
+                            }
                         }
-                    });
+                    );
+
+                    console.log("✅ Subscribed to /user/queue/messages");
+                    console.log("📋 Subscription ID:", subscription?.id);
 
                     onConnected?.();
                 },
 
                 onStompError: (frame) => {
                     console.error("❌ STOMP error:", frame);
+                    console.error("❌ Headers:", frame.headers);
+                    console.error("❌ Body:", frame.body);
                     this.isConnecting = false;
                     onError?.(frame);
                 },
@@ -89,9 +104,9 @@ export class WebSocketService {
                 },
 
                 onWebSocketClose: (event) => {
-                    console.log(
-                        `🔌 WebSocket closed: Code ${event.code}, Reason: ${event.reason}`
-                    );
+                    console.log("🔌 WebSocket closed");
+                    console.log("📊 Code:", event.code);
+                    console.log("📊 Reason:", event.reason);
                     this.isConnecting = false;
                 },
 
@@ -119,14 +134,18 @@ export class WebSocketService {
             console.log("📤 Sending message via WebSocket:", message);
 
             // ✅ Send in backend's expected format
+            const payload = {
+                senderId: message.senderId,
+                receiverId: message.receiverId,
+                body: message.content, // ✅ Backend expects 'body'
+                conversationKey: message.conversationKey,
+            };
+
+            console.log("📦 Payload:", payload);
+
             this.client.publish({
                 destination: "/app/chat.send",
-                body: JSON.stringify({
-                    senderId: message.senderId,
-                    receiverId: message.receiverId,
-                    body: message.content, // ✅ Send as 'body'
-                    conversationKey: message.conversationKey,
-                }),
+                body: JSON.stringify(payload),
             });
 
             console.log("✅ Message sent via WebSocket");
