@@ -1,171 +1,66 @@
 import api from "../../config/axios";
 
-export interface InspectionOrder {
-  orderId: number;
-  listingId: number;
-  userId: number;
-  status: string;
-  scheduledAt?: string;
-  provinceCode?: number;
-  districtCode?: number;
-  wardCode?: number;
-  street?: string;
-  price?: number;
-  createdAt: string;
-}
+export type InspectionAdminStatus = "PENDING_REVIEW" | "APPROVED" | "REJECTED";
 
-export interface InspectionOrderDetail extends InspectionOrder {
-  // Additional details if needed
-}
-
-export interface InspectionReport {
+export interface AdminInspectionReportResponse {
   reportId: number;
   listingId: number;
-  inspectionOrderId?: number;
-  sourceType: string;
-  provider: string;
-  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
-  result?: "PASS" | "FAIL" | "NEED_FIX";
+  inspectionOrderId: number | null;
+  sourceType: string; // USER, SYSTEM
+  provider: string; // USER_UPLOAD, THIRD_PARTY
+  status: InspectionAdminStatus;
+  result?: "PASS" | "FAIL";
   reportUrl?: string;
   approvedAt?: string;
   createdAt: string;
 }
 
-export interface InspectionReportDetail extends InspectionReport {
-  // Additional details if needed
-}
-
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  result: T;
-}
-
-interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-}
-
 export const adminInspectionService = {
-  // Inspection Orders
-  async getAllOrders(): Promise<InspectionOrder[]> {
-    try {
-      // Note: This endpoint might need to be created in backend
-      // For now, we'll use a placeholder or check if it exists
-      const response = await api.get<InspectionOrder[]>(
-        "/api/inspection-orders/all"
-      );
-      // If backend returns PageResponse, adjust accordingly
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error("Error fetching inspection orders:", error);
-      // Fallback: try alternative endpoint
-      try {
-        const response = await api.get("/api/inspection-orders");
-        return Array.isArray(response.data) ? response.data : [];
-      } catch (e) {
-        console.error("Fallback endpoint also failed:", e);
-        return [];
-      }
+  listReports: async (
+    status?: InspectionAdminStatus
+  ): Promise<AdminInspectionReportResponse[]> => {
+    const res = await api.get("/api/inspection-reports", {
+      params: status ? { status } : undefined,
+    });
+    const data = res.data as any;
+    if (Array.isArray(data)) return data as AdminInspectionReportResponse[];
+    if (data?.code === 1000) {
+      return (data.result || []) as AdminInspectionReportResponse[];
     }
+    if (Array.isArray(data?.items))
+      return data.items as AdminInspectionReportResponse[];
+    if (Array.isArray(data?.content))
+      return data.content as AdminInspectionReportResponse[];
+    return [];
   },
 
-  async getOrderById(orderId: number): Promise<InspectionOrderDetail> {
-    try {
-      const response = await api.get<InspectionOrderDetail>(
-        `/api/inspection-orders/${orderId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching inspection order:", error);
-      throw error;
-    }
-  },
-
-  // Inspection Reports
-  async getAllReports(
-    status?: "PENDING_REVIEW" | "APPROVED" | "REJECTED"
-  ): Promise<InspectionReport[]> {
-    try {
-      const params: any = { page: 0, size: 100 };
-      if (status) {
-        // Filter by status if backend supports it
-        params.status = status;
-      }
-      const response = await api.get<PageResponse<InspectionReport>>(
-        "/api/inspection-reports",
-        { params }
-      );
-      // If response is PageResponse, extract content
-      if (response.data && "content" in response.data) {
-        let reports = response.data.content;
-        // Filter by status on frontend if backend doesn't support it
-        if (status && !params.status) {
-          reports = reports.filter((r) => r.status === status);
-        }
-        return reports;
-      }
-      // If response is array directly
-      if (Array.isArray(response.data)) {
-        let reports = response.data;
-        if (status) {
-          reports = reports.filter((r) => r.status === status);
-        }
-        return reports;
-      }
-      return [];
-    } catch (error) {
-      console.error("Error fetching inspection reports:", error);
-      return [];
-    }
-  },
-
-  async getReportById(reportId: number): Promise<InspectionReportDetail> {
-    try {
-      const response = await api.get<InspectionReportDetail>(
-        `/api/inspection-reports/${reportId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching inspection report:", error);
-      throw error;
-    }
-  },
-
-  async approveReport(
+  updateStatus: async (
     reportId: number,
-    result: "PASS" | "FAIL" = "PASS"
-  ): Promise<void> {
+    status: InspectionAdminStatus
+  ): Promise<void> => {
+    // Try conventional status update endpoint first
     try {
-      await api.post(`/api/inspection-reports/${reportId}/review`, {
-        approve: true,
-        result: result,
-      });
-    } catch (error) {
-      console.error("Error approving inspection report:", error);
-      throw error;
+      await api.put(`/api/inspection-reports/${reportId}/status`, { status });
+      return;
+    } catch {
+      // Fallback to generic update if backend expects different route
+      await api.put(`/api/inspection-reports/${reportId}`, { status });
     }
   },
 
-  async rejectReport(
-    reportId: number,
-    result: "PASS" | "FAIL" | "NEED_FIX" = "FAIL"
-  ): Promise<void> {
+  approve: async (reportId: number): Promise<void> => {
     try {
-      await api.post(`/api/inspection-reports/${reportId}/review`, {
-        approve: false,
-        result: result,
-      });
-    } catch (error) {
-      console.error("Error rejecting inspection report:", error);
-      throw error;
+      await api.post(`/api/inspection-reports/${reportId}/approve`);
+    } catch {
+      await adminInspectionService.updateStatus(reportId, "APPROVED");
+    }
+  },
+
+  reject: async (reportId: number): Promise<void> => {
+    try {
+      await api.post(`/api/inspection-reports/${reportId}/reject`);
+    } catch {
+      await adminInspectionService.updateStatus(reportId, "REJECTED");
     }
   },
 };
-
