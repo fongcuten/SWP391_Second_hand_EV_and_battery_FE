@@ -20,6 +20,14 @@ import {
   type AdminPostCard,
 } from "../../services/Admin/AdminPostService";
 import {
+  adminInspectionService,
+  type AdminInspectionReportResponse,
+} from "../../services/Admin/AdminInspectionService";
+import {
+  adminInspectionOrderService,
+  type AdminInspectionOrder,
+} from "../../services/Admin/AdminInspectionOrderService";
+import {
   adminBrandService,
   type BrandResponse,
   type ModelResponse,
@@ -35,6 +43,7 @@ type AdminTab =
   | "analytics"
   | "moderation"
   | "transactions"
+  | "inspections"
   | "brands";
 
 //
@@ -162,6 +171,19 @@ const AdminPage: React.FC = () => {
     brandId: 0,
     name: "",
   });
+  const [inspectionReports, setInspectionReports] = useState<
+    AdminInspectionReportResponse[]
+  >([]);
+  const [inspectionReportFilter, setInspectionReportFilter] = useState<
+    "PENDING_REVIEW" | "APPROVED" | "REJECTED" | undefined
+  >("PENDING_REVIEW");
+  const [inspectionOrdersPage, setInspectionOrdersPage] = useState<{
+    content: AdminInspectionOrder[];
+    totalElements: number;
+    totalPages: number;
+    number: number;
+    size: number;
+  }>({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
 
   const loadUsers = async () => {
     setLoading(true);
@@ -194,6 +216,35 @@ const AdminPage: React.FC = () => {
       setDeals(await adminDealService.list());
     } catch (e: any) {
       setError(e.message || "Lỗi tải giao dịch");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadInspections = async (
+    status?: "PENDING_REVIEW" | "APPROVED" | "REJECTED"
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await adminInspectionService.listReports(status);
+      setInspectionReports(items);
+      setInspectionReportFilter(status);
+    } catch (e: any) {
+      setError(e.message || "Lỗi tải báo cáo kiểm định");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadInspectionOrders = async (page = 0, size = 10) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const pageData = await adminInspectionOrderService.list(page, size);
+      setInspectionOrdersPage(pageData);
+    } catch (e: any) {
+      setError(e.message || "Lỗi tải đơn kiểm định");
     } finally {
       setLoading(false);
     }
@@ -271,6 +322,10 @@ const AdminPage: React.FC = () => {
     if (activeTab === "users") loadUsers();
     if (activeTab === "reports") loadReports();
     if (activeTab === "transactions") loadDeals();
+    if (activeTab === "inspections") {
+      loadInspections("PENDING_REVIEW");
+      loadInspectionOrders(0, 10);
+    }
     if (activeTab === "brands") loadBrands();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -297,6 +352,7 @@ const AdminPage: React.FC = () => {
     { key: "dashboard", label: "Tổng quan" },
     { key: "analytics", label: "Phân tích" },
     { key: "users", label: "Người dùng" },
+    { key: "inspections", label: "Kiểm định" },
     { key: "brands", label: "Thương hiệu & Model" },
     { key: "moderation", label: "Kiểm duyệt" },
     { key: "transactions", label: "Giao dịch" },
@@ -475,7 +531,7 @@ const AdminPage: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
+                        Username
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tên
@@ -494,13 +550,7 @@ const AdminPage: React.FC = () => {
                       const role = (u.role || "USER").toLowerCase();
                       return (
                         <tr key={u.userId}>
-                          <td className="px-4 py-2">
-                            {u.email ||
-                              (typeof u.username === "string" &&
-                              u.username.includes("@")
-                                ? u.username
-                                : "-")}
-                          </td>
+                          <td className="px-4 py-2">{u.username}</td>
                           <td className="px-4 py-2">
                             {fullName || u.username}
                           </td>
@@ -600,14 +650,8 @@ const AdminPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Email</span>
-                      <span className="text-gray-900">
-                        {selectedUser.email ||
-                          (typeof selectedUser.username === "string" &&
-                          selectedUser.username.includes("@")
-                            ? selectedUser.username
-                            : "-")}
-                      </span>
+                      <span className="text-gray-500">Username</span>
+                      <span className="text-gray-900">{selectedUser.username}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Họ và tên</span>
@@ -870,6 +914,323 @@ const AdminPage: React.FC = () => {
                   </li>
                 ))}
               </ul>
+            </SectionCard>
+          )}
+
+          {activeTab === "inspections" && (
+            <SectionCard
+              title="Đơn kiểm định & Báo cáo"
+              right={
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-sm px-3 py-1 rounded bg-amber-100 hover:bg-amber-200"
+                    onClick={() => loadInspections("PENDING_REVIEW")}
+                  >
+                    Đang chờ duyệt
+                  </button>
+                  <button
+                    className="text-sm px-3 py-1 rounded bg-emerald-100 hover:bg-emerald-200"
+                    onClick={() => loadInspections("APPROVED")}
+                  >
+                    Đã duyệt
+                  </button>
+                  <button
+                    className="text-sm px-3 py-1 rounded bg-red-100 hover:bg-red-200"
+                    onClick={() => loadInspections("REJECTED")}
+                  >
+                    Đã từ chối
+                  </button>
+                </div>
+              }
+            >
+              {loading && (
+                <div className="text-sm text-gray-500">Đang tải...</div>
+              )}
+              {error && <div className="text-sm text-red-600">{error}</div>}
+              {/* Inspection Orders Table */}
+              <div className="overflow-x-auto mb-6">
+                <h4 className="text-md font-semibold mb-3">Đơn kiểm định</h4>
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Listing</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thanh toán</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số tiền</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lịch hẹn</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tạo lúc</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                    {inspectionOrdersPage.content.map((o) => {
+                      const canInspect = 
+                        o.status !== "COMPLETED" && 
+                        o.status !== "CANCELLED" && 
+                        o.paymentStatus === "PAID";
+                      
+                      return (
+                        <tr key={o.orderId}>
+                          <td className="px-4 py-2">#{o.orderId}</td>
+                          <td className="px-4 py-2">{o.listingId}</td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              o.status === "COMPLETED" 
+                                ? "bg-emerald-100 text-emerald-700"
+                                : o.status === "SCHEDULED" || o.status === "PAID"
+                                ? "bg-blue-100 text-blue-700"
+                                : o.status === "CANCELLED"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}>
+                              {o.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${o.paymentStatus === "PAID" ? "bg-emerald-100 text-emerald-700" : o.paymentStatus === "PENDING" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-700"}`}>
+                              {o.paymentStatus || "-"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            {typeof o.amount === "number"
+                              ? o.amount.toLocaleString("vi-VN", {
+                                  style: "currency",
+                                  currency: "VND",
+                                })
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-2">{o.scheduledAt || "-"}</td>
+                          <td className="px-4 py-2">{o.createdAt || "-"}</td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center justify-end gap-2">
+                              {canInspect ? (
+                                <>
+                                  <button
+                                    className="px-4 py-1.5 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm hover:shadow-md min-w-[70px]"
+                                    onClick={async () => {
+                                      if (
+                                        window.confirm(
+                                          `Bạn có chắc muốn đánh dấu đơn #${o.orderId} là PASS (Đạt)?`
+                                        )
+                                      ) {
+                                        try {
+                                          setLoading(true);
+                                          setError(null);
+                                          await adminInspectionOrderService.inspect(
+                                            o.orderId,
+                                            "PASS"
+                                          );
+                                          // Reload cả orders và reports (reload tất cả để đảm bảo báo cáo mới xuất hiện)
+                                          await Promise.all([
+                                            loadInspectionOrders(
+                                              inspectionOrdersPage.number,
+                                              inspectionOrdersPage.size
+                                            ),
+                                            loadInspections(undefined), // Reload tất cả để báo cáo mới xuất hiện
+                                          ]);
+                                        } catch (e: any) {
+                                          setError(
+                                            e.message || "Lỗi khi hoàn tất kiểm định"
+                                          );
+                                        } finally {
+                                          setLoading(false);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    PASS
+                                  </button>
+                                  <button
+                                    className="px-4 py-1.5 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm hover:shadow-md min-w-[70px]"
+                                    onClick={async () => {
+                                      if (
+                                        window.confirm(
+                                          `Bạn có chắc muốn đánh dấu đơn #${o.orderId} là FAIL (Không đạt)?`
+                                        )
+                                      ) {
+                                        try {
+                                          setLoading(true);
+                                          setError(null);
+                                          await adminInspectionOrderService.inspect(
+                                            o.orderId,
+                                            "FAIL"
+                                          );
+                                          // Reload cả orders và reports (reload tất cả để đảm bảo báo cáo mới xuất hiện)
+                                          await Promise.all([
+                                            loadInspectionOrders(
+                                              inspectionOrdersPage.number,
+                                              inspectionOrdersPage.size
+                                            ),
+                                            loadInspections(undefined), // Reload tất cả để báo cáo mới xuất hiện
+                                          ]);
+                                        } catch (e: any) {
+                                          setError(
+                                            e.message || "Lỗi khi hoàn tất kiểm định"
+                                          );
+                                        } finally {
+                                          setLoading(false);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    FAIL
+                                  </button>
+                                </>
+                              ) : o.status === "COMPLETED" ? (
+                                <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                  Hoàn tất
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1.5 text-xs text-gray-500">
+                                  Chờ thanh toán
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {/* Pagination */}
+                <div className="flex items-center justify-between mt-3 text-sm">
+                  <div className="text-gray-600">
+                    Tổng: {inspectionOrdersPage.totalElements} — Trang {inspectionOrdersPage.number + 1}/{inspectionOrdersPage.totalPages || 1}
+                  </div>
+                  <div className="space-x-2">
+                    <button
+                      className="px-3 py-1 rounded border text-gray-700 disabled:opacity-50"
+                      disabled={inspectionOrdersPage.number <= 0}
+                      onClick={() => loadInspectionOrders(Math.max(0, inspectionOrdersPage.number - 1), inspectionOrdersPage.size)}
+                    >
+                      Trước
+                    </button>
+                    <button
+                      className="px-3 py-1 rounded border text-gray-700 disabled:opacity-50"
+                      disabled={
+                        inspectionOrdersPage.totalPages > 0
+                          ? inspectionOrdersPage.number >= inspectionOrdersPage.totalPages - 1
+                          : inspectionOrdersPage.content.length < inspectionOrdersPage.size
+                      }
+                      onClick={() => loadInspectionOrders(inspectionOrdersPage.number + 1, inspectionOrdersPage.size)}
+                    >
+                      Sau
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inspection Reports Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        #
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Listing
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Nguồn
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Kết quả
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Báo cáo
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Hành động
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                    {(Array.isArray(inspectionReports)
+                      ? inspectionReports
+                      : []
+                    ).map((r) => (
+                      <tr key={r.reportId}>
+                        <td className="px-4 py-2">#{r.reportId}</td>
+                        <td className="px-4 py-2">{r.listingId}</td>
+                        <td className="px-4 py-2 text-gray-600">
+                          {r.sourceType} / {r.provider}
+                        </td>
+                        <td className="px-4 py-2">
+                          {r.result ? (
+                            <span
+                              className={`${
+                                r.result === "PASS"
+                                  ? "text-emerald-700 bg-emerald-100"
+                                  : "text-red-700 bg-red-100"
+                              } px-2 py-1 rounded-full text-xs`}
+                            >
+                              {r.result}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          {r.reportUrl ? (
+                            <a
+                              href={r.reportUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              Tải/Xem
+                            </a>
+                          ) : (
+                            <span className="text-gray-500">Không có</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right space-x-2">
+                          {r.status === "PENDING_REVIEW" ? (
+                            <>
+                              <button
+                                className="px-3 py-1 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                onClick={async () => {
+                                  await adminInspectionService.approve(
+                                    r.reportId
+                                  );
+                                  loadInspections("PENDING_REVIEW");
+                                }}
+                              >
+                                Duyệt
+                              </button>
+                              <button
+                                className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+                                onClick={async () => {
+                                  await adminInspectionService.reject(
+                                    r.reportId
+                                  );
+                                  loadInspections("PENDING_REVIEW");
+                                }}
+                              >
+                                Từ chối
+                              </button>
+                            </>
+                          ) : (
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                r.status === "APPROVED"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : r.status === "REJECTED"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {r.status}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </SectionCard>
           )}
 

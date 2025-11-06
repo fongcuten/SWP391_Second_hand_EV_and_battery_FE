@@ -23,6 +23,7 @@ export interface Battery {
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
+  priorityLevel?: number; // Priority level for premium posts (1=NORMAL, 2=STANDARD, 3=PREMIUM)
   // Additional specs
   weight: number; // kg
   dimensions: {

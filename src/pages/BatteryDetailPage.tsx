@@ -30,6 +30,7 @@ import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
 import type { Battery } from "../types/battery";
 import { ListPostService } from "../services/Vehicle/ElectricVehiclesPageService";
+import { locationService } from "../services/locationService";
 
 const BatteryDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ const BatteryDetailPage: React.FC = () => {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [fullAddress, setFullAddress] = useState<string>("");
 
   useEffect(() => {
     const loadBattery = async () => {
@@ -65,6 +67,24 @@ const BatteryDetailPage: React.FC = () => {
           if (c.includes("POLY")) return "lithium-polymer";
           return "other" as any;
         };
+
+        // Load full address from location codes
+        let fullAddressText = data.address || "";
+        if (data.provinceCode && data.districtCode && data.wardCode) {
+          try {
+            fullAddressText = await locationService.getFullAddress(
+              data.provinceCode,
+              data.districtCode,
+              data.wardCode,
+              data.street
+            );
+          } catch (locationError) {
+            console.error("Error loading full address:", locationError);
+            fullAddressText = data.address || "Chưa cung cấp địa chỉ";
+          }
+        }
+        setFullAddress(fullAddressText);
+
         const mapped: Battery = {
           id: String(data.listingId),
           brand: chemistry,
@@ -83,7 +103,7 @@ const BatteryDetailPage: React.FC = () => {
           description: data.description || "",
           images,
           features: [],
-          location: data.address || "",
+          location: fullAddressText,
           sellerId: data.seller || "",
           sellerName: data.seller || "",
           sellerPhone: "",
@@ -614,9 +634,9 @@ const BatteryDetailPage: React.FC = () => {
                 </div>
                 <div className="space-y-3 text-sm text-gray-600">
                   <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5 text-[#2ECC71]" />
                     <span className="line-clamp-2">
-                      {battery.location || ""}
+                      {fullAddress || battery.location || "Chưa cung cấp địa chỉ"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

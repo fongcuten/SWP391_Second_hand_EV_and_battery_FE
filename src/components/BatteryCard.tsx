@@ -7,7 +7,34 @@ import {
   MapPin,
   Gauge,
   Award,
+  Star,
+  Crown,
 } from "lucide-react";
+
+const PRIORITY_CONFIG = {
+  3: {
+    badge: "bg-gradient-to-r from-[#2ECC71] to-[#27AE60] text-white",
+    border: "border-[#2ECC71] hover:border-[#27AE60]",
+    icon: Crown,
+    label: "PREMIUM",
+  },
+  2: {
+    badge: "bg-gradient-to-r from-blue-500 to-blue-600 text-white",
+    border: "border-blue-400 hover:border-blue-500",
+    icon: Award,
+    label: "STANDARD",
+  },
+  1: {
+    badge: "bg-gray-100 text-gray-700",
+    border: "border-gray-100 hover:border-[#A8E6CF]",
+    icon: Star,
+    label: "NORMAL",
+  },
+} as const;
+
+const getPriorityConfig = (priority: number) => {
+  return PRIORITY_CONFIG[priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[1];
+};
 
 interface BatteryCardProps {
   battery: Battery;
@@ -21,6 +48,8 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
       currency: "VND",
     }).format(price);
   };
+
+  const priorityConfig = getPriorityConfig(battery.priorityLevel || 1);
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
@@ -69,7 +98,7 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-blue-200 group"
+      className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border-2 ${priorityConfig.border} group`}
       onClick={() => onClick?.(battery)}
     >
       {/* Image Container */}
@@ -86,14 +115,13 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
           </div>
         )}
 
-        {/* Condition Badge */}
+        {/* Priority Badge */}
         <div className="absolute top-3 right-3">
           <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${getConditionColor(
-              battery.condition
-            )}`}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md ${priorityConfig.badge}`}
           >
-            {getConditionText(battery.condition)}
+            <priorityConfig.icon className="w-3.5 h-3.5" />
+            {priorityConfig.label}
           </span>
         </div>
 
@@ -107,7 +135,7 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
 
         {/* Battery Type Badge */}
         <div className="absolute bottom-3 left-3">
-          <span className="bg-blue-600 bg-opacity-90 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm">
+          <span className="bg-[#2ECC71] bg-opacity-90 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm">
             {getBatteryTypeText(battery.type)}
           </span>
         </div>
@@ -127,14 +155,15 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
 
         {/* Price */}
         <div className="mb-4">
-          <p className="text-xl sm:text-2xl font-bold text-blue-600 mb-1">
+          <p className="text-xl sm:text-2xl font-bold text-[#2ECC71] mb-1">
             {formatPrice(battery.price)}
           </p>
-          {battery.originalPrice > battery.price && (
+            {battery.originalPrice > battery.price && (
             <p className="text-sm text-gray-500 line-through">
               {formatPrice(battery.originalPrice)}
             </p>
           )}
+          <p className="text-sm text-gray-600">Có thể thương lượng</p>
         </div>
 
         {/* Specifications */}
