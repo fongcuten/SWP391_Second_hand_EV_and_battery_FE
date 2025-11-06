@@ -48,19 +48,50 @@ export const adminInspectionService = {
     }
   },
 
-  approve: async (reportId: number): Promise<void> => {
+  // New unified review endpoint (preferred)
+  review: async (
+    reportId: number,
+    approve: boolean,
+    result: "PASS" | "FAIL"
+  ): Promise<void> => {
     try {
-      await api.post(`/api/inspection-reports/${reportId}/approve`);
-    } catch {
-      await adminInspectionService.updateStatus(reportId, "APPROVED");
+      await api.post(`/api/inspection-reports/${reportId}/review`, {
+        approve,
+        result,
+      });
+    } catch (error) {
+      // Fallback behaviour to older endpoints if backend doesn't support /review
+      if (approve) {
+        try {
+          await api.post(`/api/inspection-reports/${reportId}/approve`, {
+            result,
+          });
+          return;
+        } catch {
+          await adminInspectionService.updateStatus(reportId, "APPROVED");
+          return;
+        }
+      } else {
+        try {
+          await api.post(`/api/inspection-reports/${reportId}/reject`, {
+            result,
+          });
+          return;
+        } catch {
+          await adminInspectionService.updateStatus(reportId, "REJECTED");
+          return;
+        }
+      }
     }
   },
 
+  approve: async (reportId: number): Promise<void> => {
+    // Default approve corresponds to PASS
+    await adminInspectionService.review(reportId, true, "PASS");
+  },
+
   reject: async (reportId: number): Promise<void> => {
-    try {
-      await api.post(`/api/inspection-reports/${reportId}/reject`);
-    } catch {
-      await adminInspectionService.updateStatus(reportId, "REJECTED");
-    }
+    // Default reject corresponds to FAIL
+    await adminInspectionService.review(reportId, false, "FAIL");
   },
 };

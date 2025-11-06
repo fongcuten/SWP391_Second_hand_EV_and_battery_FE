@@ -1192,8 +1192,10 @@ const AdminPage: React.FC = () => {
                               <button
                                 className="px-3 py-1 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
                                 onClick={async () => {
-                                  await adminInspectionService.approve(
-                                    r.reportId
+                                  await adminInspectionService.review(
+                                    r.reportId,
+                                    true,
+                                    "PASS"
                                   );
                                   loadInspections("PENDING_REVIEW");
                                 }}
@@ -1203,8 +1205,10 @@ const AdminPage: React.FC = () => {
                               <button
                                 className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
                                 onClick={async () => {
-                                  await adminInspectionService.reject(
-                                    r.reportId
+                                  await adminInspectionService.review(
+                                    r.reportId,
+                                    false,
+                                    "FAIL"
                                   );
                                   loadInspections("PENDING_REVIEW");
                                 }}
