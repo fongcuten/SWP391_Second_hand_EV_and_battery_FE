@@ -8,7 +8,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <Hero />
-      <SearchSection />
+      {/* <SearchSection /> */}
       <Features />
       <FeaturedProducts />
     </div>
