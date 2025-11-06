@@ -28,6 +28,7 @@ import {
 import { toast } from "react-toastify";
 import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
+import { ChatService } from "../services/Chat/ChatService";
 import type { Battery } from "../types/battery";
 import { ListPostService } from "../services/Vehicle/ElectricVehiclesPageService";
 import { locationService } from "../services/locationService";
@@ -45,6 +46,7 @@ const BatteryDetailPage: React.FC = () => {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [showPhoneNumber, setShowPhoneNumber] = useState(false);
   const [fullAddress, setFullAddress] = useState<string>("");
 
   useEffect(() => {
@@ -104,9 +106,9 @@ const BatteryDetailPage: React.FC = () => {
           images,
           features: [],
           location: fullAddressText,
-          sellerId: data.seller || "",
-          sellerName: data.seller || "",
-          sellerPhone: "",
+          sellerId: String(data.sellerId ?? data.seller_id ?? data.seller ?? ""),
+          sellerName: data.sellerUsername || data.seller || "",
+          sellerPhone: data.sellerPhone || data.seller_phone || data.phone || "",
           isAvailable: true,
           createdAt: data.createdAt || new Date().toISOString(),
           updatedAt: data.createdAt || new Date().toISOString(),
@@ -163,6 +165,11 @@ const BatteryDetailPage: React.FC = () => {
     }
   };
 
+  const maskPhoneNumber = (phone: string | undefined | null): string => {
+    if (!phone || phone.length < 4) return "**********";
+    return `${phone.substring(0, 2)}******${phone.substring(phone.length - 2)}`;
+  };
+
   const getBatteryTypeText = (type: string) => {
     switch (type) {
       case "lithium-ion":
@@ -178,26 +185,42 @@ const BatteryDetailPage: React.FC = () => {
     }
   };
 
-  const handleContact = (type: "phone" | "message") => {
+  const handleContact = async (type: "phone" | "message") => {
+    if (!battery) return;
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      toast.warning("Vui lòng đăng nhập để thực hiện hành động này");
+      navigate("/dang-nhap");
+      return;
+    }
+
     if (type === "phone") {
-      window.open(`tel:${battery?.sellerPhone || ""}`);
-    } else {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        toast.warning("Vui lòng đăng nhập để nhắn tin");
-        navigate("/dang-nhap");
+      setShowPhoneNumber(true);
+      return;
+    }
+
+    try {
+      const sellerIdNum = Number(battery.sellerId);
+      if (!sellerIdNum) {
+        toast.error("Không tìm thấy thông tin người bán.");
         return;
       }
-      const sellerUsername = battery?.sellerName;
-      if (!sellerUsername) {
-        toast.error("Không thể mở chat: Thông tin người bán không hợp lệ");
-        return;
+      await ChatService.createConversation(Number(currentUser.id), sellerIdNum);
+      navigate("/chat", {
+        state: {
+          sellerId: sellerIdNum,
+          sellerName: battery.sellerName,
+          productTitle: `${battery.brand} ${battery.model}`,
+        },
+      });
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
+        navigate("/chat", {
+          state: { sellerId: Number(battery.sellerId), sellerName: battery.sellerName },
+        });
+      } else {
+        toast.error("Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
       }
-      navigate(
-        `/chat?username=${encodeURIComponent(
-          sellerUsername
-        )}&userName=${encodeURIComponent(sellerUsername)}`
-      );
     }
   };
 
@@ -660,21 +683,25 @@ const BatteryDetailPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Liên hệ người bán
                 </h3>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleContact("phone")}
-                    className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"
-                  >
-                    <Phone className="w-5 h-5" />
-                    <span>Gọi điện</span>
-                  </button>
-                  <button
-                    onClick={() => handleContact("message")}
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>Nhắn tin</span>
-                  </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleContact("phone")}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"
+                >
+                  <Phone className="w-5 h-5" />
+                  <span>
+                    {showPhoneNumber
+                      ? battery.sellerPhone || "Chưa có SĐT"
+                      : maskPhoneNumber(battery.sellerPhone)}
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleContact("message")}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Nhắn tin</span>
+                </button>
                   <button
                     onClick={handleToggleFavorite}
                     disabled={isAddingFavorite}
