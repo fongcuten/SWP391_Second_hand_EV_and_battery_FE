@@ -471,10 +471,9 @@ const CreateVehiclePost: React.FC = () => {
     "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#2ECC71] outline-none bg-white";
   const labelClass = "block text-sm text-[#2C3E50] mb-1 font-medium";
   const buttonClass = (active: boolean) =>
-    `px-4 py-1.5 rounded-full border text-sm transition ${
-      active
-        ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
-        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+    `px-4 py-1.5 rounded-full border text-sm transition ${active
+      ? "bg-[#A8E6CF] border-[#2ECC71] text-[#2C3E50]"
+      : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
     }`;
 
   // ===== RENDER =====
@@ -556,8 +555,8 @@ const CreateVehiclePost: React.FC = () => {
                 {loadingModels
                   ? "Đang tải..."
                   : !formData.brandId
-                  ? "Chọn hãng trước"
-                  : "Chọn mẫu xe"}
+                    ? "Chọn hãng trước"
+                    : "Chọn mẫu xe"}
               </option>
               {models.map((m) => (
                 <option key={m.modelId} value={m.modelId}>
@@ -661,11 +660,17 @@ const CreateVehiclePost: React.FC = () => {
           </div>
         </div>
 
-        {/* Registration */}
+        {/* Registration & Accessories */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {[
-            { label: "Còn đăng kiểm", key: "inspection" },
-            { label: "Còn hạn đăng kiểm", key: "registration" },
+            {
+              label: "Còn đăng kiểm",
+              key: "inspection",
+            },
+            {
+              label: "Có phụ kiện",
+              key: "accessories",
+            },
           ].map((item) => (
             <div key={item.key}>
               <label className={labelClass}>{item.label}</label>
