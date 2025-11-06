@@ -22,7 +22,7 @@ import api from "../../config/axios";
 
 // ===== TYPES =====
 
-type TabId = "all" | "active" | "expired" | "pending";
+type TabId = "all" | "active" | "sold";
 type InspectionType = "system" | "manual" | "";
 
 interface OrderTab {
@@ -35,15 +35,14 @@ interface OrderTab {
 const ORDER_TABS: OrderTab[] = [
   { id: "all", label: "Tất cả tin" },
   { id: "active", label: "Đang hiển thị" },
-  { id: "expired", label: "Hết hạn" },
-  { id: "pending", label: "Chờ duyệt" },
+  { id: "sold", label: "Đã bán" },
 ];
 
 const STATUS_BADGES = {
   ACTIVE: { text: "Đang hiển thị", color: "bg-green-500" },
   PENDING: { text: "Chờ duyệt", color: "bg-yellow-500" },
   EXPIRED: { text: "Hết hạn", color: "bg-red-500" },
-  REJECTED: { text: "Bị từ chối", color: "bg-gray-500" },
+  SOLD: { text: "Đã bán", color: "bg-gray-500" },
 } as const;
 
 // ===== MAIN COMPONENT =====
@@ -53,6 +52,7 @@ export default function UserPosts() {
   const [posts, setPosts] = useState<SalePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("all");
+  const [productTypeFilter, setProductTypeFilter] = useState<"VEHICLE" | "BATTERY" | "">("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SalePost | null>(null);
   const [inspectionType, setInspectionType] = useState<InspectionType>("");
@@ -301,12 +301,12 @@ export default function UserPosts() {
           return;
         }
 
-                localStorage.setItem("pendingInspectionOrderId", inspectionOrderId.toString());
+        localStorage.setItem("pendingInspectionOrderId", inspectionOrderId.toString());
 
         const response = await api.post(`/api/inspection-orders/${inspectionOrderId}/checkout`, {});
         const checkoutUrl = response.data?.url;
-        if (!checkoutUrl){
-          toast.error("Không thể trả check out URL");  
+        if (!checkoutUrl) {
+          toast.error("Không thể trả check out URL");
           return;
         }
 
@@ -320,7 +320,7 @@ export default function UserPosts() {
       }
 
       // Handle MANUAL inspection
-      if (inspectionType === "manual" && uploadedFile) {  
+      if (inspectionType === "manual" && uploadedFile) {
         // ✅ Directly submit the manual inspection with a null order ID
         const reportResponse = await InspectionService.submitManualInspection(
           selectedPost.listingId,
@@ -350,6 +350,19 @@ export default function UserPosts() {
     }
   };
 
+  const handleMarkAsSold = async (listingId: number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn đánh dấu tin này là đã bán? Thao tác này không thể hoàn tác.")) return;
+
+    try {
+      await UserPostService.markPostAsSold(listingId);
+      toast.success("Đã đánh dấu tin là đã bán!");
+      await loadPosts();
+    } catch (error) {
+      console.error("❌ Error marking post as sold:", error);
+      toast.error("Không thể đánh dấu tin là đã bán!");
+    }
+  };
+
   const handleDeletePost = async (listingId: number) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa tin đăng này?")) return;
 
@@ -365,16 +378,26 @@ export default function UserPosts() {
 
   // ===== UTILITIES =====
   const getFilteredPosts = () => {
+    // First, filter by status based on the active tab
+    let statusFilteredPosts: SalePost[];
     switch (activeTab) {
       case "active":
-        return posts.filter(p => p.status === "ACTIVE");
-      case "expired":
-        return posts.filter(p => p.status === "EXPIRED");
-      case "pending":
-        return posts.filter(p => p.status === "PENDING");
+        statusFilteredPosts = posts.filter(p => p.status === "ACTIVE");
+        break;
+      case "sold":
+        statusFilteredPosts = posts.filter(p => p.status === "SOLD");
+        break;
       default:
-        return posts;
+        statusFilteredPosts = posts;
+        break;
     }
+
+    // Then, filter by product type if a filter is selected
+    if (productTypeFilter) {
+      return statusFilteredPosts.filter(p => p.productType === productTypeFilter);
+    }
+
+    return statusFilteredPosts;
   };
 
   const getStatusBadge = (status: string) => {
@@ -411,27 +434,46 @@ export default function UserPosts() {
   return (
     <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50 mb-10">
       {/* Header */}
-      <div className="px-6 py-5 bg-gradient-to-r from-[#2ECC71] via-[#A8E6CF] to-[#F7F9F9] border-b border-[#A8E6CF]/50 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#2C3E50]">Quản lý tin đăng</h2>
-        <Link to="/" className="text-sm text-[#2C3E50] hover:text-[#2ECC71] font-medium transition-colors">
+      <div className="px-6 py-5 bg-white border-b border-gray-200 flex items-center justify-between rounded-t-2xl">
+        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+          <CheckCircle className="w-6 h-6 text-green-600" />
+          Quản lý tin đăng
+        </h2>
+        <Link to="/" className="text-sm text-gray-600 hover:text-green-600 font-medium transition-colors">
           Trang chủ
         </Link>
       </div>
 
       {/* Tabs */}
-      <div className="flex justify-between bg-[#F7F9F9] border-b border-[#A8E6CF]/60 px-4 py-3 gap-2 flex-wrap">
-        {ORDER_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 text-center py-2 text-sm font-medium rounded-lg transition-all duration-300 ${activeTab === tab.id
-              ? "bg-[#2ECC71] text-white shadow-md"
-              : "text-[#2C3E50] hover:bg-[#A8E6CF]/50 hover:text-[#2ECC71]"
-              }`}
+      <div className="flex justify-between items-center bg-[#F7F9F9] border-b border-[#A8E6CF]/60 px-4 py-3 gap-4 flex-wrap">
+        {/* Status Tabs */}
+        <div className="flex items-center gap-2">
+          {ORDER_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${activeTab === tab.id
+                ? "bg-[#2ECC71] text-white shadow-md"
+                : "text-[#2C3E50] hover:bg-[#A8E6CF]/50"
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Type Dropdown */}
+        <div>
+          <select
+            value={productTypeFilter}
+            onChange={(e) => setProductTypeFilter(e.target.value as "VEHICLE" | "BATTERY" | "")}
+            className="px-4 py-2 text-sm font-medium text-[#2C3E50] bg-white border border-[#A8E6CF]/80 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] transition-all"
           >
-            {tab.label}
-          </button>
-        ))}
+            <option value="">Tất cả sản phẩm</option>
+            <option value="VEHICLE">Chỉ hiển thị xe</option>
+            <option value="BATTERY">Chỉ hiển thị pin</option>
+          </select>
+        </div>
       </div>
 
       {/* Content */}
@@ -457,90 +499,96 @@ export default function UserPosts() {
           filteredPosts.map((post) => (
             <div
               key={post.listingId}
-              className="flex flex-col sm:flex-row gap-4 border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
+              className="border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
             >
-              {/* Image */}
-              <div className="flex-shrink-0">
-                <img
-                  src={post.coverThumb || "https://via.placeholder.com/200?text=No+Image"}
-                  alt={post.productName}
-                  className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
-                />
-              </div>
-
-              {/* Content */}
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
-                    {post.productName}
-                  </h4>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
-                    {post.productType === "VEHICLE" ? "Xe" : "Pin"}
-                  </span>
+              {/* Top section: Info */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Image */}
+                <div className="flex-shrink-0">
+                  <img
+                    src={post.coverThumb || "https://via.placeholder.com/200?text=No+Image"}
+                    alt={post.productName}
+                    className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
+                  />
                 </div>
 
-                <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
-                  <MapPin className="w-4 h-4" />
-                  {post.address || getLocationString(post)}
-                </p>
-
-                <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
-                  <span className="flex items-center gap-1">
-                    <Tag className="w-4 h-4" />
-                    Mã tin: <span className="font-medium">#{post.listingId}</span>
-                  </span>
-                  {post.status && getStatusBadge(post.status)}
-                  {post.priorityLevel && post.priorityLevel > 0 && (
-                    <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
-                      Ưu tiên: {post.priorityLevel}
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
+                      {post.productName}
+                    </h4>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                      {post.productType === "VEHICLE" ? "Xe" : "Pin"}
                     </span>
-                  )}
-                </p>
+                  </div>
 
-                <div className="text-sm text-[#2C3E50]/70 space-y-1">
-                  {post.createdAt && (
-                    <p className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      Đăng ngày: <span className="font-medium">{formatDate(post.createdAt)}</span>
-                    </p>
-                  )}
-                  <p>
-                    Giá:{" "}
-                    <span className="font-medium text-[#2ECC71]">
-                      {post.askPrice.toLocaleString("vi-VN")} VNĐ
-                    </span>
+                  <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
+                    <MapPin className="w-4 h-4" />
+                    {post.address || getLocationString(post)}
                   </p>
+
+                  <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <Tag className="w-4 h-4" />
+                      Mã tin: <span className="font-medium">#{post.listingId}</span>
+                    </span>
+                    {post.status && getStatusBadge(post.status)}
+                  </p>
+
+                  <div className="text-sm text-[#2C3E50]/70 space-y-1">
+                    {post.createdAt && (
+                      <p className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Đăng ngày: <span className="font-medium">{formatDate(post.createdAt)}</span>
+                      </p>
+                    )}
+                    <p>
+                      Giá:{" "}
+                      <span className="font-medium text-[#2ECC71]">
+                        {post.askPrice.toLocaleString("vi-VN")} VNĐ
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2 sm:mt-0">
+              {/* Divider and Actions */}
+              <hr className="my-3 border-t border-[#A8E6CF]/40" />
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {post.status === "ACTIVE" && (
+                  <button
+                    onClick={() => handleMarkAsSold(post.listingId)}
+                    className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Đã bán</span>
+                  </button>
+                )}
                 {(post.status === "ACTIVE" || post.status === "PENDING") && (
                   <Link
                     to={`/chinh-sua-tin/${post.listingId}`}
-                    className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
                   >
                     <Edit className="w-4 h-4" />
-                    Sửa
+                    <span>Sửa</span>
                   </Link>
                 )}
-
                 {post.productType === "VEHICLE" && (
                   <button
                     onClick={() => openModal(post)}
-                    className="flex items-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Kiểm duyệt
+                    <span>Kiểm duyệt</span>
                   </button>
                 )}
-
                 <button
                   onClick={() => handleDeletePost(post.listingId)}
-                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Xóa
+                  <span>Xóa</span>
                 </button>
               </div>
             </div>

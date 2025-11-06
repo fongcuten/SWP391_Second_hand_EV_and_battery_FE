@@ -10,14 +10,6 @@ export interface MediaItem {
   sortOrder: number;
 }
 
-// ✅ ADDED: Interface for battery-specific details
-export interface BatteryPost {
-  chemistryName: string;
-  capacityKwh: number;
-  sohPercent: number;
-  cycleCount: number;
-}
-
 export interface VehiclePost {
   modelName: string;
   brandName: string;
@@ -53,9 +45,9 @@ export interface VehicleDetail {
   street: string;
   priorityLevel: number;
   createdAt: string;
-  batteryPost: BatteryPost | null; // Can be null if it's a vehicle post
-  vehiclePost: VehiclePost | null; // Can be null if it's a battery post
-  media: MediaItem[];
+  batteryPost: null, // Can be null if it's a vehicle post
+  vehiclePost: null, // Can be null if it's a battery post
+  media: MediaItem[],
 }
 
 export const VehicleDetailService = {

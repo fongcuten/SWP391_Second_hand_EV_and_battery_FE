@@ -72,8 +72,13 @@ export const UserPostService = {
   /**
    * Delete a post by ID
    */
-  async deletePost(listingId: number): Promise<void> {
-    await api.delete(`/sale-posts/${listingId}`);
+  deletePost: async (listingId: number): Promise<void> => {
+    try {
+      await api.delete(`/api/sale-posts/${listingId}`);
+    } catch (error) {
+      console.error(`❌ Error deleting post with ID ${listingId}:`, error);
+      throw new Error("Failed to delete post");
+    }
   },
 
   /**
@@ -81,5 +86,14 @@ export const UserPostService = {
    */
   async updatePostStatus(listingId: number, status: string): Promise<void> {
     await api.patch(`/sale-posts/${listingId}/status`, { status });
+  },
+
+  markPostAsSold: async (listingId: number): Promise<void> => {
+    try {
+      await api.patch(`/api/sale-posts/${listingId}/sold`);
+    } catch (error) {
+      console.error(`❌ Error marking post ${listingId} as sold:`, error);
+      throw new Error("Failed to mark post as sold");
+    }
   },
 };

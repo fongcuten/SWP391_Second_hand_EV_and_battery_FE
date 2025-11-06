@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserPlus, Search, CreditCard, MessageSquare, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const Features: React.FC = () => {
   const features = [
@@ -95,16 +96,6 @@ const Features: React.FC = () => {
                     {feature.description}
                   </p>
                 </div>
-
-                {/* Learn More Link */}
-                <div className="mt-6">
-                  <button className="text-sm font-semibold text-gray-700 hover:text-gray-900 flex items-center space-x-1 group-hover:translate-x-1 transition-transform duration-300">
-                    <span>Tìm hiểu thêm</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
               </div>
             </motion.div>
           ))}
@@ -126,20 +117,24 @@ const Features: React.FC = () => {
               Tham gia cộng đồng hàng nghìn người dùng đang giao dịch xe điện và pin cũ một cách an toàn và hiệu quả
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-colors"
-              >
-                Đăng ký ngay
-              </motion.button>
-              <motion.button
+
+              <Link to="/dang-ky">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-colors"
+                >
+                  Đăng ký ngay
+                </motion.button>
+              </Link>
+
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="border-2 border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:border-green-500 hover:text-green-600 transition-colors"
               >
                 Xem demo
-              </motion.button>
+              </motion.button> */}
             </div>
           </div>
         </motion.div>

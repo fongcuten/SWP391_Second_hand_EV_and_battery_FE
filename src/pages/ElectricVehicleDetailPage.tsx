@@ -70,6 +70,13 @@ const useVehicleDetail = (id: string | undefined) => {
 
 const formatPrice = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
+const maskPhoneNumber = (phone: string | undefined | null): string => {
+  if (!phone || phone.length < 4) {
+    return "**********";
+  }
+  return `${phone.substring(0, 2)}******${phone.substring(phone.length - 2)}`;
+};
+
 const InfoItem: React.FC<{ label: string; value: React.ReactNode; className?: string }> = ({ label, value, className }) => (
   <div className={`flex justify-between py-2 border-b border-gray-100 ${className}`}>
     <span className="text-gray-600">{label}</span>
@@ -231,11 +238,26 @@ const SellerInfo: React.FC<{ vehicle: VehicleDetail; fullAddress: string | null 
   </div>
 );
 
-const ContactActions: React.FC<{ onContact: (type: 'phone' | 'message') => void; onToggleFavorite: () => void; isFavorite: boolean; isAddingFavorite: boolean; }> = ({ onContact, onToggleFavorite, isFavorite, isAddingFavorite }) => (
+const ContactActions: React.FC<{
+  onContact: (type: 'phone' | 'message') => void;
+  onToggleFavorite: () => void;
+  isFavorite: boolean;
+  isAddingFavorite: boolean;
+  sellerPhone: string | undefined | null;
+  showPhoneNumber: boolean;
+}> = ({ onContact, onToggleFavorite, isFavorite, isAddingFavorite, sellerPhone, showPhoneNumber }) => (
   <div className="bg-white rounded-xl shadow-sm p-6">
     <h3 className="text-lg font-semibold text-gray-900 mb-4">Liên hệ người bán</h3>
     <div className="space-y-3">
-      <button onClick={() => onContact("phone")} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"><Phone className="w-5 h-5" /><span>Gọi điện</span></button>
+      <button
+        onClick={() => onContact("phone")}
+        className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"
+      >
+        <Phone className="w-5 h-5" />
+        <span>
+          {showPhoneNumber ? sellerPhone || "Chưa có SĐT" : maskPhoneNumber(sellerPhone)}
+        </span>
+      </button>
       <button onClick={() => onContact("message")} className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"><MessageCircle className="w-5 h-5" /><span>Nhắn tin</span></button>
       <button onClick={onToggleFavorite} disabled={isAddingFavorite} className={`w-full flex items-center justify-center gap-2 border-2 py-3 px-4 rounded-lg font-medium transition ${isFavorite ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100" : "border-gray-300 text-gray-700 hover:bg-gray-50"} ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}>
         {isAddingFavorite ? (<><div className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div><span>Đang xử lý...</span></>) : (<><Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} /><span>{isFavorite ? "Đã lưu tin" : "Lưu tin"}</span></>)}
@@ -272,6 +294,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
+  const [showPhoneNumber, setShowPhoneNumber] = useState(false);
 
   // Handlers
   const handleContact = async (type: "phone" | "message") => {
@@ -293,8 +316,7 @@ const ElectricVehicleDetailPage: React.FC = () => {
     }
 
     if (type === 'phone') {
-      // Logic to reveal phone number can be added here
-      toast.info(`Số điện thoại người bán: ${vehicle.sellerPhone || 'Chưa cung cấp'}`);
+      setShowPhoneNumber(true);
     } else if (type === 'message') {
       try {
         await ChatService.createConversation(Number(currentUser.id), vehicle.sellerId);
@@ -395,7 +417,14 @@ const ElectricVehicleDetailPage: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-4">
               <SellerInfo vehicle={vehicle} fullAddress={fullAddress} />
-              <ContactActions onContact={handleContact} onToggleFavorite={handleToggleFavorite} isFavorite={isFavorite} isAddingFavorite={isAddingFavorite} />
+              <ContactActions
+                onContact={handleContact}
+                onToggleFavorite={handleToggleFavorite}
+                isFavorite={isFavorite}
+                isAddingFavorite={isAddingFavorite}
+                sellerPhone={vehicle.sellerPhone}
+                showPhoneNumber={showPhoneNumber}
+              />
               <SafetyTips />
               <div className="bg-white rounded-xl shadow-sm p-4">
                 <button className="w-full text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 hover:bg-red-50 py-2 rounded-lg transition"><Flag className="w-4 h-4" />Báo cáo tin đăng</button>
