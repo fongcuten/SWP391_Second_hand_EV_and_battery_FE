@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Phone, MessageCircle, Heart, Share2, MapPin, Calendar,
   Battery, Gauge, Zap, Car, CheckCircle, ChevronLeft, ChevronRight,
-  Shield, FileText, Eye, Bookmark, AlertCircle, X, Flag,
+  Shield, FileText, Eye, Bookmark, AlertCircle, X, Flag, Tag,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail, type MediaItem, type VehiclePost } from "../services/Vehicle/ElectricDetailsService";
@@ -11,6 +11,8 @@ import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
 import { ChatService } from "../services/Chat/ChatService";
 import { locationService } from "../services/locationService";
+import { ReportService } from "../services/Report/ReportService";
+import { OfferService } from "../services/Offer/OfferService";
 
 // ===================================================================================
 // 1. CUSTOM HOOKS
@@ -69,6 +71,15 @@ const useVehicleDetail = (id: string | undefined) => {
 // ===================================================================================
 
 const formatPrice = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
+
+const formatNumberInput = (value: string): string => {
+  const number = parseInt(value.replace(/[^0-9]/g, ""), 10);
+  return isNaN(number) ? "" : number.toLocaleString("vi-VN");
+};
+
+const parseFormattedNumber = (formattedValue: string): number => {
+  return parseInt(formattedValue.replace(/[^0-9]/g, ""), 10) || 0;
+};
 
 const maskPhoneNumber = (phone: string | undefined | null): string => {
   if (!phone || phone.length < 4) {
@@ -240,12 +251,10 @@ const SellerInfo: React.FC<{ vehicle: VehicleDetail; fullAddress: string | null 
 
 const ContactActions: React.FC<{
   onContact: (type: 'phone' | 'message') => void;
-  onToggleFavorite: () => void;
-  isFavorite: boolean;
-  isAddingFavorite: boolean;
+  onMakeOffer: () => void;
   sellerPhone: string | undefined | null;
   showPhoneNumber: boolean;
-}> = ({ onContact, onToggleFavorite, isFavorite, isAddingFavorite, sellerPhone, showPhoneNumber }) => (
+}> = ({ onContact, onMakeOffer, sellerPhone, showPhoneNumber }) => (
   <div className="bg-white rounded-xl shadow-sm p-6">
     <h3 className="text-lg font-semibold text-gray-900 mb-4">Liên hệ người bán</h3>
     <div className="space-y-3">
@@ -259,8 +268,9 @@ const ContactActions: React.FC<{
         </span>
       </button>
       <button onClick={() => onContact("message")} className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"><MessageCircle className="w-5 h-5" /><span>Nhắn tin</span></button>
-      <button onClick={onToggleFavorite} disabled={isAddingFavorite} className={`w-full flex items-center justify-center gap-2 border-2 py-3 px-4 rounded-lg font-medium transition ${isFavorite ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100" : "border-gray-300 text-gray-700 hover:bg-gray-50"} ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}>
-        {isAddingFavorite ? (<><div className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div><span>Đang xử lý...</span></>) : (<><Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} /><span>{isFavorite ? "Đã lưu tin" : "Lưu tin"}</span></>)}
+      <button onClick={onMakeOffer} className="w-full flex items-center justify-center gap-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 py-3 px-4 rounded-lg font-medium transition">
+        <Tag className="w-5 h-5" />
+        <span>Trả giá</span>
       </button>
     </div>
   </div>
@@ -295,6 +305,34 @@ const ElectricVehicleDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [showPhoneNumber, setShowPhoneNumber] = useState(false);
+
+  // Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  // Offer Modal State
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [proposedPrice, setProposedPrice] = useState("");
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (id && authService.getCurrentUser()) {
+        try {
+          const isFav = await FavoriteService.isFavorite(Number(id));
+          setIsFavorite(isFav);
+        } catch (error) {
+          console.error("Failed to check favorite status:", error);
+          setIsFavorite(false);
+        }
+      }
+    };
+
+    if (!loading) {
+      checkFavoriteStatus();
+    }
+  }, [id, loading]);
 
   // Handlers
   const handleContact = async (type: "phone" | "message") => {
@@ -366,6 +404,98 @@ const ElectricVehicleDetailPage: React.FC = () => {
     toast.success("Đã sao chép link vào clipboard");
   };
 
+  // Offer Modal Handlers
+  const handleOpenOfferModal = () => {
+    if (!authService.getCurrentUser()) {
+      toast.warning("Vui lòng đăng nhập để trả giá");
+      navigate("/dang-nhap");
+      return;
+    }
+    setShowOfferModal(true);
+  };
+
+  const handleCloseOfferModal = () => {
+    if (isSubmittingOffer) return;
+    setShowOfferModal(false);
+    setProposedPrice("");
+  };
+
+  const handleSubmitOffer = async () => {
+    const price = parseFormattedNumber(proposedPrice);
+    if (price <= 0) {
+      toast.error("Vui lòng nhập một mức giá hợp lệ");
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser || !id) {
+      toast.error("Không thể gửi trả giá. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    setIsSubmittingOffer(true);
+    try {
+      await OfferService.createOffer({
+        buyerId: Number(currentUser.id),
+        listingId: Number(id),
+        proposedPrice: price,
+      });
+
+      toast.success("Đã gửi trả giá thành công!");
+      handleCloseOfferModal();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Không thể gửi trả giá. Vui lòng thử lại sau.");
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
+  // Report Modal Handlers
+  const handleOpenReportModal = () => {
+    if (!authService.getCurrentUser()) {
+      toast.warning("Vui lòng đăng nhập để báo cáo tin đăng");
+      navigate("/dang-nhap");
+      return;
+    }
+    setShowReportModal(true);
+  };
+
+  const handleCloseReportModal = () => {
+    if (isSubmittingReport) return;
+    setShowReportModal(false);
+    setReportDetails("");
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportDetails.trim()) {
+      toast.error("Vui lòng nhập chi tiết lý do báo cáo");
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser || !id) {
+      toast.error("Không thể gửi báo cáo. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    try {
+      await ReportService.createReport({
+        listingId: Number(id),
+        reporterId: Number(currentUser.id),
+        reason: reportDetails,
+      });
+
+      toast.success("Đã gửi báo cáo thành công. Cảm ơn bạn!");
+      handleCloseReportModal();
+    } catch (error: any) {
+      console.error("❌ Error submitting report:", error);
+      toast.error(error.response?.data?.message || "Không thể gửi báo cáo. Vui lòng thử lại sau.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   // Render states
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
@@ -419,20 +549,158 @@ const ElectricVehicleDetailPage: React.FC = () => {
               <SellerInfo vehicle={vehicle} fullAddress={fullAddress} />
               <ContactActions
                 onContact={handleContact}
-                onToggleFavorite={handleToggleFavorite}
-                isFavorite={isFavorite}
-                isAddingFavorite={isAddingFavorite}
+                onMakeOffer={handleOpenOfferModal}
                 sellerPhone={vehicle.sellerPhone}
                 showPhoneNumber={showPhoneNumber}
               />
               <SafetyTips />
               <div className="bg-white rounded-xl shadow-sm p-4">
-                <button className="w-full text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 hover:bg-red-50 py-2 rounded-lg transition"><Flag className="w-4 h-4" />Báo cáo tin đăng</button>
+                <button onClick={handleOpenReportModal} className="w-full text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 hover:bg-red-50 py-2 rounded-lg transition"><Flag className="w-4 h-4" />Báo cáo tin đăng</button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Offer Modal */}
+      {showOfferModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full transform transition-all">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">Trả giá</h3>
+              <button onClick={handleCloseOfferModal} className="p-2 hover:bg-gray-100 rounded-full transition" aria-label="Close modal">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600 line-clamp-1">{vehicle.title}</p>
+                <p className="text-sm text-gray-500">Giá niêm yết: <span className="font-semibold text-gray-800">{formatPrice(vehicle.askPrice)}</span></p>
+              </div>
+
+              <div className="text-center">
+                <label htmlFor="proposedPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nhập giá bạn muốn trả
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="proposedPrice"
+                    value={proposedPrice}
+                    onChange={(e) => setProposedPrice(formatNumberInput(e.target.value))}
+                    placeholder="0"
+                    className="w-full text-center text-3xl font-bold text-blue-600 bg-blue-50 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent py-3 px-12"
+                    disabled={isSubmittingOffer}
+                  />
+                  <span className="absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-blue-500">VND</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Người bán sẽ nhận được đề nghị của bạn.</p>
+              </div>
+
+              <div>
+                <p className="text-center text-xs text-gray-500 mb-2">Hoặc chọn nhanh:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0.95, 0.9, 0.85].map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => setProposedPrice(formatNumberInput(String(Math.round(vehicle.askPrice * rate))))}
+                      disabled={isSubmittingOffer}
+                      className="text-sm py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition disabled:opacity-50"
+                    >
+                      {rate * 100}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={handleCloseOfferModal} disabled={isSubmittingOffer} className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50">Hủy</button>
+              <button
+                onClick={handleSubmitOffer}
+                disabled={!proposedPrice || isSubmittingOffer}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmittingOffer ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  "Gửi trả giá"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Flag className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Báo cáo tin đăng</h3>
+                  <p className="text-sm text-gray-500">Chúng tôi sẽ xem xét báo cáo của bạn.</p>
+                </div>
+              </div>
+              <button onClick={handleCloseReportModal} className="p-2 hover:bg-gray-100 rounded-full transition" aria-label="Close modal">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600 mb-1">Tin đăng:</p>
+                <p className="font-medium text-gray-900 line-clamp-1">{vehicle.title}</p>
+              </div>
+
+              <div>
+                <label htmlFor="reportDetails" className="block text-sm font-medium text-gray-700 mb-2">
+                  Chi tiết báo cáo <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="reportDetails"
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Mô tả chi tiết về vấn đề bạn gặp phải..."
+                  rows={3}
+                  maxLength={100}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition"
+                  disabled={isSubmittingReport}
+                />
+                <p className="mt-1 text-xs text-right text-gray-500">{reportDetails.length}/100</p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={handleCloseReportModal} disabled={isSubmittingReport} className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50">Hủy</button>
+              <button
+                onClick={handleSubmitReport}
+                disabled={!reportDetails.trim() || isSubmittingReport}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmittingReport ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  "Gửi báo cáo"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

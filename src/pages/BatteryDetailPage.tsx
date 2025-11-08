@@ -24,6 +24,7 @@ import {
   Flag,
   Eye,
   Bookmark,
+  Tag,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { FavoriteService } from "../services/FavoriteService";
@@ -32,6 +33,17 @@ import { ChatService } from "../services/Chat/ChatService";
 import type { Battery } from "../types/battery";
 import { ListPostService } from "../services/Vehicle/ElectricVehiclesPageService";
 import { locationService } from "../services/locationService";
+import { ReportService } from "../services/Report/ReportService";
+import { OfferService } from "../services/Offer/OfferService";
+
+const formatNumberInput = (value: string): string => {
+  const number = parseInt(value.replace(/[^0-9]/g, ""), 10);
+  return isNaN(number) ? "" : number.toLocaleString("vi-VN");
+};
+
+const parseFormattedNumber = (formattedValue: string): number => {
+  return parseInt(formattedValue.replace(/[^0-9]/g, ""), 10) || 0;
+};
 
 const BatteryDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +60,9 @@ const BatteryDetailPage: React.FC = () => {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [showPhoneNumber, setShowPhoneNumber] = useState(false);
   const [fullAddress, setFullAddress] = useState<string>("");
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [proposedPrice, setProposedPrice] = useState("");
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
   useEffect(() => {
     const loadBattery = async () => {
@@ -127,6 +142,22 @@ const BatteryDetailPage: React.FC = () => {
 
     loadBattery();
   }, [id]);
+
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (id && authService.getCurrentUser()) {
+        try {
+          const isFav = await FavoriteService.isFavorite(Number(id));
+          setIsFavorite(isFav);
+        } catch (error) {
+          console.error("Failed to check favorite status:", error);
+        }
+      }
+    };
+    if (!loading) {
+      checkFavoriteStatus();
+    }
+  }, [id, loading]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -237,10 +268,55 @@ const BatteryDetailPage: React.FC = () => {
     }
   };
 
+  const handleOpenOfferModal = () => {
+    if (!authService.getCurrentUser()) {
+      toast.warning("Vui lòng đăng nhập để trả giá");
+      navigate("/dang-nhap");
+      return;
+    }
+    setShowOfferModal(true);
+  };
+
+  const handleCloseOfferModal = () => {
+    if (isSubmittingOffer) return;
+    setShowOfferModal(false);
+    setProposedPrice("");
+  };
+
+  const handleSubmitOffer = async () => {
+    const price = parseFormattedNumber(proposedPrice);
+    if (price <= 0) {
+      toast.error("Vui lòng nhập một mức giá hợp lệ");
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser || !id) {
+      toast.error("Không thể gửi trả giá. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    setIsSubmittingOffer(true);
+    try {
+      await OfferService.createOffer({
+        buyerId: Number(currentUser.id),
+        listingId: Number(id),
+        proposedPrice: price,
+      });
+
+      toast.success("Đã gửi trả giá thành công!");
+      handleCloseOfferModal();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Không thể gửi trả giá. Vui lòng thử lại sau.");
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
   const handleToggleFavorite = async () => {
     if (!battery || !id) return;
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
       toast.warning("Vui lòng đăng nhập để lưu tin yêu thích");
       navigate("/dang-nhap");
       return;
@@ -327,13 +403,22 @@ const BatteryDetailPage: React.FC = () => {
       toast.error("Vui lòng nhập chi tiết lý do báo cáo");
       return;
     }
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser || !id) {
+      toast.error("Không thể gửi báo cáo. Vui lòng đăng nhập lại.");
+      return;
+    }
     setIsSubmittingReport(true);
     try {
-      await new Promise((r) => setTimeout(r, 1000));
+      await ReportService.createReport({
+        listingId: Number(id),
+        reporterId: Number(currentUser.id),
+        reason: reportReason === "OTHER" ? reportDetails : reportReason,
+      });
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.");
       handleCloseReportModal();
-    } catch (e) {
-      toast.error("Không thể gửi báo cáo. Vui lòng thử lại sau.");
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Không thể gửi báo cáo. Vui lòng thử lại sau.");
     } finally {
       setIsSubmittingReport(false);
     }
@@ -392,9 +477,8 @@ const BatteryDetailPage: React.FC = () => {
               <button
                 onClick={handleToggleFavorite}
                 disabled={isAddingFavorite}
-                className={`p-2 rounded-full hover:bg-gray-100 transition ${
-                  isFavorite ? "text-red-500" : "text-gray-400"
-                } ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`p-2 rounded-full hover:bg-gray-100 transition ${isFavorite ? "text-red-500" : "text-gray-400"
+                  } ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}
                 title={isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
               >
                 {isAddingFavorite ? (
@@ -466,11 +550,10 @@ const BatteryDetailPage: React.FC = () => {
                       <button
                         key={`${image}-${index}`}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${
-                          selectedImageIndex === index
+                        className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
                             ? "ring-2 ring-blue-500"
                             : "hover:ring-2 hover:ring-gray-300"
-                        }`}
+                          }`}
                       >
                         <img
                           src={image}
@@ -570,21 +653,19 @@ const BatteryDetailPage: React.FC = () => {
                 <div className="flex">
                   <button
                     onClick={() => setActiveTab("overview")}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${
-                      activeTab === "overview"
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "overview"
                         ? "text-blue-600 border-b-2 border-blue-600"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     Tổng quan
                   </button>
                   <button
                     onClick={() => setActiveTab("specs")}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${
-                      activeTab === "specs"
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "specs"
                         ? "text-blue-600 border-b-2 border-blue-600"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     Thông số kỹ thuật
                   </button>
@@ -683,51 +764,31 @@ const BatteryDetailPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Liên hệ người bán
                 </h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleContact("phone")}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"
-                >
-                  <Phone className="w-5 h-5" />
-                  <span>
-                    {showPhoneNumber
-                      ? battery.sellerPhone || "Chưa có SĐT"
-                      : maskPhoneNumber(battery.sellerPhone)}
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleContact("message")}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>Nhắn tin</span>
-                </button>
+                <div className="space-y-3">
                   <button
-                    onClick={handleToggleFavorite}
-                    disabled={isAddingFavorite}
-                    className={`w-full flex items-center justify-center gap-2 border-2 py-3 px-4 rounded-lg font-medium transition ${
-                      isFavorite
-                        ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100"
-                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                    } ${
-                      isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    onClick={() => handleContact("phone")}
+                    className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium transition shadow-sm"
                   >
-                    {isAddingFavorite ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
-                        <span>Đang xử lý...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Heart
-                          className={`w-5 h-5 ${
-                            isFavorite ? "fill-current" : ""
-                          }`}
-                        />
-                        <span>{isFavorite ? "Đã lưu tin" : "Lưu tin"}</span>
-                      </>
-                    )}
+                    <Phone className="w-5 h-5" />
+                    <span>
+                      {showPhoneNumber
+                        ? battery.sellerPhone || "Chưa có SĐT"
+                        : maskPhoneNumber(battery.sellerPhone)}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => handleContact("message")}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition shadow-sm"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>Nhắn tin</span>
+                  </button>
+                  <button
+                    onClick={handleOpenOfferModal}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 py-3 px-4 rounded-lg font-medium transition"
+                  >
+                    <Tag className="w-5 h-5" />
+                    <span>Trả giá</span>
                   </button>
                 </div>
               </div>
@@ -746,6 +807,79 @@ const BatteryDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Offer Modal */}
+      {showOfferModal && battery && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full transform transition-all">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">Trả giá</h3>
+              <button onClick={handleCloseOfferModal} className="p-2 hover:bg-gray-100 rounded-full transition" aria-label="Close modal">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600 line-clamp-1">{battery.model}</p>
+                <p className="text-sm text-gray-500">Giá niêm yết: <span className="font-semibold text-gray-800">{formatPrice(battery.price)}</span></p>
+              </div>
+
+              <div className="text-center">
+                <label htmlFor="proposedPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nhập giá bạn muốn trả
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="proposedPrice"
+                    value={proposedPrice}
+                    onChange={(e) => setProposedPrice(formatNumberInput(e.target.value))}
+                    placeholder="0"
+                    className="w-full text-center text-3xl font-bold text-blue-600 bg-blue-50 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent py-3 px-12"
+                    disabled={isSubmittingOffer}
+                  />
+                  <span className="absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-blue-500">VND</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Người bán sẽ nhận được đề nghị của bạn.</p>
+              </div>
+
+              <div>
+                <p className="text-center text-xs text-gray-500 mb-2">Hoặc chọn nhanh:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0.95, 0.9, 0.85].map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => setProposedPrice(formatNumberInput(String(Math.round(battery.price * rate))))}
+                      disabled={isSubmittingOffer}
+                      className="text-sm py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition disabled:opacity-50"
+                    >
+                      {rate * 100}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={handleCloseOfferModal} disabled={isSubmittingOffer} className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50">Hủy</button>
+              <button
+                onClick={handleSubmitOffer}
+                disabled={!proposedPrice || isSubmittingOffer}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmittingOffer ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  "Gửi trả giá"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report Modal */}
       {showReportModal && (
@@ -788,11 +922,10 @@ const BatteryDetailPage: React.FC = () => {
                   {reportReasons.map((reason) => (
                     <label
                       key={reason.value}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${
-                        reportReason === reason.value
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${reportReason === reason.value
                           ? "border-blue-500 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
