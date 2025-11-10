@@ -40,6 +40,7 @@ function getInitial(user: User | null): string {
 
 const MENU_ITEMS = [
   { label: "Quản lý tin", to: "/ho-so/posts", icon: "📄" },
+  { label: "Quản lý trả giá", to: "/ho-so/offers", icon: "💸" },
   { label: "Tin đăng đã lưu", to: "/ho-so/saved-post", icon: "🧾" },
   { label: "Nạp tiền", to: "/ho-so/topup", icon: "💳" },
   { label: "Đánh giá từ tôi", to: "/ho-so/invoices", icon: "💬" },
