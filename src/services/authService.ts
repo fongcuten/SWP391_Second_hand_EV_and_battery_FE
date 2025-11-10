@@ -1,5 +1,6 @@
 import type {
   User,
+  UserStatus,
   LoginRequest,
   RegisterRequest,
   AuthResponse,
@@ -8,6 +9,28 @@ import api from "../config/axios";
 
 const CURRENT_USER_KEY = "current_user";
 const AUTH_TOKEN_KEY = "auth_token";
+
+const clearSession = () => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(CURRENT_USER_KEY);
+};
+
+const normalizeStatus = (status: unknown): UserStatus => {
+  if (typeof status !== "string") return "ACTIVE";
+  const normalized = status.trim().toUpperCase();
+  if (!normalized) return "ACTIVE";
+  switch (normalized) {
+    case "ACTIVE":
+    case "BANNED":
+    case "PENDING":
+    case "SUSPENDED":
+    case "DEACTIVATED":
+    case "INACTIVE":
+      return normalized;
+    default:
+      return normalized;
+  }
+};
 
 // Mock users for frontend UI purposes
 const MOCK_USERS_KEY = "mock_users";
@@ -22,6 +45,7 @@ const initializeMockUsers = () => {
         fullName: "Admin User",
         phoneNumber: "0123456789",
         role: "admin",
+        status: "ACTIVE",
         createdAt: new Date().toISOString(),
         isEmailVerified: true,
       },
@@ -31,6 +55,7 @@ const initializeMockUsers = () => {
         fullName: "Test User",
         phoneNumber: "0987654321",
         role: "user",
+        status: "ACTIVE",
         createdAt: new Date().toISOString(),
         isEmailVerified: true,
       },
@@ -88,6 +113,14 @@ export const authService = {
 
       if (userResponse.data?.code === 1000 && userResponse.data?.result) {
         const backendUser = userResponse.data.result;
+        const normalizedStatus = normalizeStatus(backendUser.status);
+
+        if (normalizedStatus === "BANNED") {
+          clearSession();
+          throw new Error(
+            "Tài khoản của bạn đã bị cấm. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết."
+          );
+        }
 
         // Derive role from token
         const deriveRoleFromToken = (jwt: string): User["role"] => {
@@ -115,11 +148,14 @@ export const authService = {
           id: String(backendUser.userId),
           email: backendUser.email || loginData.email,
           fullName:
-            `${backendUser.firstName || ""} ${backendUser.lastName || ""}`.trim() ||
+            `${backendUser.firstName || ""} ${
+              backendUser.lastName || ""
+            }`.trim() ||
             backendUser.username ||
             loginData.email,
           phoneNumber: backendUser.phone || "",
           role: deriveRoleFromToken(token),
+          status: normalizedStatus,
           createdAt: backendUser.createdAt || new Date().toISOString(),
           isEmailVerified: true,
           avatarUrl: backendUser.avatarUrl || undefined,
@@ -133,10 +169,108 @@ export const authService = {
       } else {
         throw new Error("Invalid user info response");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error fetching user info:", error);
+      clearSession();
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Đăng nhập thất bại. Vui lòng thử lại.";
+      throw new Error(message);
+    }
+  },
 
-      // ⚠️ Fallback: create minimal user (should rarely happen)
+  // Register (mock users only)
+  register: async (registerData: RegisterRequest): Promise<AuthResponse> => {
+    const users = getMockUsers();
+    if (users.find((u) => u.email === registerData.email)) {
+      throw new Error("Email đã được sử dụng");
+    }
+
+    const newUser: User = {
+      id: Date.now().toString(),
+      email: registerData.email,
+      fullName: registerData.fullName,
+      phoneNumber: registerData.phoneNumber,
+      role: "user",
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      isEmailVerified: false,
+    };
+
+    users.push(newUser);
+    localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
+
+    return { user: newUser, token: null };
+  },
+
+  logout: async () => {
+    clearSession();
+  },
+
+  getCurrentUser: (): User | null => {
+    const userStr = localStorage.getItem(CURRENT_USER_KEY);
+    if (!userStr) return null;
+    try {
+      const parsed = JSON.parse(userStr) as Partial<User>;
+      if (!parsed) return null;
+      const normalizedRoleStr = (parsed.role as string | undefined)
+        ? String(parsed.role).trim().toLowerCase()
+        : "user";
+      const normalizedRole = (
+        normalizedRoleStr === "admin" ? "admin" : "user"
+      ) as User["role"];
+      const status = normalizeStatus(
+        (parsed as Record<string, unknown>).status
+      );
+      if (status === "BANNED") {
+        clearSession();
+        return null;
+      }
+
+      const normalizedUser: User = {
+        id: String(parsed.id || ""),
+        email: String(parsed.email || ""),
+        fullName: String(parsed.fullName || parsed.email || ""),
+        phoneNumber: parsed.phoneNumber,
+        avatarUrl: parsed.avatarUrl, // Correctly read avatarUrl
+        avatarThumbUrl: parsed.avatarThumbUrl, // Correctly read avatarThumbUrl
+        role: normalizedRole,
+        status,
+        createdAt: String(parsed.createdAt || new Date().toISOString()),
+        isEmailVerified: Boolean(parsed.isEmailVerified),
+      };
+
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
+      return normalizedUser;
+    } catch {
+      return null;
+    }
+  },
+
+  refreshCurrentUser: async (): Promise<User> => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      clearSession();
+      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+    }
+
+    try {
+      const response = await api.get("/users/myInfo");
+      if (response.data?.code !== 1000 || !response.data?.result) {
+        clearSession();
+        throw new Error("Không thể tải thông tin người dùng.");
+      }
+
+      const backendUser = response.data.result;
+      const normalizedStatus = normalizeStatus(backendUser.status);
+      if (normalizedStatus === "BANNED") {
+        clearSession();
+        throw new Error(
+          "Tài khoản của bạn đã bị cấm. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết."
+        );
+      }
+
       const deriveRoleFromToken = (jwt: string): User["role"] => {
         try {
           const parts = jwt.split(".");
@@ -158,86 +292,54 @@ export const authService = {
       };
 
       const user: User = {
-        id: loginData.email,
-        email: loginData.email,
-        fullName: loginData.email,
-        phoneNumber: "",
+        id: String(backendUser.userId ?? backendUser.id ?? ""),
+        email: backendUser.email || backendUser.username || "",
+        fullName:
+          `${backendUser.firstName || ""} ${
+            backendUser.lastName || ""
+          }`.trim() ||
+          backendUser.username ||
+          backendUser.email ||
+          "",
+        phoneNumber: backendUser.phone || "",
         role: deriveRoleFromToken(token),
-        createdAt: new Date().toISOString(),
+        status: normalizedStatus,
+        createdAt: backendUser.createdAt || new Date().toISOString(),
         isEmailVerified: true,
+        avatarUrl: backendUser.avatarUrl || undefined,
+        avatarThumbUrl: backendUser.avatarThumbUrl || undefined,
       };
 
-      console.warn("⚠️ Using fallback user:", user);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-
-      return { user, token };
-    }
-  },
-
-  // Register (mock users only)
-  register: async (registerData: RegisterRequest): Promise<AuthResponse> => {
-    const users = getMockUsers();
-    if (users.find((u) => u.email === registerData.email)) {
-      throw new Error("Email đã được sử dụng");
-    }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      email: registerData.email,
-      fullName: registerData.fullName,
-      phoneNumber: registerData.phoneNumber,
-      role: "user",
-      createdAt: new Date().toISOString(),
-      isEmailVerified: false,
-    };
-
-    users.push(newUser);
-    localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
-
-    return { user: newUser, token: null };
-  },
-
-  logout: async () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(CURRENT_USER_KEY);
-  },
-
-  getCurrentUser: (): User | null => {
-    const userStr = localStorage.getItem(CURRENT_USER_KEY);
-    if (!userStr) return null;
-    try {
-      const parsed = JSON.parse(userStr) as Partial<User>;
-      if (!parsed) return null;
-      const normalizedRoleStr = (parsed.role as string | undefined)
-        ? String(parsed.role).trim().toLowerCase()
-        : "user";
-      const normalizedRole = (
-        normalizedRoleStr === "admin" ? "admin" : "user"
-      ) as User["role"];
-      const normalizedUser: User = {
-        id: String(parsed.id || ""),
-        email: String(parsed.email || ""),
-        fullName: String(parsed.fullName || parsed.email || ""),
-        phoneNumber: parsed.phoneNumber,
-        avatarUrl: parsed.avatarUrl, // Correctly read avatarUrl
-        avatarThumbUrl: parsed.avatarThumbUrl, // Correctly read avatarThumbUrl
-        role: normalizedRole,
-        createdAt: String(parsed.createdAt || new Date().toISOString()),
-        isEmailVerified: Boolean(parsed.isEmailVerified),
-      };
-
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
-      return normalizedUser;
-    } catch {
-      return null;
+      return user;
+    } catch (error: any) {
+      clearSession();
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Không thể tải thông tin người dùng.";
+      throw new Error(message);
     }
   },
 
   isAuthenticated: (): boolean => {
-    return (
-      !!localStorage.getItem(AUTH_TOKEN_KEY) &&
-      !!localStorage.getItem(CURRENT_USER_KEY)
-    );
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) return false;
+
+    const userStr = localStorage.getItem(CURRENT_USER_KEY);
+    if (!userStr) return false;
+    try {
+      const parsed = JSON.parse(userStr) as Partial<User>;
+      const status = normalizeStatus(parsed?.status);
+      if (status === "BANNED") {
+        clearSession();
+        return false;
+      }
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
   },
 
   getToken: (): string | null => {

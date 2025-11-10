@@ -539,6 +539,9 @@ const AdminPage: React.FC = () => {
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Vai trò
                       </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Trạng thái
+                      </th>
                       <th className="px-4 py-2" />
                     </tr>
                   </thead>
@@ -548,6 +551,8 @@ const AdminPage: React.FC = () => {
                         u.lastName ?? ""
                       }`.trim();
                       const role = (u.role || "USER").toLowerCase();
+                      const status = (u.status || "UNKNOWN").toUpperCase();
+                      const isBanned = status === "BANNED";
                       return (
                         <tr key={u.userId}>
                           <td className="px-4 py-2">{u.username}</td>
@@ -563,6 +568,19 @@ const AdminPage: React.FC = () => {
                               }`}
                             >
                               {role}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                isBanned
+                                  ? "bg-red-100 text-red-700"
+                                  : status === "ACTIVE"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {status}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-right space-x-3">
@@ -588,23 +606,29 @@ const AdminPage: React.FC = () => {
                               Xem chi tiết
                             </button>
                             <button
-                              className="text-sm text-red-600 hover:underline"
+                              className={`text-sm hover:underline ${
+                                isBanned
+                                  ? "text-gray-400 cursor-not-allowed"
+                                  : "text-red-600"
+                              }`}
+                              disabled={isBanned}
                               onClick={async () => {
+                                if (isBanned) return;
                                 if (
                                   window.confirm(
-                                    `Bạn có chắc muốn xóa người dùng "${
+                                    `Bạn có chắc muốn cấm người dùng "${
                                       fullName || u.username || u.email
-                                    }"?`
+                                    }"? Người dùng sẽ không thể truy cập nữa.`
                                   )
                                 ) {
                                   try {
                                     setLoading(true);
-                                    await adminUserService.remove(u.userId);
+                                    await adminUserService.ban(u.userId);
                                     await loadUsers();
                                   } catch (e) {
                                     setError(
                                       (e as Error).message ||
-                                        "Lỗi xóa người dùng"
+                                        "Lỗi cấm người dùng"
                                     );
                                   } finally {
                                     setLoading(false);
@@ -612,7 +636,7 @@ const AdminPage: React.FC = () => {
                                 }
                               }}
                             >
-                              Xóa
+                              {isBanned ? "Đã cấm" : "Cấm"}
                             </button>
                           </td>
                         </tr>
@@ -670,6 +694,12 @@ const AdminPage: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vai trò</span>
                       <span className="text-gray-900">{selectedUser.role}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Trạng thái</span>
+                      <span className="text-gray-900">
+                        {(selectedUser.status || "UNKNOWN").toUpperCase()}
+                      </span>
                     </div>
                     {selectedUser.createdAt && (
                       <div className="flex justify-between">

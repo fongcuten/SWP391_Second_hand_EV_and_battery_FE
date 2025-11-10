@@ -104,24 +104,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check if user is already logged in on app start
   useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        if (authService.isAuthenticated()) {
-          const user = authService.getCurrentUser();
-          if (user) {
-            dispatch({ type: "AUTH_SUCCESS", payload: user });
-          } else {
-            dispatch({ type: "AUTH_FAILURE", payload: "Invalid session" });
-          }
-        } else {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      if (!authService.isAuthenticated()) {
+        if (mounted) {
           dispatch({ type: "AUTH_FAILURE", payload: "Not authenticated" });
         }
-      } catch (error) {
-        dispatch({ type: "AUTH_FAILURE", payload: "Authentication error" });
+        return;
+      }
+
+      try {
+        const user = await authService.refreshCurrentUser();
+        if (mounted) {
+          dispatch({ type: "AUTH_SUCCESS", payload: user });
+        }
+      } catch (error: any) {
+        const message =
+          error instanceof Error ? error.message : "Authentication error";
+        if (mounted) {
+          dispatch({ type: "AUTH_FAILURE", payload: message });
+        }
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Login function

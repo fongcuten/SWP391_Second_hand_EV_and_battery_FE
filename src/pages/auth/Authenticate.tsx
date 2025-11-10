@@ -2,14 +2,47 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
+import { useToast } from "../../contexts/ToastContext";
 
 const AUTH_TOKEN_KEY = "auth_token";
 const CURRENT_USER_KEY = "current_user";
+
+type UserStatus =
+  | "ACTIVE"
+  | "BANNED"
+  | "PENDING"
+  | "SUSPENDED"
+  | "DEACTIVATED"
+  | "INACTIVE"
+  | string;
+
+const clearSession = () => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(CURRENT_USER_KEY);
+};
+
+const normalizeStatus = (status: unknown): UserStatus => {
+  if (typeof status !== "string") return "ACTIVE";
+  const normalized = status.trim().toUpperCase();
+  if (!normalized) return "ACTIVE";
+  switch (normalized) {
+    case "ACTIVE":
+    case "BANNED":
+    case "PENDING":
+    case "SUSPENDED":
+    case "DEACTIVATED":
+    case "INACTIVE":
+      return normalized;
+    default:
+      return normalized;
+  }
+};
 
 export default function Authenticate() {
   const navigate = useNavigate();
   const location = useLocation();
   const [busy, setBusy] = useState(true);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -80,68 +113,31 @@ export default function Authenticate() {
             }
           );
 
-          if (meRes.ok) {
-            const meData = await meRes.json();
-            console.log("✅ User info response:", meData);
-
-            if (meData?.code === 1000 && meData?.result) {
-              const backendUser = meData.result;
-
-              // Derive role from token
-              const deriveRoleFromToken = (jwt: string): "user" | "admin" => {
-                try {
-                  const parts = jwt.split(".");
-                  if (parts.length !== 3) return "user";
-                  const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-                  const json = atob(base64);
-                  const payload = JSON.parse(json);
-                  const rawRole =
-                    payload?.role ??
-                    payload?.scope ??
-                    (Array.isArray(payload?.roles) ? payload.roles[0] : null) ??
-                    null;
-                  if (!rawRole) return "user";
-                  const normalized = String(rawRole).trim().toLowerCase();
-                  return normalized.includes("admin") ? "admin" : "user";
-                } catch {
-                  return "user";
-                }
-              };
-
-              // ✅ Format user object giống authService.login(), đảm bảo email luôn là email
-              const normalizedEmail = String(
-                backendUser.email || backendUser.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-              const user = {
-                id: String(backendUser.userId || ""),
-                email: normalizedEmail,
-                fullName:
-                  `${backendUser.firstName || ""} ${
-                    backendUser.lastName || ""
-                  }`.trim() ||
-                  backendUser.username ||
-                  backendUser.email ||
-                  "",
-                phoneNumber: backendUser.phone || "",
-                role: deriveRoleFromToken(token),
-                createdAt: backendUser.createdAt || new Date().toISOString(),
-                isEmailVerified: true,
-              };
-
-              console.log("✅ Final user object:", user);
-              localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-            } else {
-              throw new Error("Invalid user info response");
-            }
-          } else {
+          if (!meRes.ok) {
             throw new Error(`Failed to fetch user info: ${meRes.status}`);
           }
-        } catch (error) {
-          console.error("❌ Error fetching user info:", error);
-          // Fallback: tạo minimal user từ token
+
+          const meData = await meRes.json();
+          console.log("✅ User info response:", meData);
+
+          if (meData?.code !== 1000 || !meData?.result) {
+            throw new Error("Invalid user info response");
+          }
+
+          const backendUser = meData.result;
+          const normalizedStatus = normalizeStatus(backendUser.status);
+          if (normalizedStatus === "BANNED") {
+            clearSession();
+            showToast(
+              "Tài khoản của bạn đã bị cấm. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.",
+              "error"
+            );
+            navigate("/dang-nhap", {
+              replace: true,
+            });
+            return;
+          }
+
           const deriveRoleFromToken = (jwt: string): "user" | "admin" => {
             try {
               const parts = jwt.split(".");
@@ -162,31 +158,36 @@ export default function Authenticate() {
             }
           };
 
-          const subject = (() => {
-            try {
-              const parts = token.split(".");
-              if (parts.length !== 3) return "";
-              const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-              const json = atob(base64);
-              const payload = JSON.parse(json);
-              return payload?.sub || "";
-            } catch {
-              return "";
-            }
-          })();
+          const normalizedEmail = String(
+            backendUser.email || backendUser.username || ""
+          )
+            .trim()
+            .toLowerCase();
 
-          const fallbackUser = {
-            id: subject || "unknown",
-            email: subject || "",
-            fullName: subject || "Google User",
-            phoneNumber: "",
+          const user = {
+            id: String(backendUser.userId || ""),
+            email: normalizedEmail,
+            fullName:
+              `${backendUser.firstName || ""} ${
+                backendUser.lastName || ""
+              }`.trim() ||
+              backendUser.username ||
+              backendUser.email ||
+              "",
+            phoneNumber: backendUser.phone || "",
             role: deriveRoleFromToken(token),
-            createdAt: new Date().toISOString(),
+            status: normalizedStatus,
+            createdAt: backendUser.createdAt || new Date().toISOString(),
             isEmailVerified: true,
+            avatarUrl: backendUser.avatarUrl || undefined,
+            avatarThumbUrl: backendUser.avatarThumbUrl || undefined,
           };
 
-          console.warn("⚠️ Using fallback user:", fallbackUser);
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
+          console.log("✅ Final user object:", user);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+        } catch (error) {
+          clearSession();
+          throw error;
         }
 
         // 🔧 Dọn query cho đẹp URL & tránh re-run khi refresh
@@ -205,15 +206,19 @@ export default function Authenticate() {
         window.location.href = from;
       } catch (err) {
         console.error(err);
+        clearSession();
+        showToast(
+          (err as Error).message || "Đăng nhập thất bại. Vui lòng thử lại sau.",
+          "error"
+        );
         navigate("/dang-nhap", {
           replace: true,
-          state: { error: (err as Error).message || "Đăng nhập thất bại." },
         });
       } finally {
         setBusy(false);
       }
     })();
-  }, [navigate, location.state]);
+  }, [navigate, location.state, showToast]);
 
   return (
     <Box

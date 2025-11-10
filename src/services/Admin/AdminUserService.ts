@@ -8,6 +8,7 @@ export interface AdminUserResponse {
   lastName?: string;
   phone?: string;
   role: string;
+  status?: string;
   createdAt?: string;
 }
 
@@ -52,6 +53,11 @@ export const adminUserService = {
     if (res.data?.code !== 1000)
       throw new Error(res.data?.message || "Failed to update user");
     return res.data.result as AdminUserResponse;
+  },
+  ban: async (userId: number): Promise<void> => {
+    const res = await api.post(`/users/${userId}`);
+    if (res.data?.code !== 1000)
+      throw new Error(res.data?.message || "Failed to ban user");
   },
   remove: async (userId: number): Promise<void> => {
     const res = await api.delete(`/users/${userId}`);

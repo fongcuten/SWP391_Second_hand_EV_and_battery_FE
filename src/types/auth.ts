@@ -1,3 +1,12 @@
+export type UserStatus =
+  | "ACTIVE"
+  | "BANNED"
+  | "PENDING"
+  | "SUSPENDED"
+  | "DEACTIVATED"
+  | "INACTIVE"
+  | string;
+
 export interface User {
   id: string;
   email: string;
@@ -6,6 +15,7 @@ export interface User {
   avatarUrl?: string; // Main avatar URL
   avatarThumbUrl?: string; // Thumbnail URL
   role: "user" | "admin";
+  status: UserStatus;
   createdAt: string;
   isEmailVerified: boolean;
 }
