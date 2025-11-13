@@ -316,6 +316,10 @@ const ElectricVehicleDetailPage: React.FC = () => {
   const [proposedPrice, setProposedPrice] = useState("");
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
+  // Minimum allowed offer as a fraction of ask price (10%)
+  const MIN_OFFER_RATE = 0.1;
+  const minOfferMessage = "Giá phải ít nhất 10% giá niêm yết.";
+
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       if (id && authService.getCurrentUser()) {
@@ -411,6 +415,12 @@ const ElectricVehicleDetailPage: React.FC = () => {
       navigate("/dang-nhap");
       return;
     }
+    // prevent offering on your own listing
+    const currentUser = authService.getCurrentUser();
+    if (currentUser && vehicle && vehicle.sellerId === Number(currentUser.id)) {
+      toast.warning("Bạn không thể trả giá cho chính mình");
+      return;
+    }
     setShowOfferModal(true);
   };
 
@@ -430,6 +440,19 @@ const ElectricVehicleDetailPage: React.FC = () => {
     const currentUser = authService.getCurrentUser();
     if (!currentUser || !id) {
       toast.error("Không thể gửi trả giá. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    // double-check: do not allow buyer === seller
+    if (vehicle && vehicle.sellerId === Number(currentUser.id)) {
+      toast.warning("Bạn không thể trả giá cho chính mình");
+      return;
+    }
+
+    // Enforce minimum offer = 10% of askPrice
+    const minAllowed = Math.round(vehicle!.askPrice * MIN_OFFER_RATE);
+    if (price < minAllowed) {
+      toast.error(minOfferMessage);
       return;
     }
 
@@ -600,16 +623,21 @@ const ElectricVehicleDetailPage: React.FC = () => {
               <div>
                 <p className="text-center text-xs text-gray-500 mb-2">Hoặc chọn nhanh:</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {[0.95, 0.9, 0.85].map((rate) => (
-                    <button
-                      key={rate}
-                      onClick={() => setProposedPrice(formatNumberInput(String(Math.round(vehicle.askPrice * rate))))}
-                      disabled={isSubmittingOffer}
-                      className="text-sm py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition disabled:opacity-50"
-                    >
-                      {rate * 100}%
-                    </button>
-                  ))}
+                  {[0.95, 0.9, 0.85].map((rate) => {
+                    const suggested = Math.round(vehicle.askPrice * rate);
+                    const minAllowed = Math.round(vehicle.askPrice * MIN_OFFER_RATE);
+                    const finalPrice = Math.max(suggested, minAllowed);
+                    return (
+                      <button
+                        key={rate}
+                        onClick={() => setProposedPrice(formatNumberInput(String(finalPrice)))}
+                        disabled={isSubmittingOffer}
+                        className="text-sm py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition disabled:opacity-50"
+                      >
+                        {rate * 100}%
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

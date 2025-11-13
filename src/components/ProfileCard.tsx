@@ -41,8 +41,8 @@ function getInitial(user: User | null): string {
 const MENU_ITEMS = [
   { label: "Quản lý tin", to: "/ho-so/posts", icon: "📄" },
   { label: "Quản lý trả giá", to: "/ho-so/offers", icon: "💸" },
+  { label: "Quản lý deal", to: "/ho-so/deals", icon: "💳" },
   { label: "Tin đăng đã lưu", to: "/ho-so/saved-post", icon: "🧾" },
-  { label: "Nạp tiền", to: "/ho-so/topup", icon: "💳" },
   { label: "Đánh giá từ tôi", to: "/ho-so/invoices", icon: "💬" },
   { label: "Lịch sử giao dịch", to: "/ho-so/transactions", icon: "🕒" },
   { label: "Thông tin cá nhân", to: "/ho-so/info", icon: "👤" },

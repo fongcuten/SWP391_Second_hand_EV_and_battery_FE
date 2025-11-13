@@ -38,6 +38,7 @@ import AdminPage from "./pages/Admin/AdminPage";
 import LocationTest from "./components/LocationTest";
 import CheckoutSuccessPage from "./pages/Payment/inspectionCheckout";
 import UserOffers from "./pages/User/UserOffers";
+import UserDeals from "./pages/User/UserDeals";
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -70,6 +71,8 @@ const AppShell: React.FC = () => {
             <Route path="change-password" element={<ChangePasswordPage />} />
             <Route path="topup" element={<PaymentPage />} />
             <Route path="offers" element={<UserOffers />} />
+            <Route path="deals" element={<UserDeals />} />
+            <Route path="deals/success" element={<UserDeals />} />
           </Route>
 
           {/* Favorites and Notifications */}
