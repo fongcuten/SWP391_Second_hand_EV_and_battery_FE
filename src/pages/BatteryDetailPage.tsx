@@ -314,13 +314,13 @@ const BatteryDetailPage: React.FC = () => {
   };
 
   const handleToggleFavorite = async () => {
-    if (!battery || !id) return;
-    const currentUser = authService.getCurrentUser();
-    if (!currentUser) {
-      toast.warning("Vui lòng đăng nhập để lưu tin yêu thích");
+    if (!id) return;
+    if (!authService.getCurrentUser()) {
+      toast.warning("Vui lòng đăng nhập để lưu tin.");
       navigate("/dang-nhap");
       return;
     }
+
     setIsAddingFavorite(true);
     try {
       if (isFavorite) {
@@ -328,25 +328,21 @@ const BatteryDetailPage: React.FC = () => {
         setIsFavorite(false);
         toast.success("Đã xóa khỏi danh sách yêu thích");
       } else {
+        setIsFavorite(true);
         const result = await FavoriteService.addFavorite(Number(id));
-        if (result.code === 0) {
-          setIsFavorite(true);
+        try {
+          const verified = await FavoriteService.isFavorite(Number(id));
+          setIsFavorite(Boolean(verified));
+        } catch (verifyErr) {
+          console.warn("Verify favorite failed:", verifyErr);
+        }
+
+        if (result && typeof result === "object" && "code" in result && result.code !== 0) {
           toast.success("Đã thêm vào danh sách yêu thích");
-        } else if (result.message?.includes("owner")) {
-          toast.error("Bạn không thể lưu tin đăng của chính mình");
-        } else {
-          toast.error(result.message || "Không thể thêm vào yêu thích");
         }
       }
     } catch (err: any) {
-      if (err.response?.data?.message?.includes("owner")) {
-        toast.error("Bạn không thể lưu tin đăng của chính mình");
-      } else if (err.response?.status === 401) {
-        toast.warning("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
-        navigate("/dang-nhap");
-      } else {
-        toast.error("Có lỗi xảy ra, vui lòng thử lại");
-      }
+      toast.error(err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại");
     } finally {
       setIsAddingFavorite(false);
     }
@@ -551,8 +547,8 @@ const BatteryDetailPage: React.FC = () => {
                         key={`${image}-${index}`}
                         onClick={() => setSelectedImageIndex(index)}
                         className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
-                            ? "ring-2 ring-blue-500"
-                            : "hover:ring-2 hover:ring-gray-300"
+                          ? "ring-2 ring-blue-500"
+                          : "hover:ring-2 hover:ring-gray-300"
                           }`}
                       >
                         <img
@@ -654,8 +650,8 @@ const BatteryDetailPage: React.FC = () => {
                   <button
                     onClick={() => setActiveTab("overview")}
                     className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "overview"
-                        ? "text-blue-600 border-b-2 border-blue-600"
-                        : "text-gray-600 hover:text-gray-900"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
                       }`}
                   >
                     Tổng quan
@@ -663,8 +659,8 @@ const BatteryDetailPage: React.FC = () => {
                   <button
                     onClick={() => setActiveTab("specs")}
                     className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "specs"
-                        ? "text-blue-600 border-b-2 border-blue-600"
-                        : "text-gray-600 hover:text-gray-900"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
                       }`}
                   >
                     Thông số kỹ thuật
@@ -923,8 +919,8 @@ const BatteryDetailPage: React.FC = () => {
                     <label
                       key={reason.value}
                       className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${reportReason === reason.value
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                         }`}
                     >
                       <input

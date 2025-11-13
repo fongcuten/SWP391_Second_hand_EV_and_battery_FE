@@ -388,13 +388,18 @@ const ElectricVehicleDetailPage: React.FC = () => {
         setIsFavorite(false);
         toast.success("Đã xóa khỏi danh sách yêu thích");
       } else {
+        setIsFavorite(true);
         const result = await FavoriteService.addFavorite(Number(id));
-        if (result.code === 0) {
-          setIsFavorite(true);
-          toast.success("Đã thêm vào danh sách yêu thích");
-        } else {
-          toast.error(result.message || "Không thể thêm vào yêu thích");
+        try {
+          const verified = await FavoriteService.isFavorite(Number(id));
+          setIsFavorite(Boolean(verified));
+        } catch (verifyErr) {
+          console.warn("Verify favorite failed:", verifyErr);
         }
+
+        if (result && typeof result === "object" && "code" in result && result.code !== 0) {
+          toast.success("Đã thêm vào danh sách yêu thích");
+        } 
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại");
