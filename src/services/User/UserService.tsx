@@ -1,6 +1,5 @@
 import api from "../../config/axios";
 
-// ✅ FIX: Updated Plan interface to match the new API response
 export interface Plan {
     name: string;
     description: string;
@@ -11,7 +10,6 @@ export interface Plan {
     priorityLevel: number;
 }
 
-// ✅ FIX: Updated User interface to match the new API response
 export interface User {
     userId: number;
     username: string;
@@ -23,12 +21,14 @@ export interface User {
     provinceCode: number;
     districtCode: number;
     wardCode: number;
+    status: string;
     bio: string;
     avatarUrl: string;
     avatarPublicId: string;
     avatarThumbUrl: string;
     plan: Plan;
     planStatus: string;
+    quotaRemaining: number;
     startAt: string;
     endAt: string;
     createdAt: string;

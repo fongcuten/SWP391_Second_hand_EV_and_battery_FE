@@ -20,6 +20,8 @@ export interface Deal {
     buyer?: PartyInfo;
     seller?: PartyInfo;
     listingId?: number;
+    feeAmount?: number;
+    sellerReceiveAmount?: number;
 }
 
 interface DealListResponse {

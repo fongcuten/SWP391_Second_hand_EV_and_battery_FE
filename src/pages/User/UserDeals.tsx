@@ -121,22 +121,31 @@ const DealCard: React.FC<{
                         <DealStatusBadge status={deal.status} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-600">
                         <div>
                             <p className="text-xs text-gray-500">Số tiền phải trả</p>
                             <p className="font-medium text-gray-800">{formatPrice(deal.balanceDue)}</p>
+                            <p className="text-xs text-gray-400 mt-1">Ngày lên lịch: <span className="text-gray-700">{formatDate(deal.scheduledAt)}</span></p>
                         </div>
+
                         <div>
-                            <p className="text-xs text-gray-500">Ngày lên lịch</p>
-                            <p className="font-medium text-gray-800 flex items-center gap-2"><Calendar size={14} /> {formatDate(deal.scheduledAt)}</p>
+                            <p className="text-xs text-gray-500">Người mua</p>
+                            <p className="font-medium text-gray-800">{deal.buyer?.fullName || deal.buyer?.username || "—"}</p>
+                            {deal.buyer?.phone && <p className="text-xs text-gray-500 mt-1">SĐT: {deal.buyer.phone}</p>}
+                            <p className="text-xs text-gray-400 mt-2">Tạo lúc: <span className="text-gray-700">{formatDate(deal.createdAt)}</span></p>
                         </div>
+
                         <div>
-                            <p className="text-xs text-gray-500">Tạo lúc</p>
-                            <p className="text-gray-700">{formatDate(deal.createdAt)}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500">Cập nhật</p>
-                            <p className="text-gray-700">{formatDate(deal.updatedAt)}</p>
+                            <p className="text-xs text-gray-500">Người bán</p>
+                            <p className="font-medium text-gray-800">{deal.seller?.fullName || deal.seller?.username || "—"}</p>
+                            {deal.seller?.phone && <p className="text-xs text-gray-500 mt-1">SĐT: {deal.seller.phone}</p>}
+
+                            <div className="mt-3">
+                                <p className="text-xs text-gray-500">Phí (fee)</p>
+                                <p className="font-medium text-gray-800">{formatPrice(deal.feeAmount)}</p>
+                                <p className="text-xs text-gray-400 mt-1">Người bán nhận: <span className="text-gray-700">{formatPrice(deal.sellerReceiveAmount)}</span></p>
+                                <p className="text-xs text-gray-400 mt-2">Cập nhật: <span className="text-gray-700">{formatDate(deal.updatedAt)}</span></p>
+                            </div>
                         </div>
                     </div>
                 </div>
