@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-// ✅ FIX: Removed unused UpdateUserRequest import
 import {
   UserService,
   type User,
@@ -22,6 +21,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
     provinceCode: 0,
     districtCode: 0,
     wardCode: 0,
@@ -72,6 +72,7 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
         firstName: userData.firstName || "",
         lastName: userData.lastName || "",
         email: userData.email || "",
+        phone: userData.phone || "",
         provinceCode: userData.provinceCode || 0,
         districtCode: userData.districtCode || 0,
         wardCode: userData.wardCode || 0,

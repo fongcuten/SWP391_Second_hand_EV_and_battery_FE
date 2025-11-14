@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, CheckCheck, MessageSquare } from "lucide-react";
+import { Send, ArrowLeft, Phone, Video, MoreVertical, Paperclip, CheckCheck, MessageSquare } from "lucide-react";
 import type { Conversation, ChatMessage } from "../../services/Chat/ChatService";
 
 interface Props {

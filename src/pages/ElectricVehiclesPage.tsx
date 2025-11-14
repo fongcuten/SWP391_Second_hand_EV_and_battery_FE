@@ -124,7 +124,7 @@ const ElectricVehiclesPage: React.FC = () => {
   // Filter & Location Data State
   const [filters, setFilters] = useState<FilterState>(initialFilterState);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
+  const [models] = useState<Model[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -138,7 +138,7 @@ const ElectricVehiclesPage: React.FC = () => {
       try {
         // Fetch all data concurrently
         const [postsResponse, brandsData, provincesData] = await Promise.all([
-          ListPostService.getSalePosts(currentPage, PAGE_SIZE, "", undefined),
+          ListPostService.getSalePosts(currentPage, PAGE_SIZE, {}),
           brandService.getAllBrands(),
           locationService.getProvinces(),
         ]);

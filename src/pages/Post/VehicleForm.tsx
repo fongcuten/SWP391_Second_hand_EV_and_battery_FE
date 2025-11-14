@@ -12,7 +12,7 @@ import {
   type Brand,
   type Model,
 } from "../../services/Post/BrandService";
-import { PostService } from "../../services/Post/PostService"; // ✅ Changed import
+import { PostService, type CreateVehiclePostPayload } from "../../services/Post/PostService"; 
 import { PriceSuggestionService } from "../../services/AI/AIPriceService";
 import { Loader2, CheckCircle, Sparkles } from "lucide-react";
 
@@ -379,22 +379,33 @@ const CreateVehiclePost: React.FC = () => {
       !formData.district_code ||
       !formData.ward_code
     ) {
-      return toast.error("Vui lòng chọn đầy đủ địa chỉ!");
+      toast.error("Vui lòng chọn đầy đủ địa chỉ!");
+      return false;
     }
-    if (!formData.title.trim()) return toast.error("Vui lòng nhập tiêu đề!");
-    if (!formData.brandId || !formData.modelId)
-      return toast.error("Vui lòng chọn hãng xe và mẫu xe!");
-    if (!formData.transmission.length)
-      return toast.error("Vui lòng chọn loại hộp số!");
-    if (!formData.fuelType.length)
-      return toast.error("Vui lòng chọn loại nhiên liệu!");
+    if (!formData.title.trim()) {
+      toast.error("Vui lòng nhập tiêu đề!");
+      return false;
+    }
+    if (!formData.brandId || !formData.modelId){
+      toast.error("Vui lòng chọn hãng xe và mẫu xe!");
+      return false;
+    }   
+    if (!formData.transmission.length){
+      toast.error("Vui lòng chọn loại hộp số!");
+      return false;
+    }
+    if (!formData.fuelType.length){
+      toast.error("Vui lòng chọn loại nhiên liệu!");
+      return false;
+    }
+    if (!formData.vin || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(formData.vin)) {
+      toast.error("Vui lòng nhập mã VIN hợp lệ (17 ký tự chữ/số)!");
+      return false;
+    }
     if (images.length < 4) {
       toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
-      return;
+      return false;
     }
-    if (!formData.vin || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(formData.vin))
-      return toast.error("Vui lòng nhập mã VIN hợp lệ (17 ký tự chữ/số)!");
-
     return true;
   };
 
@@ -409,7 +420,7 @@ const CreateVehiclePost: React.FC = () => {
     toast.info("Đang xử lý tin đăng...");
 
     try {
-      const payload: CreatePostPayload = {
+      const payload: CreateVehiclePostPayload = {
         productType: "VEHICLE",
         askPrice: formData.ask_price,
         title: formData.title,
@@ -433,13 +444,6 @@ const CreateVehiclePost: React.FC = () => {
           registration: formData.registration === "Có",
         },
       };
-
-      const formDataToSend = new FormData();
-      formDataToSend.append("payload", JSON.stringify(payload));
-
-      images.forEach((image) => {
-        formDataToSend.append("images", image);
-      });
 
       const response = await PostService.createVehiclePost(payload, images);
 

@@ -15,6 +15,7 @@ export interface ListPostSummary {
     priorityLevel?: number;
     sellerUsername?: string;
     inspectionStatus?: string;
+    street?: string;
 }
 
 // ✅ Define the filters interface based on the state in your page

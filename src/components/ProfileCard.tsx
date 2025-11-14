@@ -4,26 +4,6 @@ import { Loader2, Crown, Calendar, Upload, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { UserService, type User } from "../services/User/UserService";
 
-// ===== UTILITIES =====
-
-function elapsedSince(dateStr: string | number | Date) {
-  try {
-    const then = new Date(dateStr);
-    const now = new Date();
-    const years = now.getFullYear() - then.getFullYear();
-    const months = (now.getMonth() - then.getMonth()) + years * 12;
-
-    if (months <= 0) return "Vừa mới";
-
-    const y = Math.floor(months / 12);
-    const m = months % 12;
-
-    return (y ? `${y} năm${m ? " " : ""}` : "") + (m ? `${m} tháng` : "");
-  } catch {
-    return "—";
-  }
-}
-
 function getFullName(user: User | null): string {
   if (!user) return "Người dùng";
   const firstName = user.firstName?.trim() || "";
