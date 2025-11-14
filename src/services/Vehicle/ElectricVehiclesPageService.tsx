@@ -12,8 +12,9 @@ export interface ListPostSummary {
     wardCode?: number;
     status?: string;
     createdAt?: string;
-    priorityLevel?: number; // ✅ Make sure this exists and is NOT optional, or default to 1
-    seller?: string;
+    priorityLevel?: number;
+    sellerUsername?: string;
+    inspectionStatus?: string;
 }
 
 // ✅ Define the filters interface based on the state in your page

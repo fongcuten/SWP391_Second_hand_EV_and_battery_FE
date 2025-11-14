@@ -549,7 +549,7 @@ export default function UserPosts() {
                     <span>Sửa</span>
                   </Link>
                 )}
-                {post.productType === "VEHICLE" && (
+                {post.status === "ACTIVE" && post.productType === "VEHICLE" && (
                   <button
                     onClick={() => openModal(post)}
                     className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"

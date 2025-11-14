@@ -430,10 +430,8 @@ const VehicleCard: React.FC<{ post: ListPostSummary; index: number }> = ({ post,
           <h3 className="font-semibold text-base text-[#2C3E50] group-hover:text-[#2ECC71] transition-colors line-clamp-2 mb-3 min-h-[48px]">{post.productName}</h3>
           <p className="text-2xl font-bold text-[#2ECC71] mb-4">{formatPrice(post.askPrice)}</p>
           <div className="flex items-center gap-2 text-sm text-gray-600 pb-3 border-b border-[#A8E6CF]/30"><MapPin className="w-4 h-4 flex-shrink-0 text-[#2ECC71]" /><span className="truncate">{post.address || "Chưa có địa chỉ"}</span></div>
-          <div className="flex items-center justify-between pt-3 text-xs text-gray-600">
-            <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-[#2ECC71]" /><span>2023</span></div>
-            <div className="flex items-center gap-2"><Gauge className="w-3.5 h-3.5 text-[#2ECC71]" /><span>15K km</span></div>
-            <div className="flex items-center gap-2"><Battery className="w-3.5 h-3.5 text-[#2ECC71]" /><span>85%</span></div>
+          <div className="pt-3 text-xs text-gray-600">
+            <span>Người bán: <strong>{post.sellerUsername || "—"}</strong></span>
           </div>
         </div>
       </Link>
