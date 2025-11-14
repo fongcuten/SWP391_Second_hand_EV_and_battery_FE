@@ -157,12 +157,6 @@ const VehicleHeader: React.FC<{ vehicle: VehicleDetail; vehiclePost: VehiclePost
     <div className="flex flex-wrap items-center gap-4 py-4 border-y border-gray-200">
       <div>
         <p className="text-3xl sm:text-4xl font-bold text-red-600">{formatPrice(vehicle.askPrice)}</p>
-        <p className="text-sm text-gray-500 mt-1">Có thể thương lượng</p>
-      </div>
-      <div className="flex-1"></div>
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        <div className="flex items-center gap-1"><Eye className="w-4 h-4" /><span>1.2K lượt xem</span></div>
-        <div className="flex items-center gap-1"><Bookmark className="w-4 h-4" /><span>45 đã lưu</span></div>
       </div>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
