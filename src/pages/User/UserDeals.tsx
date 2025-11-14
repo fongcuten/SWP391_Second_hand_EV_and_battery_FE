@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Tag, Loader2, Inbox, Calendar, X } from "lucide-react";
+import { Tag, Loader2, Inbox, X } from "lucide-react";
 import { toast } from "react-toastify";
 import DealService, { type Deal, type AssignSitePayload } from "../../services/Deal/DealService";
 import { authService } from "../../services/authService";

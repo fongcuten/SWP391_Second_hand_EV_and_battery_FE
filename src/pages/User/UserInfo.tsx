@@ -151,10 +151,11 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
     setSaving(true);
 
     try {
-      // ✅ FIX: Create a Partial<User> object for the update
       const updateData: Partial<User> = {
+        userId: user.userId,
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
+        phone: formData.phone.trim(),
         email: formData.email.trim(),
         provinceCode: formData.provinceCode,
         districtCode: formData.districtCode,
@@ -162,7 +163,6 @@ const UserInfoForm: React.FC<UserInfoFormProps> = ({ onSave }) => {
         bio: formData.bio.trim(),
       };
 
-      // ✅ FIX: Use the new updateMyInfo service function
       const updatedUser = await UserService.updateMyInfo(updateData);
       setUser(updatedUser);
 

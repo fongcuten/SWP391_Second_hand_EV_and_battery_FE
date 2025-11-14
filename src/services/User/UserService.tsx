@@ -55,8 +55,9 @@ export const UserService = {
      * @param profileData - The data to update.
      */
     async updateMyInfo(profileData: Partial<User>): Promise<User> {
+        const userId = profileData.userId;
         try {
-            const response = await api.put("/users/myInfo", profileData);
+            const response = await api.put(`/users/${userId}`, profileData);
             // ✅ FIX: Return the nested 'result' object from the response
             return response.data.result;
         } catch (error: any) {

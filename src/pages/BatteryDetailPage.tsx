@@ -10,12 +10,8 @@ import {
   Calendar,
   Battery as BatteryIcon,
   Gauge,
-  Clock,
   Zap,
   CheckCircle,
-  Package,
-  Shield,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -166,35 +162,35 @@ const BatteryDetailPage: React.FC = () => {
     }).format(price);
   };
 
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case "excellent":
-        return "bg-green-100 text-green-800";
-      case "good":
-        return "bg-blue-100 text-blue-800";
-      case "fair":
-        return "bg-yellow-100 text-yellow-800";
-      case "poor":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  // const getConditionColor = (condition: string) => {
+  //   switch (condition) {
+  //     case "excellent":
+  //       return "bg-green-100 text-green-800";
+  //     case "good":
+  //       return "bg-blue-100 text-blue-800";
+  //     case "fair":
+  //       return "bg-yellow-100 text-yellow-800";
+  //     case "poor":
+  //       return "bg-red-100 text-red-800";
+  //     default:
+  //       return "bg-gray-100 text-gray-800";
+  //   }
+  // };
 
-  const getConditionText = (condition: string) => {
-    switch (condition) {
-      case "excellent":
-        return "Xuất sắc";
-      case "good":
-        return "Tốt";
-      case "fair":
-        return "Khá";
-      case "poor":
-        return "Trung bình";
-      default:
-        return condition;
-    }
-  };
+  // const getConditionText = (condition: string) => {
+  //   switch (condition) {
+  //     case "excellent":
+  //       return "Xuất sắc";
+  //     case "good":
+  //       return "Tốt";
+  //     case "fair":
+  //       return "Khá";
+  //     case "poor":
+  //       return "Trung bình";
+  //     default:
+  //       return condition;
+  //   }
+  // };
 
   const maskPhoneNumber = (phone: string | undefined | null): string => {
     if (!phone || phone.length < 4) return "**********";

@@ -159,89 +159,104 @@ export default function ProfileCard() {
   return (
     <div className="space-y-5">
       {/* Profile Header */}
-      <div className="relative bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg p-6 border border-gray-100">
-        <div className="flex items-center gap-5">
-          {/* Avatar */}
-          <div className="relative flex-shrink-0 group">
-            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-2 ring-green-200">
-              {user?.avatarThumbUrl ? (
-                <img
-                  src={user.avatarThumbUrl}
-                  alt={getFullName(user)}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl font-bold bg-gradient-to-br from-green-100 to-green-200">
-                  {getInitial(user)}
-                </div>
-              )}
-            </div>
-            <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
-
-            {/* Avatar Actions Overlay */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full transition-all duration-300 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
-              {isAvatarUploading ? (
-                <Loader2 className="w-8 h-8 text-white animate-spin" />
-              ) : (
-                <>
-                  <button
-                    onClick={handleUploadClick}
-                    className="w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center text-gray-700 transition"
-                    title="Tải ảnh mới"
-                  >
-                    <Upload className="w-5 h-5" />
-                  </button>
-                  {user?.avatarUrl && (
-                    <button
-                      onClick={handleDeleteAvatar}
-                      className="w-10 h-10 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white transition"
-                      title="Xóa ảnh"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept="image/png, image/jpeg, image/gif"
-            />
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 flex flex-row gap-6 items-center">
+        {/* Avatar + Upload (buttons inside image holder, bottom center) */}
+        <div className="relative flex-shrink-0 group">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-2 ring-green-200">
+            {user?.avatarThumbUrl ? (
+              <img
+                src={user.avatarThumbUrl}
+                alt={getFullName(user)}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl font-bold bg-gradient-to-br from-green-100 to-green-200">
+                {getInitial(user)}
+              </div>
+            )}
           </div>
+          <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
 
-          {/* User Info */}
-          <div className="flex-1 min-w-0">
-            {/* Name */}
-            <h2 className="text-xl font-semibold text-gray-900 truncate">
-              {getFullName(user)}
-            </h2>
-
-            {/* Member Since */}
-            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
-              <Calendar className="w-4 h-4" />
-              <span>Thành viên từ {user?.createdAt ? elapsedSince(user.createdAt) : "—"}</span>
+          {/* Avatar Actions Overlay */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full transition-all duration-300 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
+            {isAvatarUploading ? (
+              <Loader2 className="w-8 h-8 text-white animate-spin" />
+            ) : (
+              <>
+                <button
+                  onClick={handleUploadClick}
+                  className="w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center text-gray-700 transition"
+                  title="Tải ảnh mới"
+                >
+                  <Upload className="w-5 h-5" />
+                </button>
+                {user?.avatarUrl && (
+                  <button
+                    onClick={handleDeleteAvatar}
+                    className="w-10 h-10 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white transition"
+                    title="Xóa ảnh"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/png, image/jpeg, image/gif"
+          />
+        </div>
+        {/* User Info */}
+        <div className="flex-1 min-w-0 pl-6">
+          <h2 className="text-2xl font-semibold text-gray-900">{getFullName(user)}</h2>
+          <div className="text-sm text-gray-500 mt-1">@{user?.username || "—"}</div>
+          <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+            <Calendar className="w-4 h-4" />
+            <span>
+              Ngày đăng ký:{" "}
+              <span className="text-gray-800 font-medium">
+                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+              </span>
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-gray-500">Email</div>
+              <div className="text-sm text-gray-800">{user?.email || "—"}</div>
             </div>
-
-            {/* Current Plan */}
-            <div className="mt-3">
-              {user?.plan ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Gói hiện tại:</span>
-                  {getPlanBadge()}
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                  <span>Gói miễn phí</span>
-                </div>
-              )}
+            <div>
+              <div className="text-xs text-gray-500">Số điện thoại</div>
+              <div className="text-sm text-gray-800">{user?.phone || "—"}</div>
             </div>
           </div>
         </div>
       </div>
-
+      {/* Plan Info Card */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Thông tin gói</h3>
+            <p className="text-sm text-gray-500 mt-1">Thời hạn và quota của gói hiện tại</p>
+          </div>
+          <div>{getPlanBadge() || <span className="text-xs text-gray-500">Free</span>}</div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 bg-gray-50 rounded-md flex flex-col items-center">
+            <div className="text-xs text-gray-500">Quota còn lại</div>
+            <div className="text-xl font-semibold text-gray-900">{user?.quotaRemaining ?? 0}</div>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-md flex flex-col items-center">
+            <div className="text-xs text-gray-500">Thời gian bắt đầu</div>
+            <div className="text-sm text-gray-800">{user?.startAt ? new Date(user.startAt).toLocaleDateString() : "—"}</div>
+            <div className="mt-2 text-xs text-gray-500">Thời gian kết thúc</div>
+            <div className="text-sm text-gray-800">{user?.endAt ? new Date(user.endAt).toLocaleDateString() : "—"}</div>
+          </div>
+        </div>
+      </div>
       {/* Navigation Menu */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="px-5 py-3 bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
