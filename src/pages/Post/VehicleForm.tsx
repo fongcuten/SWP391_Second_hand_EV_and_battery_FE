@@ -31,7 +31,7 @@ interface VehicleFormData {
   seats: number;
 
   // Legal
-  licensePlate: string;
+  vin: string;
   ownerCount: number;
   registration: string;
   inspection: string;
@@ -86,7 +86,7 @@ const INITIAL_FORM_DATA: VehicleFormData = {
   mileage: 0,
   color: "",
   seats: 0,
-  licensePlate: "",
+  vin: "",
   ownerCount: 1,
   registration: "",
   inspection: "",
@@ -374,8 +374,6 @@ const CreateVehiclePost: React.FC = () => {
   };
 
   const validateForm = () => {
-    if (images.length < 4)
-      return toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
     if (
       !formData.province_code ||
       !formData.district_code ||
@@ -386,10 +384,17 @@ const CreateVehiclePost: React.FC = () => {
     if (!formData.title.trim()) return toast.error("Vui lòng nhập tiêu đề!");
     if (!formData.brandId || !formData.modelId)
       return toast.error("Vui lòng chọn hãng xe và mẫu xe!");
-    if (formData.transmission.length === 0)
+    if (!formData.transmission.length)
       return toast.error("Vui lòng chọn loại hộp số!");
-    if (formData.fuelType.length === 0)
+    if (!formData.fuelType.length)
       return toast.error("Vui lòng chọn loại nhiên liệu!");
+    if (images.length < 4) {
+      toast.error("Vui lòng tải lên ít nhất 4 hình ảnh!");
+      return;
+    }
+    if (!formData.vin || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(formData.vin))
+      return toast.error("Vui lòng nhập mã VIN hợp lệ (17 ký tự chữ/số)!");
+
     return true;
   };
 
@@ -397,7 +402,6 @@ const CreateVehiclePost: React.FC = () => {
     e.preventDefault();
 
     if (!validateForm()) return;
-
     const isValidModel = await validateModelBrand();
     if (!isValidModel) return;
 
@@ -405,7 +409,6 @@ const CreateVehiclePost: React.FC = () => {
     toast.info("Đang xử lý tin đăng...");
 
     try {
-      // ✅ Build the proper payload
       const payload: CreatePostPayload = {
         productType: "VEHICLE",
         askPrice: formData.ask_price,
@@ -419,14 +422,9 @@ const CreateVehiclePost: React.FC = () => {
           modelId: formData.modelId!,
           year: formData.year,
           odoKm: formData.mileage,
-          vin:
-            formData.licensePlate ||
-            `VF${formData.year}XYZ${Math.random()
-              .toString(36)
-              .substr(2, 6)
-              .toUpperCase()}`,
-          transmission: formData.transmission[0] || "AT",
-          fuelType: formData.fuelType[0] || "EV",
+          vin: formData.vin,
+          transmission: formData.transmission[0],
+          fuelType: formData.fuelType[0],
           origin: "VN",
           bodyStyle: "Scooter",
           seatCount: formData.seats || 2,
@@ -436,11 +434,9 @@ const CreateVehiclePost: React.FC = () => {
         },
       };
 
-      // ✅ Call the new createPost method with proper FormData
       const formDataToSend = new FormData();
       formDataToSend.append("payload", JSON.stringify(payload));
 
-      // Add images
       images.forEach((image) => {
         formDataToSend.append("images", image);
       });
@@ -638,13 +634,16 @@ const CreateVehiclePost: React.FC = () => {
             />
           </div>
           <div>
-            <label className={labelClass}>Biển số xe</label>
+            <label className={labelClass}>Mã VIN *</label>
             <input
-              name="licensePlate"
-              value={formData.licensePlate}
+              name="vin"
+              value={formData.vin}
               onChange={handleChange}
-              placeholder="30A-12345"
+              placeholder="Nhập mã VIN 17 ký tự"
               className={inputClass}
+              required
+              pattern="^[A-HJ-NPR-Z0-9]{17}$"
+              title="VIN phải gồm 17 ký tự chữ và số (không có I, O, Q)"
             />
           </div>
           <div>

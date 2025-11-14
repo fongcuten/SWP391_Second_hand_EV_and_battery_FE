@@ -7,10 +7,6 @@ export interface CreateReportPayload {
 }
 
 export const ReportService = {
-    /**
-     * Submits a new report for a listing.
-     * @param payload The report data.
-     */
     async createReport(payload: CreateReportPayload): Promise<any> {
         try {
             const response = await api.post("/api/reports", payload);

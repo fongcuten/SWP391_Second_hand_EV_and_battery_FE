@@ -36,13 +36,9 @@ export interface User {
 }
 
 export const UserService = {
-    /**
-     * Fetches the current logged-in user's information.
-     */
     async getMyInfo(): Promise<User> {
         try {
             const response = await api.get("/users/myInfo");
-            // ✅ FIX: Return the nested 'result' object from the response
             return response.data.result;
         } catch (error: any) {
             console.error("❌ Error fetching user info:", error);
@@ -50,15 +46,10 @@ export const UserService = {
         }
     },
 
-    /**
-     * Updates the current user's profile information.
-     * @param profileData - The data to update.
-     */
     async updateMyInfo(profileData: Partial<User>): Promise<User> {
         const userId = profileData.userId;
         try {
             const response = await api.put(`/users/${userId}`, profileData);
-            // ✅ FIX: Return the nested 'result' object from the response
             return response.data.result;
         } catch (error: any) {
             console.error("❌ Error updating user info:", error);
@@ -66,17 +57,11 @@ export const UserService = {
         }
     },
 
-    /**
-     * Uploads a new avatar for the current user.
-     * @param file The image file to upload.
-     */
     async uploadAvatar(file: File): Promise<User> {
         try {
             const formData = new FormData();
             formData.append("file", file);
 
-            // ✅ FIX: Removed manual headers. The browser will set the correct
-            // Content-Type with the required boundary for multipart/form-data.
             const response = await api.post("/users/me/avatar", formData);
 
             // Assuming the response contains the updated user object in the 'result' field
@@ -87,9 +72,6 @@ export const UserService = {
         }
     },
 
-    /**
-     * Deletes the current user's avatar.
-     */
     async deleteAvatar(): Promise<void> {
         try {
             await api.delete("/users/me/avatar");

@@ -69,9 +69,6 @@ export const UserPostService = {
     }
   },
 
-  /**
-   * Delete a post by ID
-   */
   deletePost: async (listingId: number): Promise<void> => {
     try {
       await api.delete(`/api/sale-posts/${listingId}`);
@@ -81,9 +78,7 @@ export const UserPostService = {
     }
   },
 
-  /**
-   * Update post status
-   */
+
   async updatePostStatus(listingId: number, status: string): Promise<void> {
     await api.patch(`/sale-posts/${listingId}/status`, { status });
   },
