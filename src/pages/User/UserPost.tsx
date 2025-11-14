@@ -6,7 +6,6 @@ import {
   Upload,
   FileText,
   CheckCircle,
-  AlertCircle,
   Loader2,
   Calendar,
   MapPin,
@@ -57,7 +56,6 @@ export default function UserPosts() {
   const [selectedPost, setSelectedPost] = useState<SalePost | null>(null);
   const [inspectionType, setInspectionType] = useState<InspectionType>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [submittingInspection, setSubmittingInspection] = useState(false); // ✅ Add loading state
 
   // ✅ NEW: Location state for system inspection
@@ -194,29 +192,6 @@ export default function UserPosts() {
     } else {
       toast.warning("Vui lòng chọn file PDF");
     }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    if (file.type === "application/pdf") {
-      setUploadedFile(file);
-    } else {
-      toast.warning("Vui lòng chọn file PDF");
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
   };
 
   const handleRemoveFile = () => {
@@ -855,12 +830,7 @@ export default function UserPosts() {
                   </div>
 
                   {/* File Upload Area */}
-                  <div
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging
-                      ? "border-[#2ECC71] bg-[#2ECC71]/5"
-                      : "border-[#A8E6CF]/60 hover:border-[#2ECC71]/80 hover:bg-[#F7F9F9]"
-                      }`}
-                  >
+                  <div className="border-2 border-dashed rounded-xl p-8 text-center transition-all border-[#A8E6CF]/60 hover:border-[#2ECC71]/80 hover:bg-[#F7F9F9]">
                     <input
                       type="file"
                       id="file-upload"

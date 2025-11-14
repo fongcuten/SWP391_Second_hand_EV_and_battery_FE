@@ -12,7 +12,6 @@ import { motion } from "framer-motion";
 
 const SearchSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState("vehicle");
-  const [priceRange, setPriceRange] = useState([0, 5000000000]);
 
   const vehicleBrands = [
     "VinFast",

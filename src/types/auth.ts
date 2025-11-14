@@ -48,7 +48,7 @@ export interface AuthResponse {
 }
 
 export interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
   rememberMe: boolean;
 }

@@ -1,4 +1,4 @@
-import api, { guestApi } from "../../config/axios"; // ✅ Use guestApi now
+import { guestApi } from "../../config/axios"; 
 
 export interface Brand {
   brandId: number;

@@ -168,5 +168,3 @@ export const PostService = {
     }
   },
 };
-
-export default PostService;

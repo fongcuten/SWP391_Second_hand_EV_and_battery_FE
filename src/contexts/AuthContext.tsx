@@ -4,7 +4,7 @@ import React, {
   useReducer,
   useEffect,
   useCallback,
-  ReactNode,
+  type ReactNode,
 } from "react";
 import type {
   User,

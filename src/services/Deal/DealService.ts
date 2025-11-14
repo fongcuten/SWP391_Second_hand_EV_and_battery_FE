@@ -1,5 +1,12 @@
 import api from "../../config/axios";
 
+export interface PartyInfo {
+    userId: number;
+    username?: string;
+    fullName?: string;
+    phone?: string;
+}
+
 export interface Deal {
     dealId: number;
     offerId: number;
@@ -10,7 +17,9 @@ export interface Deal {
     scheduledAt?: string;
     createdAt?: string;
     updatedAt?: string;
-    // ...other fields if any...
+    buyer?: PartyInfo;
+    seller?: PartyInfo;
+    listingId?: number;
 }
 
 interface DealListResponse {
@@ -32,7 +41,7 @@ export interface AssignSitePayload {
     scheduledAt?: string; // ISO string
 }
 
-export const DealService = {
+const DealService = {
     async getDealsByBuyer(buyerId: number): Promise<Deal[]> {
         try {
             const res = await api.get<DealListResponse>(`/api/deals/buyer/${buyerId}`);
@@ -76,7 +85,6 @@ export const DealService = {
         try {
             const res = await api.post(`/api/deals/${dealId}/reject`);
 
-            // If API uses wrapper { code, message, result }
             if (res.data && typeof res.data === "object" && "code" in res.data) {
                 const code = (res.data as any).code;
                 if (code !== 0 && code !== 1000) {
@@ -115,12 +123,10 @@ export const DealService = {
 
     async checkoutDeal(dealId: number): Promise<{ sessionId: string; url: string }> {
         try {
-            // send explicit empty JSON body (some backends reject POST with no body)
             const res = await api.post(`/api/deals/${dealId}/checkout`, {});
 
             console.log(`📦 checkout res status=${res.status}`, res.data);
 
-            // If API uses wrapper { code, result }
             if (res.data && typeof res.data === "object" && "code" in res.data) {
                 const code = (res.data as any).code;
                 if (code !== 0 && code !== 1000) {
@@ -130,7 +136,6 @@ export const DealService = {
                 return { sessionId: result.sessionId, url: result.url };
             }
 
-            // Plain response { sessionId, url }
             if (res.data && typeof res.data === "object") {
                 const sd = res.data as any;
                 if (sd.sessionId || sd.url) return { sessionId: sd.sessionId, url: sd.url };
@@ -140,7 +145,6 @@ export const DealService = {
         } catch (error: any) {
             console.error("❌ Error creating checkout session:", error);
             console.error("▶ server response data:", error.response?.data);
-            // surface server message when available
             const serverMsg = error.response?.data?.message || error.response?.data || error.message;
             throw new Error(String(serverMsg));
         }

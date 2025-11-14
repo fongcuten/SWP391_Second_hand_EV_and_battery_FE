@@ -10,16 +10,16 @@ const ChangePasswordPage = () => {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const handleChange = (e) => {
+    const handleChange = (e: React.FormEvent<HTMLInputElement>) => {
         setFormData({
             ...formData,
-            [e.target.name]: e.target.value,
+            [e.currentTarget.name]: e.currentTarget.value,
         });
         setError("");
         setSuccess("");
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (formData.newPassword !== formData.confirmPassword) {
             setError("Mật khẩu xác nhận không khớp!");

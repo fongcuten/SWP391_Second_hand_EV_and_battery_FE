@@ -28,7 +28,7 @@ interface PaymentResultData {
 
 export const PaymentResult = () => {
     const navigate = useNavigate();
-    const { refreshUser } = useAuth();
+    const auth = useAuth();
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [paymentData, setPaymentData] = useState<PaymentResultData | null>(null);
@@ -73,9 +73,15 @@ export const PaymentResult = () => {
 
                     // If activation successful
                     if (result || response.status === 200) {
-                        // Refresh user data to get updated plan info
-                        if (refreshUser) {
-                            await refreshUser();
+                        // Refresh user data to get updated plan info if the context exposes refreshUser
+                        if (auth && typeof (auth as any).refreshUser === "function") {
+                            try {
+                                await (auth as any).refreshUser();
+                            } catch (err) {
+                                console.warn("refreshUser failed:", err);
+                            }
+                        } else {
+                            console.warn("refreshUser not available on auth context; skipping refresh");
                         }
 
                         setPaymentData({

@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Heart,
-  Eye,
   Calendar,
   MapPin,
-  Star,
   Filter,
   Search,
   Grid,
@@ -14,7 +12,7 @@ import {
   Share2,
   Loader2,
 } from "lucide-react";
-import { FavoriteService, type FavoriteItem as ApiFavoriteItem } from "../../services/FavoriteService";
+import { FavoriteService } from "../../services/FavoriteService";
 import { locationService } from "../../services/locationService";
 import { toast } from "react-toastify";
 
@@ -26,9 +24,7 @@ interface FavoriteItem {
   image: string;
   location: string;
   datePosted: string;
-  views: number;
   isFavorite: boolean;
-  rating: number;
   type: "vehicle" | "battery";
   brand: string;
   model: string;
@@ -135,9 +131,7 @@ const FavoritesPage: React.FC = () => {
             image: item.image || "https://via.placeholder.com/300x200?text=No+Image",
             location, // ✅ Now contains real address
             datePosted: item.createdAt || new Date().toISOString(),
-            views: item.views || 0,
             isFavorite: true,
-            rating: item.rating || 0,
             type: isVehicle ? "vehicle" : "battery",
             brand: item.brand || "Unknown",
             model: item.model || "Unknown",
@@ -223,8 +217,6 @@ const FavoritesPage: React.FC = () => {
           return a.price - b.price;
         case "price-high":
           return b.price - a.price;
-        case "rating":
-          return b.rating - a.rating;
         default:
           return 0;
       }
@@ -494,25 +486,6 @@ const FavoritesPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
-                  {(item.rating > 0 || item.views > 0) && (
-                    <div className="flex items-center space-x-3 mb-3">
-                      {item.rating > 0 && (
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span className="text-sm font-medium text-gray-900 ml-1">
-                            {item.rating.toFixed(1)}
-                          </span>
-                        </div>
-                      )}
-                      {item.views > 0 && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Eye className="h-4 w-4 mr-1" />
-                          <span>{item.views.toLocaleString()}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   <div className="flex items-center justify-between mb-3">
                     <div>

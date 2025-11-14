@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Tag, ArrowRight, ArrowLeft, Loader2, Inbox, HelpCircle, Car, Battery, Check, X } from "lucide-react";
+import { Tag, ArrowRight, Loader2, Inbox, Car, Battery, Check, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { OfferService, type Offer, type OfferStatus } from "../../services/Offer/OfferService";
 import { authService } from "../../services/authService";

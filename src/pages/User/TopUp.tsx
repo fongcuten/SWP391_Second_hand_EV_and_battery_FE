@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000, 1000000, 2000000];
 

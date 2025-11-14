@@ -49,7 +49,7 @@ export default function Authenticate() {
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.code !== 1000) {
-          throw new Error(data.message || Đổi code thất bại (${res.status}));
+          throw new Error(data.message || `Đổi code thất bại (${res.status})`);
         }
 
         const token: string | undefined = data?.result?.token;
@@ -69,7 +69,7 @@ export default function Authenticate() {
             const meRes = await fetch(
               "http://localhost:8080/evplatform/users/me",
               {
-                headers: { Authorization: Bearer ${token} },
+                headers: { Authorization: `Bearer ${token}` },
               }
             );
             if (meRes.ok) {

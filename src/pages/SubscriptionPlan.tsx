@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 import { AnimatedSection } from "../components/ui/AnimatedSection";
 import api from "../config/axios";
 import { useAuth } from "../contexts/AuthContext";
-import { UserSubscriptionService } from "../services/User/UserSubscriptionService"; // ✅ Imported
 
 // ===== TYPES =====
 

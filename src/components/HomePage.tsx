@@ -1,7 +1,6 @@
 import React from "react";
 import Hero from "./Hero";
 import Features from "./Features";
-import SearchSection from "./SearchSection";
 import FeaturedProducts from "./FeaturedProducts";
 
 const HomePage: React.FC = () => {

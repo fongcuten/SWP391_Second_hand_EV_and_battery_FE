@@ -3,7 +3,7 @@ import React, {
   useContext,
   useState,
   useCallback,
-  ReactNode,
+  type ReactNode,
 } from "react";
 import Toast from "../components/Toast";
 

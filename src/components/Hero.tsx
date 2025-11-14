@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowRight, Car, Battery, Star, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import carImage from "../images/image_2025-09-17_105545579-removebg-preview (1) 1.png";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const Hero: React.FC = () => {
   return (

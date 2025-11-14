@@ -4,7 +4,7 @@ import {
   type Province,
   type District,
   type Ward,
-} from "../../services/locationService";
+} from "../services/locationService";
 
 interface LocationSelectorProps {
   provinceCode: number | null;

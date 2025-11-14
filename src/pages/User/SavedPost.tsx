@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Heart, MessageCircle } from "lucide-react";
 
 const savedPosts = Array.from({ length: 40 }, (_, i) => ({
@@ -22,7 +22,7 @@ export default function SavedPostsPage() {
     currentPage * postsPerPage
   );
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 

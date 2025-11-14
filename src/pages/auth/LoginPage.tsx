@@ -3,9 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Eye,
   EyeOff,
-  Mail,
   Lock,
-  AlertCircle,
   CheckCircle,
   User,
 } from "lucide-react";
@@ -13,8 +11,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import type { LoginFormData } from "../../types/auth";
 import { OAuthConfig } from "../../config/configuration";
-import api from "../../config/axios";
-import { setToken } from "../../services/localStorageService";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();

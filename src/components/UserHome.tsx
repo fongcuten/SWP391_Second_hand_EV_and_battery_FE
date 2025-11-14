@@ -1,4 +1,3 @@
-import React, { useMemo, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import ProfileCard from "../components/ProfileCard";
 import { Outlet } from "react-router-dom";

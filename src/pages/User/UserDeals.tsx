@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Tag, Loader2, Inbox, Calendar, Link as LinkIcon, X } from "lucide-react";
+import { Tag, Loader2, Inbox, Calendar, X } from "lucide-react";
 import { toast } from "react-toastify";
 import DealService, { type Deal, type AssignSitePayload } from "../../services/Deal/DealService";
 import { authService } from "../../services/authService";
 import PlatformSiteService, { type PlatformSite } from "../../services/Deal/PlatformSiteService";
 import { useLocation, useNavigate } from "react-router-dom";
+import RatingStar from "./rating/RatingStar";
+import { reviewService } from "../../services/Review/ReviewService";
 
 type TabId = "seller" | "buyer";
 
@@ -32,7 +34,8 @@ const DealCard: React.FC<{
     isSellerView: boolean;
     onAssigned?: (dealId: number, updated: Deal) => void;
     onOpenAssignModal?: (deal: Deal) => void;
-}> = ({ deal, isSellerView, onAssigned, onOpenAssignModal }) => {
+    onOpenReview?: (deal: Deal) => void;
+}> = ({ deal, isSellerView, onAssigned, onOpenAssignModal, onOpenReview }) => {
     const [loadingAssign, setLoadingAssign] = useState(false);
     const [loadingReject, setLoadingReject] = useState(false);
     const [loadingCheckout, setLoadingCheckout] = useState(false);
@@ -46,7 +49,8 @@ const DealCard: React.FC<{
         }
         const balanceDueInput = prompt("Nhập số tiền phải trả (VNĐ) (ví dụ: 1000000):", deal.balanceDue ? String(deal.balanceDue) : "");
         const balanceDue = balanceDueInput ? Number(balanceDueInput) : undefined;
-        const scheduledAt = prompt("Nhập thời gian lịch (ISO hoặc yyyy-mm-dd HH:MM):", deal.scheduledAt || new Date().toISOString());
+        const scheduledAtRaw = prompt("Nhập thời gian lịch (ISO hoặc yyyy-mm-dd HH:MM):", deal.scheduledAt || new Date().toISOString());
+        const scheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw).toISOString() : undefined;
 
         const payload: AssignSitePayload = {
             offerId: deal.offerId,
@@ -161,7 +165,7 @@ const DealCard: React.FC<{
 
                 {/* Buyer can checkout when awaiting confirmation */}
                 {!isSellerView && deal.status === "AWAITING_CONFIRMATION" && (
-                    
+
                     <button
                         onClick={handleCheckout}
                         disabled={loadingCheckout}
@@ -172,14 +176,24 @@ const DealCard: React.FC<{
                 )}
 
                 {!isSellerView && deal.status === "AWAITING_CONFIRMATION" && (
-                    
+
                     <button
-                            onClick={handleReject}
-                            disabled={loadingReject}
-                            className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50"
-                        >
-                            {loadingReject ? <Loader2 className="animate-spin" size={14} /> : "Từ chối"}
-                        </button>
+                        onClick={handleReject}
+                        disabled={loadingReject}
+                        className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    >
+                        {loadingReject ? <Loader2 className="animate-spin" size={14} /> : "Từ chối"}
+                    </button>
+                )}
+
+                {/* Allow buyer to review seller after deal completes */}
+                {!isSellerView && deal.status === "COMPLETED" && (
+                    <button
+                        onClick={() => onOpenReview?.(deal)}
+                        className="px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600"
+                    >
+                        Đánh giá
+                    </button>
                 )}
 
             </div>
@@ -204,7 +218,13 @@ export default function UserDeals() {
     const [balanceDueInput, setBalanceDueInput] = useState<string>("");
     const [scheduledAtInput, setScheduledAtInput] = useState<string>("");
 
-    // reusable loader so we can refresh after confirm/cancel
+    // review modal state
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [selectedDealForReview, setSelectedDealForReview] = useState<Deal | null>(null);
+    const [reviewRating, setReviewRating] = useState<number>(0);
+    const [reviewComment, setReviewComment] = useState<string>("");
+    const [submittingReview, setSubmittingReview] = useState(false);
+
     const loadDeals = async () => {
         setLoading(true);
         const currentUser = authService.getCurrentUser();
@@ -336,6 +356,54 @@ export default function UserDeals() {
         }
     };
 
+    const openReviewModal = (deal: Deal) => {
+        setSelectedDealForReview(deal);
+        setReviewRating(0);
+        setReviewComment("");
+        setIsReviewModalOpen(true);
+    };
+
+    const closeReviewModal = () => {
+        setIsReviewModalOpen(false);
+        setSelectedDealForReview(null);
+        setReviewRating(0);
+        setReviewComment("");
+    };
+
+    const submitReview = async () => {
+        if (!selectedDealForReview) return;
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) {
+            toast.error("Vui lòng đăng nhập để gửi đánh giá.");
+            return;
+        }
+        if (reviewRating <= 0) {
+            toast.warning("Vui lòng chọn số sao đánh giá.");
+            return;
+        }
+
+        setSubmittingReview(true);
+        try {
+            // buyer reviews seller
+            const payload = {
+                dealId: selectedDealForReview.dealId,
+                authorId: Number(currentUser.id),
+                targetId: Number(selectedDealForReview.seller?.userId ?? 0),
+                rating: reviewRating,
+                comment: reviewComment?.trim(),
+            };
+            await reviewService.createReview(payload);
+            toast.success("Đã gửi đánh giá. Cảm ơn bạn!");
+            closeReviewModal();
+            await loadDeals(); // refresh lists if needed
+        } catch (err: any) {
+            console.error("Submit review failed", err);
+            toast.error(err?.message || "Gửi đánh giá thất bại.");
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50 rounded-2xl shadow-lg border border-gray-200/80 mb-10">
             <div className="px-6 py-5 bg-white border-b border-gray-200 flex items-center justify-between rounded-t-2xl">
@@ -382,7 +450,14 @@ export default function UserDeals() {
                     </div>
                 ) : (
                     currentDeals.map(d => (
-                        <DealCard key={d.dealId} deal={d} isSellerView={activeTab === "seller"} onAssigned={handleAssigned} onOpenAssignModal={openAssignModal} />
+                        <DealCard
+                            key={d.dealId}
+                            deal={d}
+                            isSellerView={activeTab === "seller"}
+                            onAssigned={handleAssigned}
+                            onOpenAssignModal={openAssignModal}
+                            onOpenReview={openReviewModal} // <-- pass handler so modal opens
+                        />
                     ))
                 )}
             </div>
@@ -452,6 +527,83 @@ export default function UserDeals() {
                                 Xác nhận & Lên lịch
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Review Modal */}
+            {isReviewModalOpen && selectedDealForReview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeReviewModal} />
+
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full mx-auto overflow-hidden">
+                        <header className="px-6 py-4 flex items-center justify-between border-b">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-800">Đánh giá người bán</h3>
+                                <p className="text-sm text-gray-500">Giao dịch #{selectedDealForReview.dealId}</p>
+                            </div>
+                            <button
+                                onClick={closeReviewModal}
+                                aria-label="Close review"
+                                className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
+                            >
+                                <X />
+                            </button>
+                        </header>
+
+                        <main className="p-6 space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+                                    {selectedDealForReview.seller?.username?.charAt(0)?.toUpperCase() ?? "U"}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-800">{selectedDealForReview.seller?.fullName || selectedDealForReview.seller?.username || "Người bán"}</p>
+                                    <p className="text-xs text-gray-500">ID người bán: {selectedDealForReview.seller?.userId ?? "—"}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Đánh giá <span className="text-red-500">*</span></label>
+                                <div className="bg-gray-50 p-3 rounded">
+                                    <RatingStar
+                                        value={reviewRating}
+                                        isEdit
+                                        isHalf
+                                        valueShow
+                                        size={24}
+                                        onChange={(v) => setReviewRating(v)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Nhận xét</label>
+                                <textarea
+                                    rows={6}
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                    placeholder="Mô tả trải nghiệm của bạn với người bán..."
+                                />
+                                <div className="text-xs text-gray-400 mt-1 text-right">{Math.min(500, reviewComment.length)}/500</div>
+                            </div>
+                        </main>
+
+                        <footer className="px-6 py-4 border-t flex items-center justify-end gap-3">
+                            <button
+                                onClick={closeReviewModal}
+                                className="px-4 py-2 rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={submitReview}
+                                disabled={submittingReview || reviewRating <= 0}
+                                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {submittingReview ? <Loader2 className="animate-spin" size={16} /> : "Gửi đánh giá"}
+                            </button>
+                        </footer>
                     </div>
                 </div>
             )}

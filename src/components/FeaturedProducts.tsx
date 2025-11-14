@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, Battery, Calendar, MapPin, Star, Eye, Car, Zap } from "lucide-react";
+import { Heart,  MapPin,Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { ListPostService, type ListPostSummary } from "../services/Vehicle/ElectricVehiclesPageService";
 import { locationService } from "../services/locationService";

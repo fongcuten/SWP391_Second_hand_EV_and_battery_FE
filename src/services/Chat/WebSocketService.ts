@@ -1,7 +1,6 @@
 // SWP391_Second_hand_EV_and_battery_FE/src/services/Chat/WebSocketService.ts
 // services/Chat/WebSocketService.ts
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { type ChatMessage } from "./ChatService";
 
 export class WebSocketService {
