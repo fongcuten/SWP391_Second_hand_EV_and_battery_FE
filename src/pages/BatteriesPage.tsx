@@ -17,7 +17,11 @@ import {
 import { motion } from "framer-motion";
 import BatteryCard from "../components/BatteryCard";
 import type { Battery, BatteryFilter, BatterySort } from "../types/battery";
-import api from "../config/axios";
+import {
+  BatteriesPageService,
+  type ListPostSummary,
+} from "../services/Vehicle/BatteriesPageService";
+import { BatteryDetailService } from "../services/Vehicle/BatteryDetailsService";
 import {
   locationService,
   type Province,
@@ -60,6 +64,47 @@ const formatPrice = (price: number): string => {
   return `${price.toLocaleString("vi-VN")} đ`;
 };
 
+// Helper function to map chemistryName to Battery type (same logic as BatteryDetailPage)
+const mapChemistryToType = (chemistryName?: string): Battery["type"] => {
+  if (!chemistryName) return "other";
+  const c = String(chemistryName).toUpperCase().trim();
+
+  // Handle exact matches first
+  if (c === "LFP" || c === "LITHIUM IRON PHOSPHATE") return "LFP";
+  if (c === "NMC" || c === "NICKEL MANGANESE COBALT") return "NMC";
+  if (c === "NCA" || c === "NICKEL COBALT ALUMINUM") return "NMC"; // NCA is similar to NMC
+  if (c === "LTO" || c === "LITHIUM TITANATE") return "LFP"; // LTO is similar to LFP
+
+  // Handle variations
+  if (c.includes("LFP") || c.includes("IRON PHOSPHATE")) return "LFP";
+  if (c.includes("NMC") || c.includes("NICKEL MANGANESE")) return "NMC";
+  if (c.includes("NCA") || c.includes("NICKEL COBALT")) return "NMC";
+  if (c.includes("LTO") || c.includes("TITANATE")) return "LFP";
+
+  // Handle lithium-ion variations (including "Li-ion" with hyphen)
+  if (
+    c.includes("LI-ION") ||
+    c.includes("LITHIUM-ION") ||
+    c.includes("LITHIUM ION") ||
+    (c.includes("ION") && !c.includes("POLY"))
+  ) {
+    return "lithium-ion";
+  }
+
+  // Handle lithium-polymer
+  if (
+    c.includes("POLY") ||
+    c.includes("POLYMER") ||
+    c.includes("LITHIUM-POLYMER") ||
+    c.includes("LITHIUM POLYMER")
+  ) {
+    return "lithium-polymer";
+  }
+
+  // Default fallback
+  return "other";
+};
+
 const BatteriesPage: React.FC = () => {
   const navigate = useNavigate();
   const [batteries, setBatteries] = useState<Battery[]>([]);
@@ -90,15 +135,55 @@ const BatteriesPage: React.FC = () => {
     const loadBatteries = async () => {
       setLoading(true);
       try {
-        const resp = await api.get("/api/sale-posts/batteries", {
-          params: {
-            page: 0,
-            size: 20,
-            sortBy: "createdAt,desc",
-          },
+        const response = await BatteriesPageService.getBatteryPosts(0, 20, {
+          // Don't send sortBy for initial load, let backend use default
         });
+        console.log("🔋 BatteriesPage - API Response:", response);
+        console.log(
+          "🔋 BatteriesPage - First item sample:",
+          response.content?.[0]
+        );
+
         const mapped: Battery[] = await Promise.all(
-          (resp.data?.content || []).map(async (p: any) => {
+          (response.content || []).map(async (p: ListPostSummary) => {
+            console.log(`🔋 Processing battery ${p.listingId}:`, {
+              chemistryName: p.chemistryName,
+              productName: p.productName,
+              capacityKwh: p.capacityKwh,
+              sohPercent: p.sohPercent,
+              cycleCount: p.cycleCount,
+              rawData: p,
+            });
+
+            // If chemistryName is not in list response, fetch detail
+            let chemistryName = p.chemistryName;
+            let capacityKwh = p.capacityKwh;
+            let sohPercent = p.sohPercent;
+            let cycleCount = p.cycleCount;
+
+            if (!chemistryName) {
+              try {
+                console.log(
+                  `🔋 Fetching detail for battery ${p.listingId} to get chemistryName...`
+                );
+                const detail = await BatteryDetailService.getBatteryDetail(
+                  p.listingId
+                );
+                chemistryName = detail.batteryPost?.chemistryName;
+                capacityKwh = detail.batteryPost?.capacityKwh;
+                sohPercent = detail.batteryPost?.sohPercent;
+                cycleCount = detail.batteryPost?.cycleCount;
+                console.log(
+                  `✅ Battery ${p.listingId} detail fetched - chemistryName: "${chemistryName}"`
+                );
+              } catch (detailError) {
+                console.warn(
+                  `⚠️ Could not fetch detail for battery ${p.listingId}:`,
+                  detailError
+                );
+              }
+            }
+
             let fullAddress = p.address || "";
             // If we have location codes, get full address
             if (p.provinceCode && p.districtCode && p.wardCode) {
@@ -116,15 +201,20 @@ const BatteriesPage: React.FC = () => {
                 );
               }
             }
+            const mappedType = mapChemistryToType(chemistryName);
+            console.log(
+              `🔋 Battery ${p.listingId} - chemistryName: "${chemistryName}" -> type: "${mappedType}"`
+            );
+
             return {
               id: String(p.listingId),
               brand: p.productName || "Pin xe điện",
               model: "",
-              type: "LFP",
-              capacity: 0,
+              type: mappedType, // Map chemistryName to type
+              capacity: capacityKwh || 0,
               voltage: 0,
-              currentHealth: 100,
-              cycleCount: 0,
+              currentHealth: sohPercent || 100,
+              cycleCount: cycleCount || 0,
               price: p.askPrice || 0,
               originalPrice: p.askPrice || 0,
               manufactureYear: new Date(
@@ -137,18 +227,18 @@ const BatteriesPage: React.FC = () => {
               images: p.coverThumb ? [p.coverThumb] : [],
               features: [],
               location: fullAddress,
-              sellerId: p.seller || "",
-              sellerName: p.seller || "",
+              sellerId: p.sellerUsername || "",
+              sellerName: p.sellerUsername || "",
               sellerPhone: "",
               isAvailable: true,
               createdAt: p.createdAt || new Date().toISOString(),
               updatedAt: p.createdAt || new Date().toISOString(),
-              priorityLevel:
-                p.priorityLevel ?? p.priority_level ?? p.priority ?? 1,
+              priorityLevel: p.priorityLevel ?? 1,
               weight: 0,
               dimensions: { length: 0, width: 0, height: 0 },
               chargingSpeed: 0,
               dischargingSpeed: 0,
+              inspectionStatus: p.inspectionStatus,
               // Add location codes for filtering
               provinceCode: p.provinceCode,
               districtCode: p.districtCode,
@@ -161,7 +251,8 @@ const BatteriesPage: React.FC = () => {
           })
         );
         setBatteries(mapped);
-      } catch {
+      } catch (error) {
+        console.error("Error loading batteries:", error);
         setBatteries([]);
       } finally {
         setLoading(false);
@@ -228,23 +319,39 @@ const BatteriesPage: React.FC = () => {
 
     // Other filters
     if (filters.type) {
+      const filterType = filters.type!;
+      console.log("🔍 Filtering by type:", filterType);
       filtered = filtered.filter((battery) => {
-        // Map filter values to battery types
-        const typeMap: Record<string, string[]> = {
-          "Li-ion": ["lithium-ion", "ion"],
-          LFP: ["LFP", "lfp"],
-          NMC: ["NMC", "nmc"],
-          NCA: ["NCA", "nca"],
-          LTO: ["LTO", "lto"],
+        // Map filter values (from dropdown) to battery types (from mapped data)
+        const filterToTypeMap: Record<string, Battery["type"][]> = {
+          "Li-ion": ["lithium-ion"],
+          LFP: ["LFP"],
+          NMC: ["NMC"],
+          NCA: ["NMC"], // NCA maps to NMC type
+          LTO: ["LFP"], // LTO maps to LFP type
         };
-        const filterType = filters.type!;
-        if (typeMap[filterType]) {
-          return typeMap[filterType].some((t) =>
-            battery.type.toLowerCase().includes(t.toLowerCase())
+
+        // Get the expected types for this filter
+        const expectedTypes = filterToTypeMap[filterType];
+        const matches = expectedTypes
+          ? expectedTypes.includes(battery.type)
+          : battery.type.toLowerCase() === filterType.toLowerCase();
+
+        if (!matches) {
+          console.log(
+            `❌ Battery ${battery.id} (${battery.brand}) - type: "${battery.type}" does NOT match filter: "${filterType}"`
+          );
+        } else {
+          console.log(
+            `✅ Battery ${battery.id} (${battery.brand}) - type: "${battery.type}" matches filter: "${filterType}"`
           );
         }
-        return battery.type.toLowerCase().includes(filterType.toLowerCase());
+
+        return matches;
       });
+      console.log(
+        `🔍 After type filter (${filterType}): ${filtered.length} batteries`
+      );
     }
     if (filters.minPrice) {
       filtered = filtered.filter(

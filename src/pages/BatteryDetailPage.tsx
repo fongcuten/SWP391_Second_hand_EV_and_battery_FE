@@ -28,7 +28,11 @@ import { FavoriteService } from "../services/FavoriteService";
 import { authService } from "../services/authService";
 import { ChatService } from "../services/Chat/ChatService";
 import type { Battery } from "../types/battery";
-import { ListPostService } from "../services/Vehicle/ElectricVehiclesPageService";
+import {
+  BatteryDetailService,
+  type BatteryDetail,
+  type BatteryPost,
+} from "../services/Vehicle/BatteryDetailsService";
 import { locationService } from "../services/locationService";
 import { ReportService } from "../services/Report/ReportService";
 import { OfferService } from "../services/Offer/OfferService";
@@ -66,24 +70,101 @@ const BatteryDetailPage: React.FC = () => {
       setLoading(true);
       try {
         const listingId = Number(id);
-        const data: any = await ListPostService.getPostById(listingId);
+        const data: BatteryDetail = await BatteryDetailService.getBatteryDetail(
+          listingId
+        );
         const media = Array.isArray(data.media) ? data.media : [];
-        const batteryPost = data.batteryPost || data.battery || {};
+        const batteryPost: BatteryPost | null = data.batteryPost;
         const images: string[] = media
-          .map((m: any) => m.urlLarge || m.url || m.urlThumb)
+          .map((m) => m.urlLarge || m.url || m.urlThumb)
           .filter(Boolean);
-        const chemistry = batteryPost.chemistryName || "BATTERY";
+        const chemistry = batteryPost?.chemistryName || "BATTERY";
+        console.log("🔋 Battery chemistry from API:", chemistry);
         const toType = (chem: string): Battery["type"] => {
-          const c = String(chem).toUpperCase();
-          if (c.includes("LFP")) return "LFP";
-          if (c.includes("NMC")) return "NMC";
-          if (c.includes("ION")) return "lithium-ion";
-          if (c.includes("POLY")) return "lithium-polymer";
+          const c = String(chem).toUpperCase().trim();
+          console.log("🔋 Processing chemistry:", chem, "-> normalized:", c);
+
+          // Handle exact matches first
+          if (c === "LFP" || c === "LITHIUM IRON PHOSPHATE") {
+            console.log("✅ Matched LFP");
+            return "LFP";
+          }
+          if (c === "NMC" || c === "NICKEL MANGANESE COBALT") {
+            console.log("✅ Matched NMC");
+            return "NMC";
+          }
+          if (c === "NCA" || c === "NICKEL COBALT ALUMINUM") {
+            console.log("✅ Matched NCA -> mapping to NMC");
+            return "NMC"; // NCA is similar to NMC, use NMC type
+          }
+          if (c === "LTO" || c === "LITHIUM TITANATE") {
+            console.log("✅ Matched LTO -> mapping to LFP");
+            return "LFP"; // LTO is similar to LFP, use LFP type
+          }
+
+          // Handle variations
+          if (c.includes("LFP") || c.includes("IRON PHOSPHATE")) {
+            console.log("✅ Matched LFP (variation)");
+            return "LFP";
+          }
+          if (c.includes("NMC") || c.includes("NICKEL MANGANESE")) {
+            console.log("✅ Matched NMC (variation)");
+            return "NMC";
+          }
+          if (c.includes("NCA") || c.includes("NICKEL COBALT")) {
+            console.log("✅ Matched NCA (variation) -> mapping to NMC");
+            return "NMC";
+          }
+          if (c.includes("LTO") || c.includes("TITANATE")) {
+            console.log("✅ Matched LTO (variation) -> mapping to LFP");
+            return "LFP";
+          }
+
+          // Handle lithium-ion variations (including "Li-ion" with hyphen)
+          if (
+            c.includes("LI-ION") ||
+            c.includes("LITHIUM-ION") ||
+            c.includes("LITHIUM ION") ||
+            (c.includes("ION") && !c.includes("POLY"))
+          ) {
+            console.log("✅ Matched Lithium-Ion");
+            return "lithium-ion";
+          }
+
+          // Handle lithium-polymer
+          if (
+            c.includes("POLY") ||
+            c.includes("POLYMER") ||
+            c.includes("LITHIUM-POLYMER") ||
+            c.includes("LITHIUM POLYMER")
+          ) {
+            console.log("✅ Matched Lithium-Polymer");
+            return "lithium-polymer";
+          }
+
+          // Default fallback - try to use the original chemistry name if it's a valid type
+          const normalized = c.replace(/[^A-Z]/g, "");
+          if (normalized === "LFP") {
+            console.log("✅ Matched LFP (normalized)");
+            return "LFP";
+          }
+          if (normalized === "NMC") {
+            console.log("✅ Matched NMC (normalized)");
+            return "NMC";
+          }
+
+          // If still not matched, return "other" but log for debugging
+          console.warn(
+            "⚠️ Unknown chemistry type:",
+            chem,
+            "-> defaulting to 'other'. Will display original chemistry name:",
+            chem
+          );
           return "other" as any;
         };
 
         // Load full address from location codes
-        let fullAddressText = data.address || "";
+        let fullAddressText = "";
         if (data.provinceCode && data.districtCode && data.wardCode) {
           try {
             fullAddressText = await locationService.getFullAddress(
@@ -94,8 +175,10 @@ const BatteryDetailPage: React.FC = () => {
             );
           } catch (locationError) {
             console.error("Error loading full address:", locationError);
-            fullAddressText = data.address || "Chưa cung cấp địa chỉ";
+            fullAddressText = "Chưa cung cấp địa chỉ";
           }
+        } else {
+          fullAddressText = "Chưa cung cấp địa chỉ";
         }
         setFullAddress(fullAddressText);
 
@@ -104,10 +187,10 @@ const BatteryDetailPage: React.FC = () => {
           brand: chemistry,
           model: data.title || "Pin xe điện",
           type: toType(chemistry),
-          capacity: batteryPost.capacityKwh ?? 0,
+          capacity: batteryPost?.capacityKwh ?? 0,
           voltage: 0,
-          currentHealth: batteryPost.sohPercent ?? 0,
-          cycleCount: batteryPost.cycleCount ?? 0,
+          currentHealth: batteryPost?.sohPercent ?? 0,
+          cycleCount: batteryPost?.cycleCount ?? 0,
           price: data.askPrice ?? 0,
           originalPrice: data.askPrice ?? 0,
           manufactureYear: new Date(data.createdAt || Date.now()).getFullYear(),
@@ -118,9 +201,9 @@ const BatteryDetailPage: React.FC = () => {
           images,
           features: [],
           location: fullAddressText,
-          sellerId: String(data.sellerId ?? data.seller_id ?? data.seller ?? ""),
-          sellerName: data.sellerUsername || data.seller || "",
-          sellerPhone: data.sellerPhone || data.seller_phone || data.phone || "",
+          sellerId: String(data.sellerId),
+          sellerName: data.sellerUsername || "",
+          sellerPhone: data.sellerPhone || "",
           isAvailable: true,
           createdAt: data.createdAt || new Date().toISOString(),
           updatedAt: data.createdAt || new Date().toISOString(),
@@ -132,6 +215,7 @@ const BatteryDetailPage: React.FC = () => {
         };
         setBattery(mapped);
       } catch (e) {
+        console.error("Error loading battery:", e);
         setBattery(null);
       } finally {
         setLoading(false);
@@ -199,7 +283,7 @@ const BatteryDetailPage: React.FC = () => {
     return `${phone.substring(0, 2)}******${phone.substring(phone.length - 2)}`;
   };
 
-  const getBatteryTypeText = (type: string) => {
+  const getBatteryTypeText = (type: string, chemistryName?: string) => {
     switch (type) {
       case "lithium-ion":
         return "Lithium-Ion";
@@ -209,8 +293,12 @@ const BatteryDetailPage: React.FC = () => {
         return "LFP (Lithium Iron Phosphate)";
       case "NMC":
         return "NMC (Nickel Manganese Cobalt)";
+      case "other":
+        // If type is "other", show the original chemistry name from backend
+        return chemistryName || battery?.brand || "Khác";
       default:
-        return type;
+        // For unknown types, try to show the chemistry name if available
+        return chemistryName || type;
     }
   };
 
@@ -245,7 +333,10 @@ const BatteryDetailPage: React.FC = () => {
     } catch (error: any) {
       if (error?.response?.status === 409) {
         navigate("/chat", {
-          state: { sellerId: Number(battery.sellerId), sellerName: battery.sellerName },
+          state: {
+            sellerId: Number(battery.sellerId),
+            sellerName: battery.sellerName,
+          },
         });
       } else {
         toast.error("Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
@@ -305,7 +396,10 @@ const BatteryDetailPage: React.FC = () => {
       toast.success("Đã gửi trả giá thành công!");
       handleCloseOfferModal();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Không thể gửi trả giá. Vui lòng thử lại sau.");
+      toast.error(
+        error.response?.data?.message ||
+          "Không thể gửi trả giá. Vui lòng thử lại sau."
+      );
     } finally {
       setIsSubmittingOffer(false);
     }
@@ -335,12 +429,19 @@ const BatteryDetailPage: React.FC = () => {
           console.warn("Verify favorite failed:", verifyErr);
         }
 
-        if (result && typeof result === "object" && "code" in result && result.code !== 0) {
+        if (
+          result &&
+          typeof result === "object" &&
+          "code" in result &&
+          result.code !== 0
+        ) {
           toast.success("Đã thêm vào danh sách yêu thích");
         }
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại");
+      toast.error(
+        err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại"
+      );
     } finally {
       setIsAddingFavorite(false);
     }
@@ -412,7 +513,10 @@ const BatteryDetailPage: React.FC = () => {
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.");
       handleCloseReportModal();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || "Không thể gửi báo cáo. Vui lòng thử lại sau.");
+      toast.error(
+        e.response?.data?.message ||
+          "Không thể gửi báo cáo. Vui lòng thử lại sau."
+      );
     } finally {
       setIsSubmittingReport(false);
     }
@@ -471,8 +575,9 @@ const BatteryDetailPage: React.FC = () => {
               <button
                 onClick={handleToggleFavorite}
                 disabled={isAddingFavorite}
-                className={`p-2 rounded-full hover:bg-gray-100 transition ${isFavorite ? "text-red-500" : "text-gray-400"
-                  } ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`p-2 rounded-full hover:bg-gray-100 transition ${
+                  isFavorite ? "text-red-500" : "text-gray-400"
+                } ${isAddingFavorite ? "opacity-50 cursor-not-allowed" : ""}`}
                 title={isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
               >
                 {isAddingFavorite ? (
@@ -544,10 +649,11 @@ const BatteryDetailPage: React.FC = () => {
                       <button
                         key={`${image}-${index}`}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${selectedImageIndex === index
-                          ? "ring-2 ring-blue-500"
-                          : "hover:ring-2 hover:ring-gray-300"
-                          }`}
+                        className={`relative w-full h-20 bg-gray-200 rounded-lg overflow-hidden transition ${
+                          selectedImageIndex === index
+                            ? "ring-2 ring-blue-500"
+                            : "hover:ring-2 hover:ring-gray-300"
+                        }`}
                       >
                         <img
                           src={image}
@@ -580,7 +686,8 @@ const BatteryDetailPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {(battery.inspectionStatus === "PASS" || battery.inspectionStatus === "APPROVED") && (
+                  {(battery.inspectionStatus === "PASS" ||
+                    battery.inspectionStatus === "APPROVED") && (
                     <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">
                       <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
                       Đã kiểm định
@@ -641,7 +748,7 @@ const BatteryDetailPage: React.FC = () => {
                   <BatteryIcon className="w-5 h-5 text-orange-600 mb-1" />
                   <span className="text-xs text-gray-600">Loại</span>
                   <span className="font-semibold text-gray-900">
-                    {getBatteryTypeText(battery.type)}
+                    {getBatteryTypeText(battery.type, battery.brand)}
                   </span>
                 </div>
               </div>
@@ -653,19 +760,21 @@ const BatteryDetailPage: React.FC = () => {
                 <div className="flex">
                   <button
                     onClick={() => setActiveTab("overview")}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "overview"
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
-                      }`}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${
+                      activeTab === "overview"
+                        ? "text-blue-600 border-b-2 border-blue-600"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
                   >
                     Tổng quan
                   </button>
                   <button
                     onClick={() => setActiveTab("specs")}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${activeTab === "specs"
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
-                      }`}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition ${
+                      activeTab === "specs"
+                        ? "text-blue-600 border-b-2 border-blue-600"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
                   >
                     Thông số kỹ thuật
                   </button>
@@ -740,7 +849,9 @@ const BatteryDetailPage: React.FC = () => {
                   <div className="flex items-start gap-2">
                     <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5 text-[#2ECC71]" />
                     <span className="line-clamp-2">
-                      {fullAddress || battery.location || "Chưa cung cấp địa chỉ"}
+                      {fullAddress ||
+                        battery.location ||
+                        "Chưa cung cấp địa chỉ"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -814,18 +925,32 @@ const BatteryDetailPage: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full transform transition-all">
             <div className="flex items-center justify-between p-5 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900">Trả giá</h3>
-              <button onClick={handleCloseOfferModal} className="p-2 hover:bg-gray-100 rounded-full transition" aria-label="Close modal">
+              <button
+                onClick={handleCloseOfferModal}
+                className="p-2 hover:bg-gray-100 rounded-full transition"
+                aria-label="Close modal"
+              >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600 line-clamp-1">{battery.model}</p>
-                <p className="text-sm text-gray-500">Giá niêm yết: <span className="font-semibold text-gray-800">{formatPrice(battery.price)}</span></p>
+                <p className="text-sm text-gray-600 line-clamp-1">
+                  {battery.model}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Giá niêm yết:{" "}
+                  <span className="font-semibold text-gray-800">
+                    {formatPrice(battery.price)}
+                  </span>
+                </p>
               </div>
 
               <div className="text-center">
-                <label htmlFor="proposedPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="proposedPrice"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Nhập giá bạn muốn trả
                 </label>
                 <div className="relative">
@@ -833,23 +958,37 @@ const BatteryDetailPage: React.FC = () => {
                     type="text"
                     id="proposedPrice"
                     value={proposedPrice}
-                    onChange={(e) => setProposedPrice(formatNumberInput(e.target.value))}
+                    onChange={(e) =>
+                      setProposedPrice(formatNumberInput(e.target.value))
+                    }
                     placeholder="0"
                     className="w-full text-center text-3xl font-bold text-blue-600 bg-blue-50 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent py-3 px-12"
                     disabled={isSubmittingOffer}
                   />
-                  <span className="absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-blue-500">VND</span>
+                  <span className="absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-blue-500">
+                    VND
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Người bán sẽ nhận được đề nghị của bạn.</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Người bán sẽ nhận được đề nghị của bạn.
+                </p>
               </div>
 
               <div>
-                <p className="text-center text-xs text-gray-500 mb-2">Hoặc chọn nhanh:</p>
+                <p className="text-center text-xs text-gray-500 mb-2">
+                  Hoặc chọn nhanh:
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   {[0.95, 0.9, 0.85].map((rate) => (
                     <button
                       key={rate}
-                      onClick={() => setProposedPrice(formatNumberInput(String(Math.round(battery.price * rate))))}
+                      onClick={() =>
+                        setProposedPrice(
+                          formatNumberInput(
+                            String(Math.round(battery.price * rate))
+                          )
+                        )
+                      }
                       disabled={isSubmittingOffer}
                       className="text-sm py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition disabled:opacity-50"
                     >
@@ -861,7 +1000,13 @@ const BatteryDetailPage: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
-              <button onClick={handleCloseOfferModal} disabled={isSubmittingOffer} className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50">Hủy</button>
+              <button
+                onClick={handleCloseOfferModal}
+                disabled={isSubmittingOffer}
+                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50"
+              >
+                Hủy
+              </button>
               <button
                 onClick={handleSubmitOffer}
                 disabled={!proposedPrice || isSubmittingOffer}
@@ -922,10 +1067,11 @@ const BatteryDetailPage: React.FC = () => {
                   {reportReasons.map((reason) => (
                     <label
                       key={reason.value}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${reportReason === reason.value
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${
+                        reportReason === reason.value
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
                     >
                       <input
                         type="radio"

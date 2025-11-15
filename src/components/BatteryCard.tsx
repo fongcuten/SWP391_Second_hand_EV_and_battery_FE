@@ -2,10 +2,8 @@ import React from "react";
 import type { Battery } from "../types/battery";
 import {
   Battery as BatteryIcon,
-  Zap,
   Clock,
   MapPin,
-  Gauge,
   Award,
   Star,
   Crown,
@@ -34,7 +32,10 @@ const PRIORITY_CONFIG = {
 } as const;
 
 const getPriorityConfig = (priority: number) => {
-  return PRIORITY_CONFIG[priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[1];
+  return (
+    PRIORITY_CONFIG[priority as keyof typeof PRIORITY_CONFIG] ||
+    PRIORITY_CONFIG[1]
+  );
 };
 
 interface BatteryCardProps {
@@ -67,6 +68,21 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
     }
   };
 
+  const getBatteryTypeBadgeColor = (type: string) => {
+    switch (type) {
+      case "lithium-ion":
+        return "bg-gradient-to-r from-blue-500 to-blue-600 text-white";
+      case "lithium-polymer":
+        return "bg-gradient-to-r from-purple-500 to-purple-600 text-white";
+      case "LFP":
+        return "bg-gradient-to-r from-green-500 to-green-600 text-white";
+      case "NMC":
+        return "bg-gradient-to-r from-orange-500 to-orange-600 text-white";
+      default:
+        return "bg-gradient-to-r from-gray-500 to-gray-600 text-white";
+    }
+  };
+
   return (
     <div
       className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border-2 ${priorityConfig.border} group`}
@@ -86,6 +102,18 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
           </div>
         )}
 
+        {/* Technology Badge - Công nghệ pin */}
+        <div className="absolute top-3 left-3">
+          <span
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md ${getBatteryTypeBadgeColor(
+              battery.type
+            )}`}
+          >
+            <BatteryIcon className="w-3.5 h-3.5" />
+            {getBatteryTypeText(battery.type)}
+          </span>
+        </div>
+
         {/* Priority Badge */}
         <div className="absolute top-3 right-3">
           <span
@@ -96,23 +124,9 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
           </span>
         </div>
 
-        {/* Battery Health Badge */}
-        <div className="absolute top-3 left-3">
-          <span className="bg-black bg-opacity-80 text-white px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-            <BatteryIcon className="w-3 h-3" />
-            {battery.currentHealth}%
-          </span>
-        </div>
-
-        {/* Battery Type Badge */}
-        <div className="absolute bottom-3 left-3">
-          <span className="bg-[#2ECC71] bg-opacity-90 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm">
-            {getBatteryTypeText(battery.type)}
-          </span>
-        </div>
-
         {/* Inspection Badge - Đã kiểm định */}
-        {(battery.inspectionStatus === "PASS" || battery.inspectionStatus === "APPROVED") && (
+        {(battery.inspectionStatus === "PASS" ||
+          battery.inspectionStatus === "APPROVED") && (
           <div className="absolute bottom-3 right-3">
             <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -139,68 +153,13 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
           <p className="text-xl sm:text-2xl font-bold text-[#2ECC71] mb-1">
             {formatPrice(battery.price)}
           </p>
-            {battery.originalPrice > battery.price && (
+          {battery.originalPrice > battery.price && (
             <p className="text-sm text-gray-500 line-through">
               {formatPrice(battery.originalPrice)}
             </p>
           )}
           <p className="text-sm text-gray-600">Có thể thương lượng</p>
         </div>
-
-        {/* Specifications */}
-        <div className="space-y-2.5 mb-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Gauge className="w-4 h-4 flex-shrink-0" />
-              <span className="font-medium">Chu kỳ sạc</span>
-            </div>
-            <span className="font-semibold text-gray-900">
-              {battery.cycleCount}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Zap className="w-4 h-4 flex-shrink-0" />
-              <span className="font-medium">Sạc tối đa</span>
-            </div>
-            <span className="font-semibold text-gray-900">
-              {battery.chargingSpeed} kW
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Award className="w-4 h-4 flex-shrink-0" />
-              <span className="font-medium">Bảo hành</span>
-            </div>
-            <span className="font-semibold text-gray-900">
-              {battery.warranty} tháng
-            </span>
-          </div>
-        </div>
-
-        {/* Compatibility */}
-        {battery.compatibility && battery.compatibility.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-gray-500 mb-1.5">Tương thích:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {battery.compatibility.slice(0, 2).map((model, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-md font-medium border border-green-100"
-                >
-                  {model}
-                </span>
-              ))}
-              {battery.compatibility.length > 2 && (
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">
-                  +{battery.compatibility.length - 2}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Location and Year */}
         <div className="flex items-center justify-between text-sm text-gray-600 mb-4">

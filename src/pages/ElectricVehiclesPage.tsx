@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import {
   Search,
   MapPin,
   Calendar,
-  Battery,
   DollarSign,
   Car,
   Grid3x3,
@@ -12,14 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Zap,
   Star,
   Crown,
   Award,
-  Zap,
-  Gauge,
-  CheckCircle2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import ElectricVehicleCard from "../components/ElectricVehicleCard";
 import {
   ListPostService,
   type ListPostSummary,
@@ -50,39 +47,24 @@ const PRICE_RANGES = [
   { value: "2000+", label: "Trên 2 tỷ" },
 ];
 
+// PRIORITY_CONFIG for filter UI only (ElectricVehicleCard has its own config)
 const PRIORITY_CONFIG = {
   3: {
     badge: "bg-gradient-to-r from-[#2ECC71] to-[#27AE60] text-white",
-    border: "border-[#2ECC71] hover:border-[#27AE60]",
     icon: Crown,
     label: "PREMIUM",
   },
   2: {
     badge: "bg-gradient-to-r from-blue-500 to-blue-600 text-white",
-    border: "border-blue-400 hover:border-blue-500",
     icon: Award,
     label: "STANDARD",
   },
   1: {
     badge: "bg-gray-100 text-gray-700",
-    border: "border-gray-100 hover:border-[#A8E6CF]",
     icon: Star,
     label: "NORMAL",
   },
 } as const;
-
-const formatPrice = (price: number): string => {
-  if (price >= 1000000000) return `${(price / 1000000000).toFixed(1)} tỷ`;
-  if (price >= 1000000) return `${(price / 1000000).toFixed(0)} triệu`;
-  return `${price.toLocaleString("vi-VN")} đ`;
-};
-
-const getPriorityConfig = (priority: number) => {
-  return (
-    PRIORITY_CONFIG[priority as keyof typeof PRIORITY_CONFIG] ||
-    PRIORITY_CONFIG[1]
-  );
-};
 
 interface FilterState {
   searchTerm: string;
@@ -688,200 +670,20 @@ const VehicleGrid: React.FC<{
   posts: ListPostSummary[];
   viewMode: "grid" | "list";
 }> = ({ posts, viewMode }) => {
-  const Component = viewMode === "grid" ? VehicleCard : VehicleListItem;
   const containerClasses =
     viewMode === "grid"
       ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       : "space-y-4";
   return (
     <div className={containerClasses}>
-      {posts.map((post, index) => (
-        <Component key={post.listingId} post={post} index={index} />
+      {posts.map((post) => (
+        <ElectricVehicleCard key={post.listingId} post={post} />
       ))}
     </div>
   );
 };
 
-const VehicleCard: React.FC<{ post: ListPostSummary; index: number }> = ({
-  post,
-  index,
-}) => {
-  const config = getPriorityConfig(post.priorityLevel || 1);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.05 }}
-    >
-      <Link
-        to={`/xe-dien/${post.listingId}`}
-        className={`group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden block border-2 ${config.border}`}
-      >
-        <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden">
-          <img
-            src={
-              post.coverThumb ||
-              "https://via.placeholder.com/400x300?text=No+Image"
-            }
-            alt={post.productName}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                "https://via.placeholder.com/400x300?text=Image+Error";
-            }}
-          />
-          <div className="absolute top-3 right-3">
-            <span
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1 shadow-md ${config.badge}`}
-            >
-              <config.icon className="w-3.5 h-3.5" />
-              {config.label}
-            </span>
-          </div>
-          {/* Inspection Badge - Đã kiểm định */}
-          {(post.inspectionStatus === "PASS" ||
-            post.inspectionStatus === "APPROVED") && (
-            <div className="absolute bottom-3 right-3">
-              <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Đã kiểm định
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="p-4">
-          <h3 className="font-semibold text-base text-[#2C3E50] group-hover:text-[#2ECC71] transition-colors line-clamp-2 mb-3 min-h-[48px]">
-            {post.productName}
-          </h3>
-          <p className="text-2xl font-bold text-[#2ECC71] mb-4">
-            {formatPrice(post.askPrice)}
-          </p>
-          <div className="flex items-center gap-2 text-sm text-gray-600 pb-3 border-b border-[#A8E6CF]/30">
-            <MapPin className="w-4 h-4 flex-shrink-0 text-[#2ECC71]" />
-            <span className="truncate">
-              {post.address || "Chưa có địa chỉ"}
-            </span>
-          </div>
-          <div className="pt-3 text-xs text-gray-600">
-            <span>
-              Người bán: <strong>{post.sellerUsername || "—"}</strong>
-            </span>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
-};
-
-const VehicleListItem: React.FC<{ post: ListPostSummary; index: number }> = ({
-  post,
-  index,
-}) => {
-  const config = getPriorityConfig(post.priorityLevel || 1);
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.05 }}
-    >
-      <Link
-        to={`/xe-dien/${post.listingId}`}
-        className={`group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex border-2 ${config.border}`}
-      >
-        <div className="w-72 flex-shrink-0 bg-gray-50 overflow-hidden relative">
-          <img
-            src={
-              post.coverThumb ||
-              "https://via.placeholder.com/400x300?text=No+Image"
-            }
-            alt={post.productName}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                "https://via.placeholder.com/400x300?text=Image+Error";
-            }}
-          />
-          <div className="absolute top-4 right-4">
-            <span
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-md ${config.badge}`}
-            >
-              <config.icon className="w-4 h-4" />
-              {config.label}
-            </span>
-          </div>
-          {/* Inspection Badge - Đã kiểm định */}
-          {(post.inspectionStatus === "PASS" ||
-            post.inspectionStatus === "APPROVED") && (
-            <div className="absolute bottom-4 right-4">
-              <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Đã kiểm định
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex-1 p-6 flex flex-col">
-          <div className="flex-1">
-            <h3 className="font-bold text-xl text-[#2C3E50] group-hover:text-[#2ECC71] transition-colors mb-2">
-              {post.productName}
-            </h3>
-            <div className="flex items-center gap-2 text-gray-600 mb-4">
-              <MapPin className="w-4 h-4 text-[#2ECC71]" />
-              <span className="text-sm">
-                {post.address || "Chưa có địa chỉ"}
-              </span>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-gray-600 mb-4 pb-4 border-b border-[#A8E6CF]/30">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#2ECC71]" />
-                <span>
-                  Năm: <strong className="text-[#2C3E50]">2023</strong>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-[#2ECC71]" />
-                <span>
-                  Km: <strong className="text-[#2C3E50]">15,000</strong>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Battery className="w-4 h-4 text-[#2ECC71]" />
-                <span>
-                  Pin: <strong className="text-[#2C3E50]">85%</strong>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[#2ECC71]" />
-                <span>
-                  Dung lượng: <strong className="text-[#2C3E50]">90 kWh</strong>
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-[#2ECC71] mb-1">
-                {formatPrice(post.askPrice)}
-              </p>
-              <p className="text-sm text-gray-600">Có thể thương lượng</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={(e) => e.preventDefault()}
-                className="px-5 py-2.5 border-2 border-[#2ECC71] text-[#2ECC71] rounded-lg hover:bg-[#A8E6CF]/20 transition font-medium"
-              >
-                Liên hệ
-              </button>
-              <div className="px-6 py-2.5 bg-[#2ECC71] text-white rounded-lg hover:bg-[#27AE60] transition font-medium">
-                Xem chi tiết
-              </div>
-            </div>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
-};
+// Removed VehicleCard and VehicleListItem - now using ElectricVehicleCard component
 
 const Pagination: React.FC<{
   currentPage: number;

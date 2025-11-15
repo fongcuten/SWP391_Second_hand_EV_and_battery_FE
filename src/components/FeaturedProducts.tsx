@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Heart,  MapPin,Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { ListPostService, type ListPostSummary } from "../services/Vehicle/ElectricVehiclesPageService";
+import { BatteriesPageService } from "../services/Vehicle/BatteriesPageService";
 import { locationService } from "../services/locationService";
 
 type FilterType = 'all' | 'vehicle' | 'battery';
@@ -21,11 +22,15 @@ const FeaturedProducts: React.FC = () => {
         if (activeFilter === 'vehicle') {
           response = await ListPostService.getSalePosts(0, 6);
         } else if (activeFilter === 'battery') {
-          response = await ListPostService.getBatteryPosts(0, 6);
+          response = await BatteriesPageService.getBatteryPosts(0, 6, {
+            // Don't send sortBy, let backend use default
+          });
         } else { // 'all'
           const [vehicleResponse, batteryResponse] = await Promise.all([
             ListPostService.getSalePosts(0, 3),
-            ListPostService.getBatteryPosts(0, 3)
+            BatteriesPageService.getBatteryPosts(0, 3, {
+              // Don't send sortBy, let backend use default
+            })
           ]);
           response = {
             ...vehicleResponse,
