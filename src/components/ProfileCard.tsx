@@ -199,7 +199,9 @@ export default function ProfileCard() {
             <span>
               Ngày đăng ký:{" "}
               <span className="text-gray-800 font-medium">
-                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+                {user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString("vi-VN")
+                  : "—"}
               </span>
             </span>
           </div>
@@ -220,20 +222,28 @@ export default function ProfileCard() {
         <div className="flex items-center justify-between mb-2">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Thông tin gói</h3>
-            <p className="text-sm text-gray-500 mt-1">Thời hạn và quota của gói hiện tại</p>
+            <p className="text-sm text-gray-500 mt-1">Thời hạn và bài đăng của gói hiện tại</p>
           </div>
           <div>{getPlanBadge() || <span className="text-xs text-gray-500">Free</span>}</div>
         </div>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 bg-gray-50 rounded-md flex flex-col items-center">
-            <div className="text-xs text-gray-500">Quota còn lại</div>
+            <div className="text-xs text-gray-500">Bài đăng còn lại</div>
             <div className="text-xl font-semibold text-gray-900">{user?.quotaRemaining ?? 0}</div>
           </div>
           <div className="p-4 bg-gray-50 rounded-md flex flex-col items-center">
             <div className="text-xs text-gray-500">Thời gian bắt đầu</div>
-            <div className="text-sm text-gray-800">{user?.startAt ? new Date(user.startAt).toLocaleDateString() : "—"}</div>
+            <div className="text-sm text-gray-800">
+              {user?.startAt
+                ? new Date(user.startAt).toLocaleDateString("vi-VN")
+                : "—"}
+            </div>
             <div className="mt-2 text-xs text-gray-500">Thời gian kết thúc</div>
-            <div className="text-sm text-gray-800">{user?.endAt ? new Date(user.endAt).toLocaleDateString() : "—"}</div>
+            <div className="text-sm text-gray-800">
+              {user?.endAt
+                ? new Date(user.endAt).toLocaleDateString("vi-VN")
+                : "—"}
+            </div>
           </div>
         </div>
       </div>

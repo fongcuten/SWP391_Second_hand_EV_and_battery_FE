@@ -30,6 +30,25 @@ export interface InspectionReportResponse {
   createdAt: string;
 }
 
+export interface InspectionStatusResponse {
+  orderId: number;
+  orderStatus: string;
+  paymentStatus: string;
+  orderCreatedAt: string;
+  orderPaidAt?: string;
+  orderAmount?: number;
+  reportId?: number;
+  reportResult?: string;
+  reportStatus?: string;
+  reportUrl?: string;
+  reportCreatedAt?: string;
+  reportApprovedAt?: string;
+  hasReport?: boolean;
+  paid?: boolean;
+  reportPending?: boolean;
+  verified?: boolean;
+}
+
 export class InspectionService {
   /**
    * Submit inspection order (System inspection)
@@ -143,8 +162,7 @@ export class InspectionService {
     }
   }
 
-
-   static async confirmInspectionPayment(orderId: number): Promise<void> {
+  static async confirmInspectionPayment(orderId: number): Promise<void> {
     try {
       // The empty object {} is sent as the request body.
       const response = await api.post(`/api/inspection-orders/${orderId}/confirm`, {});
@@ -152,6 +170,16 @@ export class InspectionService {
       return response.data;
     } catch (error: any) {
       console.error(`❌ Error confirming payment for order ID: ${orderId}`, error);
+      throw error;
+    }
+  }
+
+  static async inspectionStatusCheck(listingId: number): Promise<InspectionStatusResponse> {
+    try {
+      const response = await api.get(`/api/inspection-status/${listingId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`❌ Error checking status for listing ID: ${listingId}`, error);
       throw error;
     }
   }

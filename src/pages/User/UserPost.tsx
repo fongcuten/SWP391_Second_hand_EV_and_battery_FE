@@ -12,6 +12,8 @@ import {
   Tag,
   Edit,
   Trash2,
+  Info,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { UserPostService, type SalePost } from "../../services/User/UserPostService";
@@ -70,6 +72,8 @@ export default function UserPosts() {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<string>(""); // ✅ Scheduled date state
+  const [inspectionStatus, setInspectionStatus] = useState<any | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -314,7 +318,6 @@ export default function UserPosts() {
         }
       }
 
-
       closeModal();
       await loadPosts();
     } catch (error: any) {
@@ -348,6 +351,21 @@ export default function UserPosts() {
     } catch (error) {
       console.error("❌ Error deleting post:", error);
       toast.error("Không thể xóa tin đăng!");
+    }
+  };
+
+  // Handler to fetch and show inspection status
+  const handleShowInspectionStatus = async (listingId: number) => {
+    setStatusLoading(true);
+    try {
+      const status = await InspectionService.inspectionStatusCheck(listingId);
+      setInspectionStatus(status);
+      setIsModalOpen(false); // Close modal if open
+    } catch (error) {
+      toast.error("Không thể tải trạng thái kiểm duyệt!");
+      setInspectionStatus(null);
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -558,13 +576,27 @@ export default function UserPosts() {
                     <span>Kiểm duyệt</span>
                   </button>
                 )}
-                <button
-                  onClick={() => handleDeletePost(post.listingId)}
-                  className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Xóa</span>
-                </button>
+                {/* Inspection Status Button */}
+                {post.status !== "HIDDEN" && post.status !== "SOLD" && (
+                  <button
+                    onClick={() => handleShowInspectionStatus(post.listingId)}
+                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    disabled={statusLoading}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    {statusLoading ? "Đang kiểm tra..." : "Trạng thái kiểm duyệt"}
+                  </button>
+                )}
+                {/* Delete button: hide if status is HIDDEN */}
+                {post.status !== "HIDDEN" && (
+                  <button
+                    onClick={() => handleDeletePost(post.listingId)}
+                    className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xóa</span>
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -923,6 +955,138 @@ export default function UserPosts() {
                 ) : (
                   "Gửi yêu cầu"
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inspection Status Modal */}
+      {inspectionStatus && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Info className="w-6 h-6" />
+                  Trạng thái kiểm duyệt
+                </h3>
+                <p className="text-white/80 text-sm mt-1">
+                  Mã đơn: #{inspectionStatus.orderId}
+                </p>
+              </div>
+              <button
+                onClick={() => setInspectionStatus(null)}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-gradient-to-br from-[#F7F9F9] to-[#A8E6CF]/10 rounded-xl p-4 border border-[#A8E6CF]/30">
+                {/* If no inspection, show message */}
+                {!inspectionStatus.hasReport ? (
+                  <div className="text-center text-gray-600 py-8">
+                    Bài đăng này chưa được kiểm duyệt.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-2">
+                      <span className="font-semibold text-[#2C3E50]">Trạng thái đơn:</span>{" "}
+                      <span className="px-2 py-1 rounded bg-[#2ECC71]/10 text-[#2ECC71] font-medium">
+                        {inspectionStatus.orderStatus}
+                      </span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold text-[#2C3E50]">Trạng thái thanh toán:</span>{" "}
+                      <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">
+                        {inspectionStatus.paymentStatus}
+                      </span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold text-[#2C3E50]">Ngày tạo đơn:</span>{" "}
+                      {inspectionStatus.orderCreatedAt
+                        ? new Date(inspectionStatus.orderCreatedAt).toLocaleString("vi-VN")
+                        : "—"}
+                    </div>
+                    {inspectionStatus.orderPaidAt && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Ngày thanh toán:</span>{" "}
+                        {new Date(inspectionStatus.orderPaidAt).toLocaleString("vi-VN")}
+                      </div>
+                    )}
+                    {inspectionStatus.reportId && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Mã báo cáo:</span>{" "}
+                        {inspectionStatus.reportId}
+                      </div>
+                    )}
+                    {inspectionStatus.reportResult && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Kết quả kiểm duyệt:</span>{" "}
+                        <span className={`px-2 py-1 rounded font-medium ${inspectionStatus.reportResult === "PASS"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                          }`}>
+                          {inspectionStatus.reportResult}
+                        </span>
+                      </div>
+                    )}
+                    {inspectionStatus.reportStatus && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Trạng thái báo cáo:</span>{" "}
+                        {inspectionStatus.reportStatus}
+                      </div>
+                    )}
+                    {inspectionStatus.reportUrl && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Báo cáo PDF:</span>{" "}
+                        <a
+                          href={inspectionStatus.reportUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline font-medium"
+                        >
+                          Xem báo cáo
+                        </a>
+                      </div>
+                    )}
+                    {inspectionStatus.reportCreatedAt && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Ngày tạo báo cáo:</span>{" "}
+                        {new Date(inspectionStatus.reportCreatedAt).toLocaleString("vi-VN")}
+                      </div>
+                    )}
+                    {inspectionStatus.reportApprovedAt && (
+                      <div className="mb-2">
+                        <span className="font-semibold text-[#2C3E50]">Ngày duyệt báo cáo:</span>{" "}
+                        {new Date(inspectionStatus.reportApprovedAt).toLocaleString("vi-VN")}
+                      </div>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                        Đã có báo cáo: {inspectionStatus.hasReport ? "Có" : "Chưa"}
+                      </span>
+                      <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                        Đã thanh toán: {inspectionStatus.paid ? "Có" : "Chưa"}
+                      </span>
+                      <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                        Đang chờ duyệt: {inspectionStatus.reportPending ? "Có" : "Không"}
+                      </span>
+                      <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                        Đã xác thực: {inspectionStatus.verified ? "Có" : "Chưa"}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="sticky bottom-0 bg-[#F7F9F9] px-6 py-4 border-t border-[#A8E6CF]/30 flex gap-3 z-10">
+              <button
+                onClick={() => setInspectionStatus(null)}
+                className="flex-1 px-6 py-3 border-2 border-[#A8E6CF] text-[#2C3E50] rounded-lg font-semibold hover:bg-[#A8E6CF]/10 transition-colors"
+              >
+                Đóng
               </button>
             </div>
           </div>
