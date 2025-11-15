@@ -115,7 +115,7 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       // Sử dụng AuthContext để đăng nhập
-      const response = await login({
+      await login({
         email: formData.username, // API sử dụng username nhưng AuthContext expect email
         password: formData.password,
       });
