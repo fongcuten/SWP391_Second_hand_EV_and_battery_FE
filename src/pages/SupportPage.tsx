@@ -132,6 +132,16 @@ const SupportPage: React.FC = () => {
     });
   };
 
+  // Add this handler for <select>
+  const handleSelectChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setContactForm({
+      ...contactForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -206,11 +216,10 @@ const SupportPage: React.FC = () => {
                   <button
                     key={category}
                     onClick={() => setActiveCategory(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      activeCategory === category
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeCategory === category
                         ? "bg-green-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
+                      }`}
                   >
                     {category}
                   </button>
@@ -326,7 +335,7 @@ const SupportPage: React.FC = () => {
                       <select
                         name="subject"
                         value={contactForm.subject}
-                        onChange={handleInputChange}
+                        onChange={handleSelectChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       >
                         <option value="">Chọn chủ đề</option>

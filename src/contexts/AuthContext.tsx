@@ -84,10 +84,6 @@ interface AuthContextType extends AuthState {
   login: (loginData: LoginRequest) => Promise<void>;
   register: (registerData: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (userData: Partial<User>) => Promise<void>;
-  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  verifyEmail: (token: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -174,61 +170,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Update profile function
-  const updateProfile = async (userData: Partial<User>): Promise<void> => {
-    try {
-      const updatedUser = await authService.updateProfile(userData);
-      dispatch({ type: "UPDATE_USER", payload: updatedUser });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Cập nhật thông tin thất bại";
-      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-      throw error;
-    }
-  };
-
-  // Change password function
-  const changePassword = async (
-    oldPassword: string,
-    newPassword: string
-  ): Promise<void> => {
-    try {
-      await authService.changePassword(oldPassword, newPassword);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Đổi mật khẩu thất bại";
-      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-      throw error;
-    }
-  };
-
-  // Forgot password function
-  const forgotPassword = async (email: string): Promise<void> => {
-    try {
-      await authService.forgotPassword(email);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Gửi email thất bại";
-      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-      throw error;
-    }
-  };
-
-  // Verify email function
-  const verifyEmail = async (token: string): Promise<void> => {
-    try {
-      await authService.verifyEmail(token);
-      const user = authService.getCurrentUser();
-      if (user) {
-        dispatch({ type: "UPDATE_USER", payload: user });
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Xác thực email thất bại";
-      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-      throw error;
-    }
-  };
+  
 
   // Clear error function
   const clearError = useCallback((): void => {
@@ -240,10 +182,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    updateProfile,
-    changePassword,
-    forgotPassword,
-    verifyEmail,
     clearError,
   };
 
