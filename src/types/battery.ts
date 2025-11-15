@@ -33,6 +33,7 @@ export interface Battery {
   };
   chargingSpeed: number; // kW max charging speed
   dischargingSpeed: number; // kW max discharging speed
+  inspectionStatus?: string; // "PASS", "APPROVED", "PENDING", "FAIL", etc.
 }
 
 export interface BatteryFilter {

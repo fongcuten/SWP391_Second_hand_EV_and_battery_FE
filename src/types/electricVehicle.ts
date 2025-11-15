@@ -25,6 +25,7 @@ export interface ElectricVehicle {
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
+  inspectionStatus?: string; // "PASS", "APPROVED", "PENDING", "FAIL", etc.
 }
 
 export interface ElectricVehicleFilter {

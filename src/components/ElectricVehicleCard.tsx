@@ -1,6 +1,6 @@
 import React from "react";
 import type { ElectricVehicle } from "../types/electricVehicle";
-import { Battery, Gauge, Clock, MapPin, Zap, Car } from "lucide-react";
+import { Battery, Gauge, Clock, MapPin, Zap, Car, CheckCircle2 } from "lucide-react";
 
 interface ElectricVehicleCardProps {
   vehicle: ElectricVehicle;
@@ -85,6 +85,16 @@ const ElectricVehicleCard: React.FC<ElectricVehicleCardProps> = ({
             {vehicle.batteryHealth}%
           </span>
         </div>
+
+        {/* Inspection Badge - Đã kiểm định */}
+        {(vehicle.inspectionStatus === "PASS" || vehicle.inspectionStatus === "APPROVED") && (
+          <div className="absolute bottom-3 right-3">
+            <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Đã kiểm định
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content */}

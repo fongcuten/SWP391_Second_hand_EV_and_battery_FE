@@ -9,6 +9,7 @@ import {
   Award,
   Star,
   Crown,
+  CheckCircle2,
 } from "lucide-react";
 
 const PRIORITY_CONFIG = {
@@ -109,6 +110,16 @@ const BatteryCard: React.FC<BatteryCardProps> = ({ battery, onClick }) => {
             {getBatteryTypeText(battery.type)}
           </span>
         </div>
+
+        {/* Inspection Badge - Đã kiểm định */}
+        {(battery.inspectionStatus === "PASS" || battery.inspectionStatus === "APPROVED") && (
+          <div className="absolute bottom-3 right-3">
+            <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Đã kiểm định
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content */}

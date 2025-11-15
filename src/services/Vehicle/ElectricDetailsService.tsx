@@ -48,6 +48,7 @@ export interface VehicleDetail {
   batteryPost: null, // Can be null if it's a vehicle post
   vehiclePost: null, // Can be null if it's a battery post
   media: MediaItem[],
+  inspectionStatus?: string; // "PASS", "APPROVED", "PENDING", "FAIL", etc.
 }
 
 export const VehicleDetailService = {

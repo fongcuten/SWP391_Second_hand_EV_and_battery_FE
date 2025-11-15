@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Phone, MessageCircle, Heart, Share2, MapPin, Calendar,
   Battery, Gauge, Zap, Car, CheckCircle, ChevronLeft, ChevronRight,
-  Shield, FileText, Eye, Bookmark, AlertCircle, X, Flag, Tag,
+  Shield, FileText, Eye, Bookmark, AlertCircle, X, Flag, Tag, CheckCircle2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail, type MediaItem, type VehiclePost } from "../services/Vehicle/ElectricDetailsService";
@@ -152,7 +152,15 @@ const VehicleHeader: React.FC<{ vehicle: VehicleDetail; vehiclePost: VehiclePost
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{vehicle.title}</h1>
         <p className="text-gray-600 flex items-center gap-2"><Car className="w-4 h-4" />{vehiclePost.brandName} {vehiclePost.modelName} {vehiclePost.year}</p>
       </div>
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />{vehicle.status}</span>
+      <div className="flex items-center gap-2">
+        {(vehicle.inspectionStatus === "PASS" || vehicle.inspectionStatus === "APPROVED") && (
+          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+            Đã kiểm định
+          </span>
+        )}
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />{vehicle.status}</span>
+      </div>
     </div>
     <div className="flex flex-wrap items-center gap-4 py-4 border-y border-gray-200">
       <div>

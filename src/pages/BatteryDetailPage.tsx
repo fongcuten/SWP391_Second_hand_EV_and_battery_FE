@@ -21,6 +21,7 @@ import {
   Eye,
   Bookmark,
   Tag,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { FavoriteService } from "../services/FavoriteService";
@@ -127,6 +128,7 @@ const BatteryDetailPage: React.FC = () => {
           dimensions: { length: 0, width: 0, height: 0 },
           chargingSpeed: 0,
           dischargingSpeed: 0,
+          inspectionStatus: data.inspectionStatus,
         };
         setBattery(mapped);
       } catch (e) {
@@ -578,6 +580,12 @@ const BatteryDetailPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {(battery.inspectionStatus === "PASS" || battery.inspectionStatus === "APPROVED") && (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      Đã kiểm định
+                    </span>
+                  )}
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     <CheckCircle className="w-3 h-3 mr-1" />
                     Còn hàng
