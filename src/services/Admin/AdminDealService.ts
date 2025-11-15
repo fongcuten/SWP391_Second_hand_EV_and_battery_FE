@@ -2,16 +2,28 @@ import api from "../../config/axios";
 
 export type DealStatus = "PENDING" | "SCHEDULED" | "COMPLETED" | "CANCELLED";
 
+export interface DealUserInfo {
+  userId: number;
+  username: string;
+  fullName?: string;
+  phone?: string;
+}
+
 export interface AdminDealResponse {
   dealId: number;
   buyerId: number;
   sellerId: number;
   listingId: number;
   status: DealStatus;
-  price?: number;
+  balanceDue: number;
   platformSiteId?: number;
+  platformSiteName?: string;
   scheduledDate?: string;
+  scheduledAt?: string;
   createdAt?: string;
+  updatedAt?: string;
+  buyer?: DealUserInfo;
+  seller?: DealUserInfo;
 }
 
 export const adminDealService = {

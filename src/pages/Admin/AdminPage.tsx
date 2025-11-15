@@ -216,7 +216,8 @@ const AdminPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      setDeals(await adminDealService.list());
+      const dealsData = await adminDealService.list();
+      setDeals(dealsData);
     } catch (e: any) {
       setError(e.message || "Lỗi tải giao dịch");
     } finally {
@@ -834,7 +835,10 @@ const AdminPage: React.FC = () => {
                         Mã
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Người dùng
+                        Người mua
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Người bán
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Số tiền
@@ -846,59 +850,102 @@ const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                    {deals.map((d) => (
-                      <tr key={d.dealId}>
-                        <td className="px-4 py-2">#{d.dealId}</td>
-                        <td className="px-4 py-2">
-                          Buyer {d.buyerId} / Seller {d.sellerId}
-                        </td>
-                        <td className="px-4 py-2">
-                          {d.price
-                            ? d.price.toLocaleString("vi-VN", {
-                                style: "currency",
-                                currency: "VND",
-                              })
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${
-                              d.status === "COMPLETED"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : d.status === "PENDING"
-                                ? "bg-amber-100 text-amber-700"
-                                : d.status === "SCHEDULED"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {d.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 text-right space-x-3">
-                          {d.status !== "COMPLETED" && (
+                    {deals.map((d) => {
+                      const buyer = d.buyer;
+                      const seller = d.seller;
+                      const buyerName =
+                        buyer?.fullName ||
+                        buyer?.username ||
+                        `User #${d.buyerId || "N/A"}`;
+                      const sellerName =
+                        seller?.fullName ||
+                        seller?.username ||
+                        `User #${d.sellerId || "N/A"}`;
+
+                      return (
+                        <tr key={d.dealId}>
+                          <td className="px-4 py-2">#{d.dealId}</td>
+                          <td className="px-4 py-2">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900">
+                                {buyerName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                @
+                                {buyer?.username || `user${d.buyerId || "N/A"}`}
+                              </span>
+                              {buyer?.phone && (
+                                <span className="text-xs text-gray-400">
+                                  {buyer.phone}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900">
+                                {sellerName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                @
+                                {seller?.username ||
+                                  `user${d.sellerId || "N/A"}`}
+                              </span>
+                              {seller?.phone && (
+                                <span className="text-xs text-gray-400">
+                                  {seller.phone}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            {d.balanceDue
+                              ? d.balanceDue.toLocaleString("vi-VN", {
+                                  style: "currency",
+                                  currency: "VND",
+                                })
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-2">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                d.status === "COMPLETED"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : d.status === "PENDING"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : d.status === "SCHEDULED"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {d.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right space-x-3">
+                            {d.status !== "COMPLETED" && (
+                              <button
+                                className="text-sm text-green-600 hover:underline"
+                                onClick={async () => {
+                                  await adminDealService.complete(d.dealId);
+                                  loadDeals();
+                                }}
+                              >
+                                Hoàn tất
+                              </button>
+                            )}
                             <button
-                              className="text-sm text-green-600 hover:underline"
+                              className="text-sm text-red-600 hover:underline"
                               onClick={async () => {
-                                await adminDealService.complete(d.dealId);
+                                await adminDealService.remove(d.dealId);
                                 loadDeals();
                               }}
                             >
-                              Hoàn tất
+                              Xóa
                             </button>
-                          )}
-                          <button
-                            className="text-sm text-red-600 hover:underline"
-                            onClick={async () => {
-                              await adminDealService.remove(d.dealId);
-                              loadDeals();
-                            }}
-                          >
-                            Xóa
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
