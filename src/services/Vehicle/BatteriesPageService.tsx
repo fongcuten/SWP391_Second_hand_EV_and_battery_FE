@@ -170,7 +170,7 @@ export const BatteriesPageService = {
             numberOfElements: result.length,
             empty: result.length === 0,
           } as PageableResponse<ListPostSummary>;
-        } else if (result && 'content' in result) {
+        } else if (result && typeof result === "object" && 'content' in result) {
           data = result as PageableResponse<ListPostSummary>;
         }
       }
