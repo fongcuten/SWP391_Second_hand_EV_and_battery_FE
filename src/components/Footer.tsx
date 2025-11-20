@@ -1,83 +1,83 @@
-import React from 'react';
-import { 
-  Facebook, 
-  Twitter, 
-  Instagram, 
-  Youtube, 
-  Mail, 
-  Phone, 
+import React from "react";
+import {
+  Facebook,
+  Twitter,
+  Instagram,
+  Youtube,
+  Mail,
+  Phone,
   MapPin,
   Car,
   Battery,
   Shield,
-  CreditCard
-} from 'lucide-react';
+  CreditCard,
+} from "lucide-react";
 
 const Footer: React.FC = () => {
   const footerSections = [
     {
-      title: 'Về chúng tôi',
+      title: "Về chúng tôi",
       links: [
-        { label: 'Giới thiệu', href: '#' },
-        { label: 'Tầm nhìn & Sứ mệnh', href: '#' },
-        { label: 'Đội ngũ', href: '#' },
-        { label: 'Tin tức', href: '#' },
-        { label: 'Tuyển dụng', href: '#' }
-      ]
+        { label: "Giới thiệu", href: "#" },
+        { label: "Tầm nhìn & Sứ mệnh", href: "#" },
+        { label: "Đội ngũ", href: "#" },
+        { label: "Tin tức", href: "#" },
+        { label: "Tuyển dụng", href: "#" },
+      ],
     },
     {
-      title: 'Dịch vụ',
+      title: "Dịch vụ",
       links: [
-        { label: 'Mua xe điện', href: '#' },
-        { label: 'Bán xe điện', href: '#' },
-        { label: 'Pin & Phụ kiện', href: '#' },
-        { label: 'Đánh giá xe', href: '#' },
-        { label: 'Tư vấn chuyên gia', href: '#' }
-      ]
+        { label: "Mua xe điện", href: "#" },
+        { label: "Bán xe điện", href: "#" },
+        { label: "Pin & Phụ kiện", href: "#" },
+        { label: "Đánh giá xe", href: "#" },
+        { label: "Tư vấn chuyên gia", href: "#" },
+      ],
     },
     {
-      title: 'Hỗ trợ',
+      title: "Hỗ trợ",
       links: [
-        { label: 'Trung tâm trợ giúp', href: '#' },
-        { label: 'Hướng dẫn sử dụng', href: '#' },
-        { label: 'Chính sách bảo hành', href: '#' },
-        { label: 'Quy trình giao dịch', href: '#' },
-        { label: 'Liên hệ hỗ trợ', href: '#' }
-      ]
+        { label: "Trung tâm trợ giúp", href: "#" },
+        { label: "Hướng dẫn sử dụng", href: "#" },
+        { label: "Chính sách bảo hành", href: "#" },
+        { label: "Quy trình giao dịch", href: "#" },
+        { label: "Liên hệ hỗ trợ", href: "#" },
+      ],
     },
     {
-      title: 'Pháp lý',
+      title: "Pháp lý",
       links: [
-        { label: 'Điều khoản sử dụng', href: '#' },
-        { label: 'Chính sách bảo mật', href: '#' },
-        { label: 'Chính sách hoàn tiền', href: '#' },
-        { label: 'Quy định giao dịch', href: '#' },
-        { label: 'Báo cáo vi phạm', href: '#' }
-      ]
-    }
+        { label: "Điều khoản sử dụng", href: "#" },
+        { label: "Chính sách bảo mật", href: "#" },
+        { label: "Chính sách hoàn tiền", href: "#" },
+        { label: "Quy định giao dịch", href: "#" },
+        { label: "Báo cáo vi phạm", href: "#" },
+      ],
+    },
   ];
 
   const features = [
     {
       icon: Shield,
-      title: 'An toàn tuyệt đối',
-      description: 'Giao dịch được bảo vệ 100%'
+      title: "An toàn tuyệt đối",
+      description: "Giao dịch được bảo vệ 100%",
     },
     {
       icon: CreditCard,
-      title: 'Thanh toán linh hoạt',
-      description: 'Đa dạng phương thức thanh toán'
+      title: "Thanh toán linh hoạt",
+      description: "Đa dạng phương thức thanh toán",
     },
     {
       icon: Car,
-      title: 'Chất lượng đảm bảo',
-      description: 'Xe và pin được kiểm định kỹ lưỡng'
+      title: "Chất lượng đảm bảo",
+      description: "Xe và pin được kiểm định kỹ lưỡng",
     },
     {
       icon: Battery,
-      title: 'Hỗ trợ 24/7',
-      description: 'Tư vấn và hỗ trợ mọi lúc'
-    }
+      title: "Hỗ trợ 24/7",
+      description: "Tư vấn và hỗ trợ mọi lúc",
+    },
   ];
 
   return (
@@ -92,7 +92,9 @@ const Footer: React.FC = () => {
                   <feature.icon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
+                  <h3 className="font-semibold text-white mb-1">
+                    {feature.title}
+                  </h3>
                   <p className="text-sm text-gray-300">{feature.description}</p>
                 </div>
               </div>
@@ -113,44 +115,57 @@ const Footer: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">Second-hand EV</h2>
-                  <p className="text-sm text-gray-400">User's name</p>
                 </div>
               </div>
-              
+
               <p className="text-gray-300 mb-6 leading-relaxed">
-                Nền tảng giao dịch xe điện và pin cũ hàng đầu Việt Nam. 
-                Chúng tôi kết nối người mua và người bán một cách an toàn, 
-                minh bạch và hiệu quả.
+                Nền tảng giao dịch xe điện và pin cũ tại Việt Nam. Chúng tôi kết
+                nối người mua và người bán một cách an toàn, minh bạch và hiệu
+                quả.
               </p>
 
               {/* Contact Info */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center space-x-3">
                   <Phone className="h-5 w-5 text-green-400" />
-                  <span className="text-gray-300">1900 2024</span>
+                  <span className="text-gray-300">0385464505</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Mail className="h-5 w-5 text-green-400" />
-                  <span className="text-gray-300">support@secondhandev.com</span>
+                  <span className="text-gray-300">lamphong2pi@gmail.com</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <MapPin className="h-5 w-5 text-green-400" />
-                  <span className="text-gray-300">123 Đường ABC, Quận XYZ, TP. Hà Nội</span>
+                  <span className="text-gray-300">
+                    2C đường 160 Lã Xuân Oai Thành Phố Hồ Chí Minh{" "}
+                  </span>
                 </div>
               </div>
 
               {/* Social Media */}
               <div className="flex space-x-4">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors">
+                <a
+                  href="#"
+                  className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors"
+                >
                   <Facebook className="h-5 w-5" />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors">
+                <a
+                  href="#"
+                  className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors"
+                >
                   <Twitter className="h-5 w-5" />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors">
+                <a
+                  href="#"
+                  className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors"
+                >
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors">
+                <a
+                  href="#"
+                  className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors"
+                >
                   <Youtube className="h-5 w-5" />
                 </a>
               </div>
@@ -163,7 +178,7 @@ const Footer: React.FC = () => {
                 <ul className="space-y-3">
                   {section.links.map((link, linkIndex) => (
                     <li key={linkIndex}>
-                      <a 
+                      <a
                         href={link.href}
                         className="text-gray-300 hover:text-green-400 transition-colors text-sm"
                       >
@@ -185,7 +200,8 @@ const Footer: React.FC = () => {
             <div>
               <h3 className="text-2xl font-bold mb-2">Đăng ký nhận tin</h3>
               <p className="text-gray-300">
-                Nhận thông tin về các xe điện mới nhất, khuyến mãi đặc biệt và tin tức thị trường
+                Nhận thông tin về các xe điện mới nhất, khuyến mãi đặc biệt và
+                tin tức thị trường
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -210,16 +226,28 @@ const Footer: React.FC = () => {
               © 2024 Second-hand EV Platform. Tất cả quyền được bảo lưu.
             </div>
             <div className="flex flex-wrap gap-6 text-sm">
-              <a href="#" className="text-gray-400 hover:text-green-400 transition-colors">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-green-400 transition-colors"
+              >
                 Sitemap
               </a>
-              <a href="#" className="text-gray-400 hover:text-green-400 transition-colors">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-green-400 transition-colors"
+              >
                 RSS
               </a>
-              <a href="#" className="text-gray-400 hover:text-green-400 transition-colors">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-green-400 transition-colors"
+              >
                 Accessibility
               </a>
-              <a href="#" className="text-gray-400 hover:text-green-400 transition-colors">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-green-400 transition-colors"
+              >
                 Cookie Settings
               </a>
             </div>

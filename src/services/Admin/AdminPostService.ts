@@ -7,6 +7,7 @@ export interface AdminPostCard {
   type: "VEHICLE" | "BATTERY";
   thumbnailUrl?: string;
   sellerUsername?: string;
+  sellerId?: number;
   createdAt?: string;
 }
 
@@ -55,7 +56,8 @@ export const adminPostService = {
       price: data.askPrice || 0,
       type: data.productType === "BATTERY" ? "BATTERY" : "VEHICLE",
       thumbnailUrl: data.media?.[0]?.urlThumb || data.media?.[0]?.url,
-      sellerUsername: data.seller,
+      sellerUsername: data.seller || data.sellerUsername,
+      sellerId: data.sellerId,
       createdAt: data.createdAt,
     };
   },

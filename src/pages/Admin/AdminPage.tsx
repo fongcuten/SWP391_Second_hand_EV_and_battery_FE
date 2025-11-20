@@ -34,6 +34,11 @@ import {
   type BrandRequest,
   type ModelRequest,
 } from "../../services/Admin/AdminBrandService";
+import {
+  adminRevenueService,
+  type RefundTransaction,
+  type RevenueResponse,
+} from "../../services/Admin/AdminRevenueService";
 
 type AdminTab =
   | "dashboard"
@@ -187,6 +192,30 @@ const AdminPage: React.FC = () => {
   const [postTypeCache, setPostTypeCache] = useState<
     Record<number, "VEHICLE" | "BATTERY">
   >({});
+  const [reportPostInfo, setReportPostInfo] = useState<
+    Record<
+      number,
+      { type: "VEHICLE" | "BATTERY"; sellerId?: number; title?: string }
+    >
+  >({});
+  const [reportFilter, setReportFilter] = useState<ReportStatus | undefined>(
+    undefined
+  );
+  const [revenueStats, setRevenueStats] = useState<RevenueResponse | null>(
+    null
+  );
+  const [pendingRefunds, setPendingRefunds] = useState<RefundTransaction[]>([]);
+  const [revenueLoading, setRevenueLoading] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [financeError, setFinanceError] = useState<string | null>(null);
+
+  const formatCurrency = (value?: number | null) => {
+    if (value === undefined || value === null) return "0 ₫";
+    return value.toLocaleString("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    });
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -203,8 +232,36 @@ const AdminPage: React.FC = () => {
   const loadReports = async (status?: ReportStatus) => {
     setLoading(true);
     setError(null);
+    setReportFilter(status);
     try {
-      setReports(await adminReportService.list(status));
+      const reportsData = await adminReportService.list(status);
+      setReports(reportsData);
+
+      // Load post info for each report
+      const postInfoMap: Record<
+        number,
+        { type: "VEHICLE" | "BATTERY"; sellerId?: number; title?: string }
+      > = {};
+      await Promise.all(
+        reportsData.map(async (report) => {
+          try {
+            const post = await adminPostService.getById(report.listingId);
+            postInfoMap[report.listingId] = {
+              type: post.type,
+              sellerId: post.sellerId,
+              title: post.title,
+            };
+          } catch (e) {
+            console.error(
+              `Error loading post info for listing ${report.listingId}:`,
+              e
+            );
+            // Default to VEHICLE if error
+            postInfoMap[report.listingId] = { type: "VEHICLE" };
+          }
+        })
+      );
+      setReportPostInfo(postInfoMap);
     } catch (e: any) {
       setError(e.message || "Lỗi tải báo cáo");
     } finally {
@@ -222,6 +279,49 @@ const AdminPage: React.FC = () => {
       setError(e.message || "Lỗi tải giao dịch");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRevenue = async () => {
+    setRevenueLoading(true);
+    setFinanceError(null);
+    try {
+      const stats = await adminRevenueService.getRevenue();
+      setRevenueStats(stats);
+    } catch (e: any) {
+      setFinanceError(e.message || "Lỗi tải dữ liệu doanh thu");
+    } finally {
+      setRevenueLoading(false);
+    }
+  };
+
+  const loadRefunds = async () => {
+    setRefundLoading(true);
+    setFinanceError(null);
+    try {
+      const refunds = await adminRevenueService.getPendingRefunds();
+      setPendingRefunds(refunds);
+    } catch (e: any) {
+      setFinanceError(e.message || "Lỗi tải danh sách hoàn tiền");
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  const handleConfirmRefund = async (transactionId: number) => {
+    if (
+      !window.confirm(
+        `Bạn có chắc muốn xác nhận hoàn tiền cho giao dịch #${transactionId}?`
+      )
+    ) {
+      return;
+    }
+    try {
+      setFinanceError(null);
+      await adminRevenueService.confirmRefund(transactionId);
+      await Promise.all([loadRevenue(), loadRefunds()]);
+    } catch (e: any) {
+      setFinanceError(e.message || "Không thể xác nhận hoàn tiền");
     }
   };
 
@@ -358,12 +458,18 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     if (activeTab === "users") loadUsers();
     if (activeTab === "reports") loadReports();
-    if (activeTab === "transactions") loadDeals();
+    if (activeTab === "transactions") {
+      loadDeals();
+      loadRefunds();
+    }
     if (activeTab === "inspections") {
       loadInspections("PENDING_REVIEW");
       loadInspectionOrders(0, 10);
     }
     if (activeTab === "brands") loadBrands();
+    if (activeTab === "dashboard" || activeTab === "analytics") {
+      loadRevenue();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -375,6 +481,7 @@ const AdminPage: React.FC = () => {
       loadPosts();
       loadReports();
       loadDeals();
+      loadRevenue();
     }
     // Also run once on mount so first render has data even before interaction
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,13 +586,58 @@ const AdminPage: React.FC = () => {
                 </StatCard>
                 <StatCard
                   label="Doanh thu"
-                  value={`${
-                    deals.filter((d) => d.status === "COMPLETED").length
-                  } hoàn tất`}
+                  value={
+                    revenueLoading
+                      ? "Đang tải..."
+                      : formatCurrency(revenueStats?.netRevenue)
+                  }
                 >
                   <MiniTrend points={[2, 3, 5, 6, 7, 8, 11]} />
                 </StatCard>
               </div>
+
+              <SectionCard title="Tổng quan doanh thu">
+                {financeError && (
+                  <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {financeError}
+                  </div>
+                )}
+                {revenueLoading && !revenueStats ? (
+                  <div className="text-sm text-gray-500">Đang tải...</div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-lg border border-gray-200 p-4">
+                      <div className="text-sm text-gray-500">Tổng thu</div>
+                      <div className="text-2xl font-semibold text-gray-900 mt-1">
+                        {formatCurrency(revenueStats?.totalPayment)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Bao gồm mọi giao dịch PAYMENTS thành công
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 p-4">
+                      <div className="text-sm text-gray-500">Đã hoàn</div>
+                      <div className="text-2xl font-semibold text-gray-900 mt-1">
+                        {formatCurrency(revenueStats?.totalRefund)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Tổng tiền REFUND đã xác nhận
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 p-4 bg-green-50">
+                      <div className="text-sm text-gray-600">
+                        Doanh thu ròng
+                      </div>
+                      <div className="text-2xl font-semibold text-green-700 mt-1">
+                        {formatCurrency(revenueStats?.netRevenue)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Sau khi trừ hoàn tiền
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <SectionCard title="Phân bố danh mục bài đăng">
@@ -822,134 +974,215 @@ const AdminPage: React.FC = () => {
           )}
 
           {activeTab === "transactions" && (
-            <SectionCard title="Giao dịch gần đây">
-              <div className="overflow-x-auto">
-                {loading && (
-                  <div className="text-sm text-gray-500">Đang tải...</div>
-                )}
-                {error && <div className="text-sm text-red-600">{error}</div>}
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Mã
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Người mua
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Người bán
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Số tiền
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Trạng thái
-                      </th>
-                      <th className="px-4 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                    {deals.map((d) => {
-                      const buyer = d.buyer;
-                      const seller = d.seller;
-                      const buyerName =
-                        buyer?.fullName ||
-                        buyer?.username ||
-                        `User #${d.buyerId || "N/A"}`;
-                      const sellerName =
-                        seller?.fullName ||
-                        seller?.username ||
-                        `User #${d.sellerId || "N/A"}`;
+            <>
+              <SectionCard title="Giao dịch gần đây">
+                <div className="overflow-x-auto">
+                  {loading && (
+                    <div className="text-sm text-gray-500">Đang tải...</div>
+                  )}
+                  {error && <div className="text-sm text-red-600">{error}</div>}
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Mã
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Người mua
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Người bán
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Số tiền
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Trạng thái
+                        </th>
+                        <th className="px-4 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                      {deals.map((d) => {
+                        const buyer = d.buyer;
+                        const seller = d.seller;
+                        const buyerName =
+                          buyer?.fullName ||
+                          buyer?.username ||
+                          `User #${d.buyerId || "N/A"}`;
+                        const sellerName =
+                          seller?.fullName ||
+                          seller?.username ||
+                          `User #${d.sellerId || "N/A"}`;
 
-                      return (
-                        <tr key={d.dealId}>
-                          <td className="px-4 py-2">#{d.dealId}</td>
-                          <td className="px-4 py-2">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-900">
-                                {buyerName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                @
-                                {buyer?.username || `user${d.buyerId || "N/A"}`}
-                              </span>
-                              {buyer?.phone && (
-                                <span className="text-xs text-gray-400">
-                                  {buyer.phone}
+                        return (
+                          <tr key={d.dealId}>
+                            <td className="px-4 py-2">#{d.dealId}</td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900">
+                                  {buyerName}
                                 </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-2">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-900">
-                                {sellerName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                @
-                                {seller?.username ||
-                                  `user${d.sellerId || "N/A"}`}
-                              </span>
-                              {seller?.phone && (
-                                <span className="text-xs text-gray-400">
-                                  {seller.phone}
+                                <span className="text-xs text-gray-500">
+                                  @
+                                  {buyer?.username ||
+                                    `user${d.buyerId || "N/A"}`}
                                 </span>
+                                {buyer?.phone && (
+                                  <span className="text-xs text-gray-400">
+                                    {buyer.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900">
+                                  {sellerName}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  @
+                                  {seller?.username ||
+                                    `user${d.sellerId || "N/A"}`}
+                                </span>
+                                {seller?.phone && (
+                                  <span className="text-xs text-gray-400">
+                                    {seller.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              {d.balanceDue
+                                ? d.balanceDue.toLocaleString("vi-VN", {
+                                    style: "currency",
+                                    currency: "VND",
+                                  })
+                                : "-"}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs ${
+                                  d.status === "COMPLETED"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : d.status === "PENDING"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : d.status === "SCHEDULED"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {d.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-right space-x-3">
+                              {d.status !== "COMPLETED" && (
+                                <button
+                                  className="text-sm text-green-600 hover:underline"
+                                  onClick={async () => {
+                                    await adminDealService.complete(d.dealId);
+                                    loadDeals();
+                                  }}
+                                >
+                                  Hoàn tất
+                                </button>
                               )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-2">
-                            {d.balanceDue
-                              ? d.balanceDue.toLocaleString("vi-VN", {
-                                  style: "currency",
-                                  currency: "VND",
-                                })
-                              : "-"}
-                          </td>
-                          <td className="px-4 py-2">
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                d.status === "COMPLETED"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : d.status === "PENDING"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : d.status === "SCHEDULED"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
-                            >
-                              {d.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right space-x-3">
-                            {d.status !== "COMPLETED" && (
                               <button
-                                className="text-sm text-green-600 hover:underline"
+                                className="text-sm text-red-600 hover:underline"
                                 onClick={async () => {
-                                  await adminDealService.complete(d.dealId);
+                                  await adminDealService.remove(d.dealId);
                                   loadDeals();
                                 }}
                               >
-                                Hoàn tất
+                                Xóa
                               </button>
-                            )}
-                            <button
-                              className="text-sm text-red-600 hover:underline"
-                              onClick={async () => {
-                                await adminDealService.remove(d.dealId);
-                                loadDeals();
-                              }}
-                            >
-                              Xóa
-                            </button>
-                          </td>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Hoàn tiền chờ xử lý">
+                {financeError && (
+                  <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {financeError}
+                  </div>
+                )}
+                {refundLoading ? (
+                  <div className="text-sm text-gray-500">Đang tải...</div>
+                ) : pendingRefunds.length === 0 ? (
+                  <div className="text-sm text-gray-500">
+                    Không có yêu cầu hoàn tiền nào đang chờ.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            #
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Người dùng
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Liên quan
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Số tiền
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ngày tạo
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Hành động
+                          </th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </SectionCard>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                        {pendingRefunds.map((tx) => (
+                          <tr key={tx.id}>
+                            <td className="px-4 py-2 font-medium text-gray-900">
+                              #{tx.id}
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-col">
+                                <span>User #{tx.userId}</span>
+                                <span className="text-xs text-gray-500">
+                                  {tx.referenceType}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              #{tx.referenceId} ({tx.referenceType})
+                            </td>
+                            <td className="px-4 py-2 font-semibold text-gray-900">
+                              {formatCurrency(tx.amount)}
+                            </td>
+                            <td className="px-4 py-2 text-gray-500">
+                              {tx.createdAt
+                                ? new Date(tx.createdAt).toLocaleString("vi-VN")
+                                : "-"}
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              <button
+                                className="rounded-md bg-emerald-600 px-3 py-1 text-sm font-medium text-white hover:bg-emerald-700"
+                                onClick={() => handleConfirmRefund(tx.id)}
+                              >
+                                Xác nhận
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </SectionCard>
+            </>
           )}
 
           {activeTab === "reports" && (
@@ -984,50 +1217,103 @@ const AdminPage: React.FC = () => {
                 <div className="text-sm text-gray-500">Đang tải...</div>
               )}
               {error && <div className="text-sm text-red-600">{error}</div>}
-              <ul className="mt-1 space-y-2">
-                {reports.map((r) => (
-                  <li
-                    key={`${r.reportId}`}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="text-gray-800 text-sm">
-                      <div className="font-medium">
-                        #{r.reportId} - Listing {r.listingId}
+              <ul className="mt-1 space-y-3">
+                {reports.map((r) => {
+                  const postInfo = reportPostInfo[r.listingId];
+                  const postLink = postInfo
+                    ? getPostLink(r.listingId, postInfo.type)
+                    : `/xe-dien/${r.listingId}`;
+                  const postTitle = postInfo?.title || `Listing ${r.listingId}`;
+
+                  return (
+                    <li
+                      key={`${r.reportId}`}
+                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 text-gray-800 text-sm">
+                          <div className="font-medium mb-1">
+                            #{r.reportId} - {postTitle}
+                          </div>
+                          <div className="text-xs text-gray-600 mb-2">
+                            <span className="font-medium">Lý do báo cáo:</span>{" "}
+                            {r.reason}
+                          </div>
+                          <div className="text-xs">
+                            <a
+                              href={postLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Xem bài viết →
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="px-3 py-1 text-xs rounded bg-orange-600 text-white hover:bg-orange-700 transition"
+                            onClick={async () => {
+                              if (
+                                window.confirm(
+                                  "Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác."
+                                )
+                              ) {
+                                try {
+                                  await adminPostService.remove(r.listingId);
+                                  await adminReportService.updateStatus(
+                                    r.reporterId,
+                                    r.listingId,
+                                    "APPROVED"
+                                  );
+                                  alert("Đã xóa bài viết và đóng báo cáo");
+                                  setReports((prev) =>
+                                    prev.filter(
+                                      (report) => report.reportId !== r.reportId
+                                    )
+                                  );
+                                  setReportPostInfo((prev) => {
+                                    const next = { ...prev };
+                                    delete next[r.listingId];
+                                    return next;
+                                  });
+                                } catch (e: any) {
+                                  alert(e.message || "Lỗi xóa bài viết");
+                                }
+                              }
+                            }}
+                          >
+                            Xóa bài viết
+                          </button>
+                          {postInfo?.sellerId && (
+                            <button
+                              className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 transition"
+                              onClick={async () => {
+                                if (
+                                  window.confirm(
+                                    "Bạn có chắc muốn cấm người dùng này? Hành động này có thể ảnh hưởng nghiêm trọng."
+                                  )
+                                ) {
+                                  try {
+                                    await adminUserService.ban(
+                                      postInfo.sellerId!
+                                    );
+                                    alert("Đã cấm người dùng thành công");
+                                    await loadReports(reportFilter);
+                                  } catch (e: any) {
+                                    alert(e.message || "Lỗi cấm người dùng");
+                                  }
+                                }
+                              }}
+                            >
+                              Cấm người dùng
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Lý do: {r.reason}
-                      </div>
-                    </div>
-                    <div className="space-x-2">
-                      <button
-                        className="px-3 py-1 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                        onClick={async () => {
-                          await adminReportService.updateStatus(
-                            r.reporterId,
-                            r.listingId,
-                            "APPROVED"
-                          );
-                          loadReports();
-                        }}
-                      >
-                        Duyệt
-                      </button>
-                      <button
-                        className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-                        onClick={async () => {
-                          await adminReportService.updateStatus(
-                            r.reporterId,
-                            r.listingId,
-                            "REJECTED"
-                          );
-                          loadReports();
-                        }}
-                      >
-                        Từ chối
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </SectionCard>
           )}

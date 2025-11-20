@@ -1,103 +1,132 @@
-import React, { useState } from "react";
-import { X, Plus, Check, ArrowRight } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { X, Plus, Check, ArrowRight, RefreshCcw } from "lucide-react";
+import { toast } from "react-toastify";
 import type { ElectricVehicle } from "../types/electricVehicle";
+import {
+  ListPostService,
+  type ListPostSummary,
+} from "../services/Vehicle/ElectricVehiclesPageService";
+import { locationService } from "../services/locationService";
+import { VehicleDetailService } from "../services/Vehicle/ElectricDetailsService";
 
-// Mock data - thay thế bằng API call thực tế
-const mockVehicles: ElectricVehicle[] = [
-  {
-    id: "1",
-    brand: "Tesla",
-    model: "Model 3",
-    year: 2022,
-    price: 1200000000,
-    originalPrice: 1500000000,
-    mileage: 15000,
-    batteryCapacity: 75,
-    batteryHealth: 95,
-    range: 500,
-    chargingTime: 8,
-    motorPower: 283,
-    topSpeed: 225,
-    acceleration: 4.4,
-    color: "Trắng",
-    condition: "excellent",
-    description: "Xe điện Tesla Model 3 tình trạng xuất sắc, ít sử dụng",
-    images: ["https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=500"],
-    features: ["Autopilot", "Supercharger", "Premium Interior", "Glass Roof"],
-    location: "Hồ Chí Minh",
-    sellerId: "seller1",
-    sellerName: "Nguyễn Văn A",
-    sellerPhone: "0901234567",
-    isAvailable: true,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: "2",
-    brand: "BYD",
-    model: "Atto 3",
-    year: 2023,
-    price: 800000000,
-    originalPrice: 900000000,
-    mileage: 8000,
-    batteryCapacity: 60,
-    batteryHealth: 98,
-    range: 400,
-    chargingTime: 6,
-    motorPower: 150,
-    topSpeed: 180,
-    acceleration: 7.3,
-    color: "Xanh",
-    condition: "excellent",
-    description: "BYD Atto 3 mới 99%, đầy đủ phụ kiện",
-    images: [
-      "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=500",
-    ],
-    features: ["360 Camera", "Wireless Charging", "Sunroof", "Leather Seats"],
-    location: "Hà Nội",
-    sellerId: "seller2",
-    sellerName: "Trần Thị B",
-    sellerPhone: "0907654321",
-    isAvailable: true,
-    createdAt: "2024-01-10T14:30:00Z",
-    updatedAt: "2024-01-10T14:30:00Z",
-  },
-  {
-    id: "3",
-    brand: "VinFast",
-    model: "VF e34",
-    year: 2021,
-    price: 600000000,
-    originalPrice: 700000000,
-    mileage: 25000,
-    batteryCapacity: 42,
-    batteryHealth: 88,
-    range: 300,
-    chargingTime: 5,
-    motorPower: 110,
-    topSpeed: 150,
-    acceleration: 8.9,
-    color: "Đỏ",
-    condition: "good",
-    description: "VinFast VF e34 tình trạng tốt, bảo hành còn lại",
-    images: [
-      "https://vinfast3sthanhhoa.com/wp-content/uploads/2021/07/vf-e34-orange.bmp",
-    ],
-    features: [
-      "VinFast App",
-      "OTA Updates",
-      "Voice Control",
-      "Climate Control",
-    ],
-    location: "Đà Nẵng",
-    sellerId: "seller3",
-    sellerName: "Lê Văn C",
-    sellerPhone: "0909876543",
-    isAvailable: true,
-    createdAt: "2024-01-05T09:15:00Z",
-    updatedAt: "2024-01-05T09:15:00Z",
-  },
-];
+interface SalePostDetail {
+  listingId: number;
+  productType?: "VEHICLE" | "BATTERY";
+  askPrice?: number;
+  title?: string;
+  description?: string;
+  sellerId?: number;
+  sellerUsername?: string;
+  sellerPhone?: string;
+  provinceCode?: number;
+  districtCode?: number;
+  wardCode?: number;
+  street?: string;
+  status?: string;
+  createdAt?: string;
+  inspectionStatus?: string;
+  media?: {
+    mediaId?: number;
+    url?: string;
+    urlLarge?: string;
+    urlThumb?: string;
+  }[];
+  vehiclePost?: {
+    modelName?: string;
+    brandName?: string;
+    year?: number;
+    odoKm?: number;
+    vin?: string;
+    transmission?: string;
+    fuelType?: string;
+    origin?: string;
+    bodyStyle?: string;
+    seatCount?: number;
+    color?: string;
+    accessories?: boolean;
+    registration?: boolean;
+  };
+}
+
+const PLACEHOLDER_IMG =
+  "https://via.placeholder.com/300x200?text=EV+Listing+Unavailable";
+
+const mapDetailToElectricVehicle = async (
+  detail: SalePostDetail
+): Promise<ElectricVehicle> => {
+  const vehicleInfo = detail.vehiclePost || {};
+
+  let fullAddress = detail.street || "Chưa cung cấp địa chỉ";
+  if (detail.provinceCode && detail.districtCode && detail.wardCode) {
+    try {
+      fullAddress = await locationService.getFullAddress(
+        detail.provinceCode,
+        detail.districtCode,
+        detail.wardCode,
+        detail.street
+      );
+    } catch (addressError) {
+      console.warn(
+        "⚠️ Không thể chuyển đổi địa chỉ cho tin",
+        detail.listingId,
+        addressError
+      );
+    }
+  }
+
+  const mediaUrls =
+    detail.media?.map(
+      (media) => media.urlLarge || media.url || media.urlThumb
+    ) || [];
+
+  if (mediaUrls.length === 0) {
+    mediaUrls.push(PLACEHOLDER_IMG);
+  }
+
+  const derivedFeatures = [
+    vehicleInfo.transmission && `Hộp số: ${vehicleInfo.transmission}`,
+    vehicleInfo.fuelType && `Nhiên liệu: ${vehicleInfo.fuelType}`,
+    typeof vehicleInfo.seatCount === "number" &&
+      `Số chỗ: ${vehicleInfo.seatCount}`,
+    vehicleInfo.origin && `Xuất xứ: ${vehicleInfo.origin}`,
+    vehicleInfo.bodyStyle && `Kiểu dáng: ${vehicleInfo.bodyStyle}`,
+  ].filter(Boolean) as string[];
+
+  return {
+    id:
+      detail.listingId !== undefined && detail.listingId !== null
+        ? detail.listingId.toString()
+        : Date.now().toString(),
+    brand: vehicleInfo.brandName || detail.title || "Không xác định",
+    model: vehicleInfo.modelName || detail.title || "Không xác định",
+    year:
+      vehicleInfo.year ||
+      new Date(detail.createdAt || Date.now()).getFullYear(),
+    price: Number(detail.askPrice) || 0,
+    originalPrice: Number(detail.askPrice) || 0,
+    mileage: vehicleInfo.odoKm ?? 0,
+    batteryCapacity: 0,
+    batteryHealth: 0,
+    range: 0,
+    chargingTime: 0,
+    motorPower: 0,
+    topSpeed: 0,
+    acceleration: 0,
+    color: vehicleInfo.color || "Chưa rõ",
+    condition: detail.status === "ACTIVE" ? "good" : "fair",
+    description: detail.description || "",
+    images: mediaUrls,
+    features: derivedFeatures,
+    location: fullAddress,
+    sellerId: detail.sellerId?.toString() || "",
+    sellerName: detail.sellerUsername || "Người bán",
+    sellerPhone: detail.sellerPhone || "",
+    isAvailable: detail.status === "ACTIVE",
+    createdAt: detail.createdAt || new Date().toISOString(),
+    updatedAt: detail.createdAt || new Date().toISOString(),
+    inspectionStatus: detail.inspectionStatus,
+  };
+};
 
 const ComparePage: React.FC = () => {
   const [selectedVehicles, setSelectedVehicles] = useState<ElectricVehicle[]>(
@@ -105,14 +134,58 @@ const ComparePage: React.FC = () => {
   );
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [availableVehicles, setAvailableVehicles] = useState<ListPostSummary[]>(
+    []
+  );
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [addingVehicleId, setAddingVehicleId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const maxCompare = 4;
 
-  const handleAddVehicle = (vehicle: ElectricVehicle) => {
+  const loadVehicles = async () => {
+    setLoadingVehicles(true);
+    setLoadError(null);
+    try {
+      const response = await ListPostService.getSalePosts(0, 50, {});
+      const vehiclePosts =
+        response.content?.filter(
+          (post) => post.productType === "VEHICLE" && post.status === "ACTIVE"
+        ) || [];
+      setAvailableVehicles(vehiclePosts);
+    } catch (error) {
+      console.error("❌ Không thể tải danh sách xe:", error);
+      setLoadError("Không thể tải danh sách xe. Vui lòng thử lại.");
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVehicles();
+  }, []);
+
+  const handleAddVehicle = async (post: ListPostSummary) => {
     if (selectedVehicles.length < maxCompare) {
-      setSelectedVehicles([...selectedVehicles, vehicle]);
-      setShowVehicleSelector(false);
-      setSearchTerm("");
+      setAddingVehicleId(post.listingId);
+      try {
+        const detail = (await VehicleDetailService.getVehicleDetail(
+          post.listingId
+        )) as SalePostDetail;
+        if (detail.productType && detail.productType !== "VEHICLE") {
+          toast.warning("Tin này không phải xe, không thể so sánh.");
+          return;
+        }
+        const mappedVehicle = await mapDetailToElectricVehicle(detail);
+        setSelectedVehicles((prev) => [...prev, mappedVehicle]);
+        setShowVehicleSelector(false);
+        setSearchTerm("");
+      } catch (error) {
+        console.error("❌ Không thể thêm xe vào so sánh:", error);
+        toast.error("Không thể tải thông tin xe. Vui lòng thử lại.");
+      } finally {
+        setAddingVehicleId(null);
+      }
     }
   };
 
@@ -120,15 +193,23 @@ const ComparePage: React.FC = () => {
     setSelectedVehicles(selectedVehicles.filter((v) => v.id !== vehicleId));
   };
 
-  const filteredVehicles = mockVehicles.filter(
-    (vehicle) =>
-      !selectedVehicles.find((v) => v.id === vehicle.id) &&
-      (vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredVehicles = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    const selectedIds = new Set(selectedVehicles.map((v) => v.id));
+    return availableVehicles.filter((vehicle) => {
+      if (selectedIds.has(vehicle.listingId.toString())) return false;
+      if (!keyword) return true;
+      return vehicle.productName.toLowerCase().includes(keyword);
+    });
+  }, [availableVehicles, searchTerm, selectedVehicles]);
 
   const formatPrice = (price: number) => {
-    return (price / 1000000).toLocaleString("vi-VN") + " triệu";
+    if (!price) return "Đang cập nhật";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0,
+    }).format(price);
   };
 
   const getConditionLabel = (condition: string) => {
@@ -182,34 +263,62 @@ const ComparePage: React.FC = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
               />
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {filteredVehicles.map((vehicle) => (
-                  <button
-                    key={vehicle.id}
-                    onClick={() => handleAddVehicle(vehicle)}
-                    className="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                  >
-                    <img
-                      src={vehicle.images[0]}
-                      alt={`${vehicle.brand} ${vehicle.model}`}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">
-                        {vehicle.brand} {vehicle.model}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {vehicle.year} • {formatPrice(vehicle.price)}
-                      </p>
-                    </div>
-                    <Plus className="w-5 h-5 text-green-600" />
-                  </button>
-                ))}
-                {filteredVehicles.length === 0 && (
+                {loadingVehicles && (
+                  <p className="text-center text-gray-500 py-4">
+                    Đang tải danh sách xe...
+                  </p>
+                )}
+                {!loadingVehicles &&
+                  filteredVehicles.map((vehicle) => (
+                    <button
+                      key={vehicle.listingId}
+                      disabled={addingVehicleId === vehicle.listingId}
+                      onClick={() => handleAddVehicle(vehicle)}
+                      className="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <img
+                        src={vehicle.coverThumb || PLACEHOLDER_IMG}
+                        alt={vehicle.productName}
+                        className="w-16 h-16 object-cover rounded-lg"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
+                        }}
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {vehicle.productName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {formatPrice(vehicle.askPrice)}
+                        </p>
+                      </div>
+                      {addingVehicleId === vehicle.listingId ? (
+                        <span className="text-sm text-gray-500">
+                          Đang thêm...
+                        </span>
+                      ) : (
+                        <Plus className="w-5 h-5 text-green-600" />
+                      )}
+                    </button>
+                  ))}
+                {!loadingVehicles && filteredVehicles.length === 0 && (
                   <p className="text-center text-gray-500 py-4">
                     Không tìm thấy xe nào
                   </p>
                 )}
               </div>
+              {loadError && (
+                <div className="flex items-center justify-between mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <span>{loadError}</span>
+                  <button
+                    onClick={loadVehicles}
+                    className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 font-semibold"
+                  >
+                    <RefreshCcw className="w-4 h-4" />
+                    Thử lại
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

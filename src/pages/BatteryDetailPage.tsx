@@ -56,7 +56,6 @@ const BatteryDetailPage: React.FC = () => {
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "specs">("overview");
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [showPhoneNumber, setShowPhoneNumber] = useState(false);
@@ -461,62 +460,47 @@ const BatteryDetailPage: React.FC = () => {
     );
   };
 
-  const reportReasons = [
-    { value: "SPAM", label: "Tin đăng spam hoặc lặp lại" },
-    { value: "FRAUD", label: "Tin đăng lừa đảo" },
-    { value: "WRONG_CATEGORY", label: "Sai danh mục" },
-    { value: "INAPPROPRIATE", label: "Nội dung không phù hợp" },
-    { value: "SOLD", label: "Đã bán nhưng chưa gỡ tin" },
-    { value: "WRONG_INFO", label: "Thông tin không chính xác" },
-    { value: "OTHER", label: "Lý do khác" },
-  ];
-
+  // Report Modal Handlers
   const handleOpenReportModal = () => {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
+    if (!authService.getCurrentUser()) {
       toast.warning("Vui lòng đăng nhập để báo cáo tin đăng");
       navigate("/dang-nhap");
       return;
     }
     setShowReportModal(true);
-    setReportReason("");
-    setReportDetails("");
   };
 
   const handleCloseReportModal = () => {
+    if (isSubmittingReport) return;
     setShowReportModal(false);
-    setReportReason("");
     setReportDetails("");
   };
 
   const handleSubmitReport = async () => {
-    if (!reportReason) {
-      toast.error("Vui lòng chọn lý do báo cáo");
-      return;
-    }
-    if (reportReason === "OTHER" && !reportDetails.trim()) {
+    if (!reportDetails.trim()) {
       toast.error("Vui lòng nhập chi tiết lý do báo cáo");
       return;
     }
+
     const currentUser = authService.getCurrentUser();
     if (!currentUser || !id) {
       toast.error("Không thể gửi báo cáo. Vui lòng đăng nhập lại.");
       return;
     }
+
     setIsSubmittingReport(true);
     try {
       await ReportService.createReport({
         listingId: Number(id),
         reporterId: Number(currentUser.id),
-        reason: reportReason === "OTHER" ? reportDetails : reportReason,
+        reason: reportDetails,
       });
-      toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.");
+
+      toast.success("Đã gửi báo cáo thành công. Cảm ơn bạn!");
       handleCloseReportModal();
-    } catch (e: any) {
-      toast.error(
-        e.response?.data?.message ||
-          "Không thể gửi báo cáo. Vui lòng thử lại sau."
-      );
+    } catch (error: any) {
+      console.error("❌ Error submitting report:", error);
+      toast.error(error.response?.data?.message || "Không thể gửi báo cáo. Vui lòng thử lại sau.");
     } finally {
       setIsSubmittingReport(false);
     }
@@ -1028,112 +1012,55 @@ const BatteryDetailPage: React.FC = () => {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                   <Flag className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Báo cáo tin đăng
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Chúng tôi sẽ xem xét báo cáo của bạn
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">Báo cáo tin đăng</h3>
+                  <p className="text-sm text-gray-500">Chúng tôi sẽ xem xét báo cáo của bạn.</p>
                 </div>
               </div>
-              <button
-                onClick={handleCloseReportModal}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-                disabled={isSubmittingReport}
-              >
+              <button onClick={handleCloseReportModal} className="p-2 hover:bg-gray-100 rounded-full transition" aria-label="Close modal">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
+
+            {/* Modal Body */}
             <div className="p-6 space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-sm text-gray-600 mb-1">Tin đăng:</p>
-                <p className="font-medium text-gray-900 line-clamp-1">
-                  {battery.model || battery.brand}
-                </p>
+                <p className="font-medium text-gray-900 line-clamp-1">{battery.model || battery.brand}</p>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Lý do báo cáo <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-2">
-                  {reportReasons.map((reason) => (
-                    <label
-                      key={reason.value}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${
-                        reportReason === reason.value
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="reportReason"
-                        value={reason.value}
-                        checked={reportReason === reason.value}
-                        onChange={(e) => setReportReason(e.target.value)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        disabled={isSubmittingReport}
-                      />
-                      <span className="ml-3 text-sm text-gray-700">
-                        {reason.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chi tiết{" "}
-                  {reportReason === "OTHER" && (
-                    <span className="text-red-500">*</span>
-                  )}
+                <label htmlFor="reportDetails" className="block text-sm font-medium text-gray-700 mb-2">
+                  Chi tiết báo cáo <span className="text-red-500">*</span>
                 </label>
                 <textarea
+                  id="reportDetails"
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
                   placeholder="Mô tả chi tiết về vấn đề bạn gặp phải..."
-                  rows={4}
-                  maxLength={500}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={3}
+                  maxLength={100}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition"
                   disabled={isSubmittingReport}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  {reportDetails.length}/500 ký tự
-                </p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-yellow-800">
-                    <p className="font-medium mb-1">Lưu ý:</p>
-                    <ul className="space-y-1 text-xs">
-                      <li>• Báo cáo sai sự thật có thể bị xử lý</li>
-                      <li>• Chúng tôi sẽ xem xét trong vòng 24-48 giờ</li>
-                      <li>• Thông tin của bạn được bảo mật</li>
-                    </ul>
-                  </div>
-                </div>
+                <p className="mt-1 text-xs text-right text-gray-500">{reportDetails.length}/100</p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={handleCloseReportModal}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition"
-                disabled={isSubmittingReport}
-              >
-                Hủy
-              </button>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={handleCloseReportModal} disabled={isSubmittingReport} className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition disabled:opacity-50">Hủy</button>
               <button
                 onClick={handleSubmitReport}
-                disabled={!reportReason || isSubmittingReport}
+                disabled={!reportDetails.trim() || isSubmittingReport}
                 className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
               >
                 {isSubmittingReport ? (
@@ -1142,10 +1069,7 @@ const BatteryDetailPage: React.FC = () => {
                     <span>Đang gửi...</span>
                   </>
                 ) : (
-                  <>
-                    <Flag className="w-4 h-4" />
-                    <span>Gửi báo cáo</span>
-                  </>
+                  "Gửi báo cáo"
                 )}
               </button>
             </div>
