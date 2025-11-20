@@ -212,9 +212,6 @@ const ChatPage: React.FC = () => {
         return () => { mounted = false; };
     }, [state.activeChatKey]);
 
-    // ============================================
-    // ✅ HANDLE NEW CHAT - FIXED (NO LOOP)
-    // ============================================
     useEffect(() => {
         const navState = location.state as {
             sellerId?: number;
@@ -277,7 +274,7 @@ const ChatPage: React.FC = () => {
         };
 
         handleNewChat();
-    }, [location.state?.sellerId]); // ✅ Only depend on sellerId
+    }, [location.state?.sellerId]); 
 
     // ✅ Reset ref when location changes
     useEffect(() => {
@@ -296,9 +293,6 @@ const ChatPage: React.FC = () => {
 
     const handleSendMessage = useCallback(async (msg: ChatMessage) => {
         console.log("📤 Sending message to backend:", msg.content);
-
-        // ❌ REMOVE THE OPTIMISTIC UPDATE
-        // setState(prev => ({ ...prev, messages: [...prev.messages, msg] }));
 
         try {
             // ✅ Send to REST API (for saving) AND WebSocket (for broadcasting)

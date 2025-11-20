@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, ArrowLeft, Phone, Video, MoreVertical, Paperclip, CheckCheck, MessageSquare } from "lucide-react";
+import { Send, ArrowLeft, Paperclip, CheckCheck, MessageSquare } from "lucide-react";
 import type { Conversation, ChatMessage } from "../../services/Chat/ChatService";
 
 interface Props {
@@ -73,19 +73,7 @@ const ChatWindow: React.FC<Props> = ({
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-900">{activeChat.otherUser.name}</h3>
-                        <p className="text-xs text-green-600 font-medium">Đang hoạt động</p>
                     </div>
-                </div>
-                <div className="flex items-center gap-1">
-                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
-                        <Phone className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
-                        <Video className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-800 transition">
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
                 </div>
             </div>
 

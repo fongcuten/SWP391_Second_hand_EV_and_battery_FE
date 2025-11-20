@@ -14,7 +14,6 @@ const ChatSidebar: React.FC<Props> = ({
     conversations,
     activeChatKey,
     loading,
-    wsConnected,
     onSelect,
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -37,19 +36,6 @@ const ChatSidebar: React.FC<Props> = ({
             {/* Header */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <h1 className="text-xl font-bold text-gray-800">Tin nhắn</h1>
-                <div className="flex items-center gap-2">
-                    {wsConnected ? (
-                        <span className="text-xs font-medium text-green-600 flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                            Trực tuyến
-                        </span>
-                    ) : (
-                        <span className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                            Ngoại tuyến
-                        </span>
-                    )}
-                </div>
             </div>
 
             {/* Search */}

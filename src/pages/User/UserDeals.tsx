@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Tag, Loader2, Inbox, X } from "lucide-react";
+import { Tag, Loader2, Inbox, X, MessageCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import DealService, { type Deal, type AssignSitePayload } from "../../services/Deal/DealService";
 import { authService } from "../../services/authService";
@@ -39,6 +39,7 @@ const DealCard: React.FC<{
     const [loadingAssign, setLoadingAssign] = useState(false);
     const [loadingReject, setLoadingReject] = useState(false);
     const [loadingCheckout, setLoadingCheckout] = useState(false);
+    const navigate = useNavigate();
 
     // keep old quick-assign logic as fallback, but prefer modal via onOpenAssignModal
     const handleQuickAssign = async () => {
@@ -109,6 +110,24 @@ const DealCard: React.FC<{
         }
     };
 
+    // Chat button handler
+    const handleChatWithUser = () => {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) {
+            toast.warning("Vui lòng đăng nhập để nhắn tin.");
+            navigate("/dang-nhap");
+            return;
+        }
+        // Seller chats with buyer, buyer chats with seller
+        const targetUserId = isSellerView ? deal.buyer?.userId : deal.seller?.userId;
+        const targetUserName = isSellerView ? deal.buyer?.fullName || deal.buyer?.username : deal.seller?.fullName || deal.seller?.username;
+        if (!targetUserId) {
+            toast.error("Không tìm thấy người dùng để nhắn tin.");
+            return;
+        }
+        navigate("/chat", { state: { sellerId: targetUserId, sellerName: targetUserName } });
+    };
+
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200">
             <div className="flex justify-between items-start gap-4">
@@ -174,7 +193,6 @@ const DealCard: React.FC<{
 
                 {/* Buyer can checkout when awaiting confirmation */}
                 {!isSellerView && deal.status === "AWAITING_CONFIRMATION" && (
-
                     <button
                         onClick={handleCheckout}
                         disabled={loadingCheckout}
@@ -185,7 +203,6 @@ const DealCard: React.FC<{
                 )}
 
                 {!isSellerView && deal.status === "AWAITING_CONFIRMATION" && (
-
                     <button
                         onClick={handleReject}
                         disabled={loadingReject}
@@ -205,6 +222,16 @@ const DealCard: React.FC<{
                     </button>
                 )}
 
+                {/* Chat button only for allowed states */}
+                {(deal.status === "INITIALIZED" || deal.status === "AWAITING_CONFIRMATION") && (
+                    <button
+                        onClick={handleChatWithUser}
+                        className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                        <MessageCircle className="w-4 h-4" />
+                        Nhắn tin
+                    </button>
+                )}
             </div>
         </div>
     );

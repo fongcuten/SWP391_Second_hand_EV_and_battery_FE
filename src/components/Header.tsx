@@ -6,12 +6,12 @@ import {
   X,
   User,
   Bell,
-  Heart,
   ShoppingCart,
   Filter,
   LogOut,
   Settings,
   ChevronDown,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -90,13 +90,13 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-2">
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-1">
-              <Link
+              {/* <Link
                 to="/yeu-thich"
                 className="flex items-center space-x-2 text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
               >
                 <Heart className="h-5 w-5" />
                 <span className="text-sm font-medium">Yêu thích</span>
-              </Link>
+              </Link> */}
 
               {/* <Link
                 to="/thong-bao"
@@ -171,21 +171,21 @@ const Header: React.FC = () => {
                         Thông tin cá nhân
                       </Link>
 
-                      <Link
+                      {/* <Link
                         to="/cai-dat"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         <Settings className="h-4 w-4 mr-3" />
                         Cài đặt
-                      </Link>
+                      </Link> */}
 
                       <Link
                         to="/chat"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
-                        <Settings className="h-4 w-4 mr-3" />
+                        <MessageSquare className="h-4 w-4 mr-3" />
                         Chat của tôi
                       </Link>
 
@@ -411,14 +411,14 @@ const Header: React.FC = () => {
             {/* Mobile Quick Actions */}
             <div className="pt-3 border-t border-gray-100">
               <div className="grid grid-cols-3 gap-2">
-                <Link
+                {/* <Link
                   to="/yeu-thich"
                   className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Heart className="h-5 w-5 text-gray-600" />
                   <span className="text-xs text-gray-600">Yêu thích</span>
-                </Link>
+                </Link> */}
                 <Link
                   to="/thong-bao"
                   className="flex flex-col items-center space-y-1 p-3 rounded-lg hover:bg-gray-50 transition-colors relative"
