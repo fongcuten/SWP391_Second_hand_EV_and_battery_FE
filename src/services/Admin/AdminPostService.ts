@@ -42,9 +42,24 @@ export const adminPostService = {
     };
   },
   remove: async (listingId: number): Promise<void> => {
-    const res = await api.delete(`/api/sale-posts/${listingId}`);
-    if (res.status !== 200 && res.status !== 204)
-      throw new Error("Failed to delete post");
+    try {
+      const res = await api.delete(`/api/sale-posts/${listingId}`);
+      // Backend may return 200, 204, or no content
+      if (res.status !== 200 && res.status !== 204) {
+        throw new Error("Failed to delete post");
+      }
+    } catch (error: any) {
+      // Handle axios errors
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.message || error.response.data?.error || `Lỗi ${status}: Không thể xóa bài viết`;
+        throw new Error(message);
+      } else if (error.request) {
+        throw new Error("Không thể kết nối đến server");
+      } else {
+        throw new Error(error.message || "Lỗi xóa bài viết");
+      }
+    }
   },
   getById: async (listingId: number): Promise<AdminPostCard> => {
     const res = await api.get(`/api/sale-posts/${listingId}`);

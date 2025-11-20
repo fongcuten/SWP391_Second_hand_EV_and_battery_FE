@@ -201,6 +201,9 @@ const AdminPage: React.FC = () => {
   const [reportFilter, setReportFilter] = useState<ReportStatus | undefined>(
     undefined
   );
+  // Track deleted posts and banned users for reports
+  const [deletedPosts, setDeletedPosts] = useState<Set<number>>(new Set());
+  const [bannedUsers, setBannedUsers] = useState<Set<number>>(new Set());
   const [revenueStats, setRevenueStats] = useState<RevenueResponse | null>(
     null
   );
@@ -1200,18 +1203,6 @@ const AdminPage: React.FC = () => {
                 >
                   Đang chờ
                 </button>
-                <button
-                  className="text-sm px-3 py-1 rounded bg-emerald-100 hover:bg-emerald-200"
-                  onClick={() => loadReports("APPROVED")}
-                >
-                  Đã duyệt
-                </button>
-                <button
-                  className="text-sm px-3 py-1 rounded bg-red-100 hover:bg-red-200"
-                  onClick={() => loadReports("REJECTED")}
-                >
-                  Đã từ chối
-                </button>
               </div>
               {loading && (
                 <div className="text-sm text-gray-500">Đang tải...</div>
@@ -1224,91 +1215,157 @@ const AdminPage: React.FC = () => {
                     ? getPostLink(r.listingId, postInfo.type)
                     : `/xe-dien/${r.listingId}`;
                   const postTitle = postInfo?.title || `Listing ${r.listingId}`;
+                  const isPostDeleted = deletedPosts.has(r.listingId);
+                  const isUserBanned =
+                    postInfo?.sellerId && bannedUsers.has(postInfo.sellerId);
+                  // Unique key combining reportId and listingId
+                  const uniqueKey = `report-${r.reportId}-${r.listingId}-${r.reporterId}`;
 
                   return (
                     <li
-                      key={`${r.reportId}`}
-                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                      key={uniqueKey}
+                      className={`border rounded-lg p-4 ${
+                        isPostDeleted || isUserBanned
+                          ? "border-gray-300 bg-gray-100 opacity-75"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 text-gray-800 text-sm">
-                          <div className="font-medium mb-1">
-                            #{r.reportId} - {postTitle}
+                          <div className="font-medium mb-1 flex items-center gap-2">
+                            <span>
+                              #{r.reportId} - {postTitle}
+                            </span>
+                            {isPostDeleted && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 font-semibold">
+                                Đã xóa
+                              </span>
+                            )}
+                            {isUserBanned && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-semibold">
+                                Đã cấm
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-600 mb-2">
                             <span className="font-medium">Lý do báo cáo:</span>{" "}
                             {r.reason}
                           </div>
-                          <div className="text-xs">
-                            <a
-                              href={postLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline"
-                            >
-                              Xem bài viết →
-                            </a>
-                          </div>
+                          {!isPostDeleted && (
+                            <div className="text-xs">
+                              <a
+                                href={postLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Xem bài viết →
+                              </a>
+                            </div>
+                          )}
+                          {isPostDeleted && (
+                            <div className="text-xs text-gray-500 italic">
+                              Bài viết đã bị xóa
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            className="px-3 py-1 text-xs rounded bg-orange-600 text-white hover:bg-orange-700 transition"
-                            onClick={async () => {
-                              if (
-                                window.confirm(
-                                  "Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác."
-                                )
-                              ) {
-                                try {
-                                  await adminPostService.remove(r.listingId);
-                                  await adminReportService.updateStatus(
-                                    r.reporterId,
-                                    r.listingId,
-                                    "APPROVED"
-                                  );
-                                  alert("Đã xóa bài viết và đóng báo cáo");
-                                  setReports((prev) =>
-                                    prev.filter(
-                                      (report) => report.reportId !== r.reportId
-                                    )
-                                  );
-                                  setReportPostInfo((prev) => {
-                                    const next = { ...prev };
-                                    delete next[r.listingId];
-                                    return next;
-                                  });
-                                } catch (e: any) {
-                                  alert(e.message || "Lỗi xóa bài viết");
-                                }
-                              }
-                            }}
-                          >
-                            Xóa bài viết
-                          </button>
-                          {postInfo?.sellerId && (
+                          {/* Nút Xóa bài viết */}
+                          {!isPostDeleted ? (
                             <button
-                              className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 transition"
+                              className="px-3 py-1 text-xs rounded bg-orange-600 text-white hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={async () => {
                                 if (
                                   window.confirm(
-                                    "Bạn có chắc muốn cấm người dùng này? Hành động này có thể ảnh hưởng nghiêm trọng."
+                                    "Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác."
                                   )
                                 ) {
                                   try {
-                                    await adminUserService.ban(
-                                      postInfo.sellerId!
+                                    setLoading(true);
+                                    setError(null);
+                                    // Try to delete the post
+                                    await adminPostService.remove(r.listingId);
+                                    // If successful, update report status
+                                    try {
+                                      await adminReportService.updateStatus(
+                                        r.reporterId,
+                                        r.listingId,
+                                        "APPROVED"
+                                      );
+                                    } catch (statusError: any) {
+                                      console.warn(
+                                        "Failed to update report status:",
+                                        statusError
+                                      );
+                                      // Continue even if status update fails
+                                    }
+                                    // Mark as deleted in UI
+                                    setDeletedPosts((prev) =>
+                                      new Set(prev).add(r.listingId)
                                     );
-                                    alert("Đã cấm người dùng thành công");
-                                    await loadReports(reportFilter);
                                   } catch (e: any) {
-                                    alert(e.message || "Lỗi cấm người dùng");
+                                    const errorMessage =
+                                      e.message || "Lỗi xóa bài viết";
+                                    setError(errorMessage);
+                                    alert(
+                                      `Lỗi: ${errorMessage}\n\nCó thể bạn không có quyền xóa bài viết này hoặc bài viết đã bị xóa.`
+                                    );
+                                  } finally {
+                                    setLoading(false);
                                   }
                                 }
                               }}
+                              disabled={loading}
                             >
-                              Cấm người dùng
+                              Xóa bài viết
                             </button>
+                          ) : (
+                            <span className="px-3 py-1 text-xs rounded bg-gray-300 text-gray-600 cursor-not-allowed">
+                              Đã xóa
+                            </span>
                           )}
+
+                          {/* Nút Cấm người dùng - luôn hiển thị nếu có sellerId, không bị ẩn sau khi xóa bài viết */}
+                          {postInfo?.sellerId ? (
+                            !isUserBanned ? (
+                              <button
+                                className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={async () => {
+                                  if (
+                                    window.confirm(
+                                      "Bạn có chắc muốn cấm người dùng này? Hành động này có thể ảnh hưởng nghiêm trọng."
+                                    )
+                                  ) {
+                                    try {
+                                      setLoading(true);
+                                      setError(null);
+                                      await adminUserService.ban(
+                                        postInfo.sellerId!
+                                      );
+                                      // Mark as banned in UI
+                                      setBannedUsers((prev) =>
+                                        new Set(prev).add(postInfo.sellerId!)
+                                      );
+                                    } catch (e: any) {
+                                      const errorMessage =
+                                        e.message || "Lỗi cấm người dùng";
+                                      setError(errorMessage);
+                                      alert(`Lỗi: ${errorMessage}`);
+                                    } finally {
+                                      setLoading(false);
+                                    }
+                                  }
+                                }}
+                                disabled={loading}
+                              >
+                                Cấm người dùng
+                              </button>
+                            ) : (
+                              <span className="px-3 py-1 text-xs rounded bg-gray-300 text-gray-600 cursor-not-allowed">
+                                Đã cấm
+                              </span>
+                            )
+                          ) : null}
                         </div>
                       </div>
                     </li>
