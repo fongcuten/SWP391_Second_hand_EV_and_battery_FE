@@ -16,6 +16,10 @@ export interface ListPostSummary {
   sellerUsername?: string;
   inspectionStatus?: string;
   street?: string;
+  modelId?: number;
+  modelName?: string;
+  brandId?: number;
+  brandName?: string;
 }
 
 // ✅ Define the filters interface based on the state in your page

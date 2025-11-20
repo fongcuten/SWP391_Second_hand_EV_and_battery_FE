@@ -13,7 +13,6 @@ const ChatPage: React.FC = () => {
     const wsRef = useRef<WebSocketService | null>(null);
     const currentUser = authService.getCurrentUser();
 
-    // ✅ Track if we already handled navigation state
     const handledNavStateRef = useRef(false);
 
     const [state, setState] = useState({
