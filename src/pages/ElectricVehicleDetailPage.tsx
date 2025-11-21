@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Phone, MessageCircle, Heart, Share2, MapPin, Calendar,
   Battery, Gauge, Zap, Car, CheckCircle, ChevronLeft, ChevronRight,
-  Shield, FileText, Eye, Bookmark, AlertCircle, X, Flag, Tag, CheckCircle2,
+  Shield, FileText, AlertCircle, X, Flag, Tag, CheckCircle2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { VehicleDetailService, type VehicleDetail, type MediaItem, type VehiclePost } from "../services/Vehicle/ElectricDetailsService";

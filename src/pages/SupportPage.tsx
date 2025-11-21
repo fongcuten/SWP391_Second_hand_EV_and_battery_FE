@@ -5,14 +5,9 @@ import {
   Mail,
   MapPin,
   Clock,
-  Send,
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  Facebook,
-  Twitter,
-  Youtube,
-  Zap,
 } from "lucide-react";
 
 interface FAQItem {
@@ -87,14 +82,14 @@ const faqs: FAQItem[] = [
 const SupportPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>("Tất cả");
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
-  const [contactForm, setContactForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    subject: "",
-    message: "",
-  });
-  const [formSubmitted, setFormSubmitted] = useState(false);
+  // const [contactForm, setContactForm] = useState({
+  //   name: "",
+  //   email: "",
+  //   phone: "",
+  //   subject: "",
+  //   message: "",
+  // });
+  // const [formSubmitted, setFormSubmitted] = useState(false);
 
   const categories = [
     "Tất cả",
@@ -106,41 +101,41 @@ const SupportPage: React.FC = () => {
       ? faqs
       : faqs.filter((faq) => faq.category === activeCategory);
 
-  const handleSubmitContact = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log("Contact form submitted:", contactForm);
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setContactForm({
-        name: "",
-        email: "",
-        phone: "",
-        subject: "",
-        message: "",
-      });
-    }, 3000);
-  };
+  // const handleSubmitContact = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   // Here you would typically send the form data to your backend
+  //   console.log("Contact form submitted:", contactForm);
+  //   setFormSubmitted(true);
+  //   setTimeout(() => {
+  //     setFormSubmitted(false);
+  //     setContactForm({
+  //       name: "",
+  //       email: "",
+  //       phone: "",
+  //       subject: "",
+  //       message: "",
+  //     });
+  //   }, 3000);
+  // };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setContactForm({
-      ...contactForm,
-      [e.target.name]: e.target.value,
-    });
-  };
+  // const handleInputChange = (
+  //   e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  // ) => {
+  //   setContactForm({
+  //     ...contactForm,
+  //     [e.target.name]: e.target.value,
+  //   });
+  // };
 
-  // Add this handler for <select>
-  const handleSelectChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setContactForm({
-      ...contactForm,
-      [e.target.name]: e.target.value,
-    });
-  };
+  // // Add this handler for <select>
+  // const handleSelectChange = (
+  //   e: React.ChangeEvent<HTMLSelectElement>
+  // ) => {
+  //   setContactForm({
+  //     ...contactForm,
+  //     [e.target.name]: e.target.value,
+  //   });
+  // };
 
   return (
     <div className="min-h-screen bg-gray-50">
