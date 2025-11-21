@@ -33,12 +33,12 @@ const Hero: React.FC = () => {
                   Platform
                 </span>
               </h1>
-
+{/* 
               <p className="text-lg text-gray-600 max-w-xl">
                 Thị trường hàng đầu dành cho xe điện cũ và thiết bị liên quan.
                 Tuyên bố của gia đình rằng, theo gia đình và tổ hợp cộng đồng là
                 khu thuộc sở hữu - dẫn ra trong công việc tới.
-              </p>
+              </p> */}
             </div>
 
             {/* Action Buttons */}
@@ -54,17 +54,11 @@ const Hero: React.FC = () => {
                 </Link>
               </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-semibold hover:border-green-500 hover:text-green-600 transition-colors"
-              >
-                Tìm kiếm
-              </motion.button>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-4 gap-4 pt-8">
+              <Link to="/ho-so/posts" className="contents">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -74,7 +68,9 @@ const Hero: React.FC = () => {
                 <Car className="h-6 w-6 text-green-600 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">Tin của tôi</p>
               </motion.div>
+              </Link>
 
+              <Link to="/ho-so/yeu-thich" className="contents">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -84,17 +80,9 @@ const Hero: React.FC = () => {
                 <Star className="h-6 w-6 text-blue-600 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">Yêu thích</p>
               </motion.div>
+              </Link>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white rounded-lg p-4 text-center shadow-sm"
-              >
-                <TrendingUp className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Giá dịch</p>
-              </motion.div>
-
+              <Link to="/ho-so/danh-gia" className="contents">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -104,7 +92,9 @@ const Hero: React.FC = () => {
                 <Battery className="h-6 w-6 text-purple-600 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">Đánh giá</p>
               </motion.div>
+              </Link>
             </div>
+            
           </motion.div>
 
           {/* Right Content - Hero Image */}

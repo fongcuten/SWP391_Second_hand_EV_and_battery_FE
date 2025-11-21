@@ -193,7 +193,7 @@ const Footer: React.FC = () => {
         </div>
       </div>
 
-      {/* Newsletter Subscription */}
+      {/* Newsletter Subscription
       <div className="bg-gray-800 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -216,7 +216,7 @@ const Footer: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Bottom Bar */}
       <div className="bg-gray-950 py-6">

@@ -7,7 +7,6 @@ import {
   User,
   Bell,
   ShoppingCart,
-  Filter,
   LogOut,
   Settings,
   ChevronDown,
