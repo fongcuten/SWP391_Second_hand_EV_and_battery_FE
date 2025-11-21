@@ -25,7 +25,7 @@ export const reviewService = {
     const response = await api.post<Review>("/api/reviews", payload);
     return response.data;
   },
-    getReviewsReceived: async (userId: number): Promise<Review[]> => {
+  getReviewsReceived: async (userId: number): Promise<Review[]> => {
     const response = await api.get<{ code: number; result: Review[] }>(`/api/reviews/target/${userId}`);
     return response.data.result;
   },

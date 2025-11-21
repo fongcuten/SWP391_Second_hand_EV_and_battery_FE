@@ -40,6 +40,7 @@ import CheckoutSuccessPage from "./pages/Payment/inspectionCheckout";
 import UserOffers from "./pages/User/UserOffers";
 import UserDeals from "./pages/User/UserDeals";
 import UserFavorites from "./pages/User/UserFavorite";
+import UserReviews from "./pages/User/UserReviews";
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -75,6 +76,7 @@ const AppShell: React.FC = () => {
             <Route path="deals" element={<UserDeals />} />
             <Route path="deals/success" element={<UserDeals />} />
             <Route path="yeu-thich" element={<UserFavorites/>} />
+            <Route path="danh-gia" element={<UserReviews />} />
           </Route>
 
           {/* Favorites and Notifications */}
