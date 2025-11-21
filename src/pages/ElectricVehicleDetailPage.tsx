@@ -168,10 +168,6 @@ const VehicleHeader: React.FC<{ vehicle: VehicleDetail; vehiclePost: VehiclePost
         <p className="text-sm text-gray-500 mt-1">Có thể thương lượng</p>
       </div>
       <div className="flex-1"></div>
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        <div className="flex items-center gap-1"><Eye className="w-4 h-4" /><span>1.2K lượt xem</span></div>
-        <div className="flex items-center gap-1"><Bookmark className="w-4 h-4" /><span>45 đã lưu</span></div>
-      </div>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
       <QuickStat icon={<Calendar className="w-5 h-5 text-blue-600 mb-1" />} label="Năm SX" value={vehiclePost.year} color="blue" />
@@ -250,9 +246,6 @@ const SellerInfo: React.FC<{ vehicle: VehicleDetail; fullAddress: string | null 
     <div className="space-y-3 text-sm text-gray-600">
       <div className="flex items-start gap-2"><MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" /><span className="line-clamp-2">{fullAddress || "Đang tải địa chỉ..."}</span></div>
       <div className="flex items-center gap-2"><Calendar className="w-4 h-4 flex-shrink-0" /><span>Tham gia: {new Date(vehicle.createdAt).toLocaleDateString("vi-VN")}</span></div>
-    </div>
-    <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
-      <div className="text-center p-2 bg-gray-50 rounded-lg"><div className="text-lg font-bold text-blue-600">12</div><div className="text-xs text-gray-600">Tin đăng</div></div>
     </div>
   </div>
 );
