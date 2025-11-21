@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { OfferService, type Offer, type OfferStatus } from "../../services/Offer/OfferService";
 import { authService } from "../../services/authService";
 import { VehicleDetailService, type VehicleDetail } from "../../services/Vehicle/ElectricDetailsService";
+import { Navigate } from "react-router-dom";
 
 type TabId = "received" | "sent";
 
@@ -69,11 +70,17 @@ const OfferCard: React.FC<{
             });
             toast.success(`Đã ${newStatus === 'ACCEPTED' ? 'chấp nhận' : 'từ chối'} trả giá.`);
             onStatusUpdate(offer.offerId, newStatus);
+
+            if (newStatus === 'ACCEPTED') {
+                <Navigate to="/ho-so/deals"/>;
+            }
+
         } catch (error) {
             toast.error("Cập nhật trạng thái thất bại. Vui lòng thử lại.");
             console.error("Failed to update offer status", error);
         } finally {
             setIsUpdatingStatus(false);
+
         }
     };
 
