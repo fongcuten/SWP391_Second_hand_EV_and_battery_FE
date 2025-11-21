@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, use } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Tag, ArrowRight, Loader2, Inbox, Car, Battery, Check, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { OfferService, type Offer, type OfferStatus } from "../../services/Offer/OfferService";
 import { authService } from "../../services/authService";
 import { VehicleDetailService, type VehicleDetail } from "../../services/Vehicle/ElectricDetailsService";
-import { Navigate } from "react-router-dom";
+
 
 type TabId = "received" | "sent";
 
@@ -41,6 +41,7 @@ const OfferCard: React.FC<{
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchListingInfo = async () => {
@@ -72,7 +73,7 @@ const OfferCard: React.FC<{
             onStatusUpdate(offer.offerId, newStatus);
 
             if (newStatus === 'ACCEPTED') {
-                <Navigate to="/ho-so/deals"/>;
+                navigate("/ho-so/deals");
             }
 
         } catch (error) {
