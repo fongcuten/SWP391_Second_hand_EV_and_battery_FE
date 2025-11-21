@@ -26,7 +26,7 @@ const MENU_ITEMS = [
   { label: "Đánh giá từ tôi", to: "/ho-so/danh-gia", icon: "💬" },
   // { label: "Lịch sử giao dịch", to: "/ho-so/transactions", icon: "🕒" },
   { label: "Thông tin cá nhân", to: "/ho-so/info", icon: "👤" },
-  { label: "Đổi mật khẩu", to: "/ho-so/change-password", icon: "🔒" },
+  // { label: "Đổi mật khẩu", to: "/ho-so/change-password", icon: "🔒" },
 ];
 
 // ===== MAIN COMPONENT =====

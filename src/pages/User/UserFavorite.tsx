@@ -106,6 +106,7 @@ export default function UserFavorites() {
                 })
             );
             setFavorites(transformedFavorites);
+            //eslint-disable-next-line
         } catch (err: any) {
             toast.error("Không thể tải danh sách yêu thích");
             setFavorites([]);
@@ -119,6 +120,7 @@ export default function UserFavorites() {
             await FavoriteService.removeFavorite(listingId);
             setFavorites(prev => prev.filter((item) => item.listingId !== listingId));
             toast.success("Đã xóa khỏi danh sách yêu thích");
+            //eslint-disable-next-line
         } catch (err: any) {
             toast.error("Không thể xóa khỏi yêu thích");
         }
@@ -196,7 +198,7 @@ export default function UserFavorites() {
                             {tab.label}
                         </button>
                     ))}
-                </div>               
+                </div>
             </div>
 
             {/* Content */}
@@ -229,10 +231,12 @@ export default function UserFavorites() {
                         )}
                     </div>
                 ) : (
-                    filteredFavorites.map((item) => (
-                        <div
+                    filteredFavorites.map((item) =>
+                        <Link
                             key={item.id}
-                            className="border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
+                            to={`/${item.type === "vehicle" ? "xe-dien" : "pin"}/${item.id}`}
+                            className="block border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
+                            style={{ textDecoration: "none" }}
                         >
                             {/* Top section: Info */}
                             <div className="flex flex-col sm:flex-row gap-4">
@@ -282,28 +286,22 @@ export default function UserFavorites() {
                             <hr className="my-3 border-t border-[#A8E6CF]/40" />
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <button
-                                    onClick={() => handleRemoveFavorite(item.listingId)}
+                                    onClick={e => { e.preventDefault(); handleRemoveFavorite(item.listingId); }}
                                     className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                     <span>Xóa</span>
                                 </button>
                                 <button
-                                    onClick={() => handleShare(item)}
+                                    onClick={e => { e.preventDefault(); handleShare(item); }}
                                     className="flex items-center justify-center gap-2 border-2 border-green-200 text-green-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-green-50 hover:border-green-400"
                                 >
                                     <Share2 className="w-4 h-4" />
                                     <span>Chia sẻ</span>
                                 </button>
-                                <Link
-                                    to={`/${item.type === "vehicle" ? "xe-dien" : "pin"}/${item.id}`}
-                                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                                >
-                                    Xem chi tiết
-                                </Link>
                             </div>
-                        </div>
-                    ))
+                        </Link>
+                    )
                 )}
             </div>
         </div>

@@ -31,6 +31,7 @@ export default function UserReview() {
                 data = await reviewService.getReviewsWritten(currentUserId);
             }
             setReviews(Array.isArray(data) ? data : []);
+            //eslint-disable-next-line
         } catch (error) {
             toast.error("Không thể tải đánh giá!");
             setReviews([]);

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import {
   ShoppingCart,
   X,
@@ -20,6 +19,7 @@ import { UserPostService, type SalePost } from "../../services/User/UserPostServ
 import { locationService, type Province, type District, type Ward } from "../../services/locationService";
 import { InspectionService, type InspectionOrderRequest } from "../../services/Inspection/InspectionService"; // ✅ Update import
 import api from "../../config/axios";
+import { Link } from "react-router-dom";
 
 // ===== TYPES =====
 
@@ -361,6 +361,7 @@ export default function UserPosts() {
       const status = await InspectionService.inspectionStatusCheck(listingId);
       setInspectionStatus(status);
       setIsModalOpen(false); // Close modal if open
+      //eslint-disable-next-line
     } catch (error) {
       toast.error("Không thể tải trạng thái kiểm duyệt!");
       setInspectionStatus(null);
@@ -489,117 +490,115 @@ export default function UserPosts() {
             </Link>
           </div>
         ) : (
-          filteredPosts.map((post) => (
-            <div
-              key={post.listingId}
-              className="border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
-            >
-              {/* Top section: Info */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Image */}
-                <div className="flex-shrink-0">
-                  <img
-                    src={post.coverThumb || "https://via.placeholder.com/200?text=No+Image"}
-                    alt={post.productName}
-                    className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
-                      {post.productName}
-                    </h4>
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
-                      {post.productType === "VEHICLE" ? "Xe" : "Pin"}
-                    </span>
+          filteredPosts.map((post) =>
+            post.status !== "HIDDEN" ? (
+              <Link
+                key={post.listingId}
+                to={`/${post.productType === "VEHICLE" ? "xe-dien" : "pin"}/${post.listingId}`}
+                className="block border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
+                style={{ textDecoration: "none" }}
+              >
+                {/* Top section: Info */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Image */}
+                  <div className="flex-shrink-0">
+                    <img
+                      src={post.coverThumb || "https://via.placeholder.com/200?text=No+Image"}
+                      alt={post.productName}
+                      className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
+                    />
                   </div>
-
-                  <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
-                    <MapPin className="w-4 h-4" />
-                    {post.address || getLocationString(post)}
-                  </p>
-
-                  <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
-                    <span className="flex items-center gap-1">
-                      <Tag className="w-4 h-4" />
-                      Mã tin: <span className="font-medium">#{post.listingId}</span>
-                    </span>
-                    {post.status && getStatusBadge(post.status)}
-                  </p>
-
-                  <div className="text-sm text-[#2C3E50]/70 space-y-1">
-                    {post.createdAt && (
-                      <p className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        Đăng ngày: <span className="font-medium">{formatDate(post.createdAt)}</span>
-                      </p>
-                    )}
-                    <p>
-                      Giá:{" "}
-                      <span className="font-medium text-[#2ECC71]">
-                        {post.askPrice.toLocaleString("vi-VN")} VNĐ
+                  {/* Content */}
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
+                        {post.productName}
+                      </h4>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                        {post.productType === "VEHICLE" ? "Xe" : "Pin"}
                       </span>
+                    </div>
+                    <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
+                      <MapPin className="w-4 h-4" />
+                      {post.address || getLocationString(post)}
                     </p>
+                    <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-4 h-4" />
+                        Mã tin: <span className="font-medium">#{post.listingId}</span>
+                      </span>
+                      {post.status && getStatusBadge(post.status)}
+                    </p>
+                    <div className="text-sm text-[#2C3E50]/70 space-y-1">
+                      {post.createdAt && (
+                        <p className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          Đăng ngày: <span className="font-medium">{formatDate(post.createdAt)}</span>
+                        </p>
+                      )}
+                      <p>
+                        Giá:{" "}
+                        <span className="font-medium text-[#2ECC71]">
+                          {post.askPrice.toLocaleString("vi-VN")} VNĐ
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Divider and Actions */}
-              <hr className="my-3 border-t border-[#A8E6CF]/40" />
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                {post.status === "ACTIVE" && (
-                  <button
-                    onClick={() => handleMarkAsSold(post.listingId)}
-                    className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Đã bán</span>
-                  </button>
-                )}
-                {(post.status === "ACTIVE" || post.status === "PENDING") && (
-                  <Link
-                    to={`/cap-nhat/${post.listingId}`}
-                    className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Sửa</span>
-                  </Link>
-                )}
-                {post.status === "ACTIVE" && post.productType === "VEHICLE" && (
-                  <button
-                    onClick={() => openModal(post)}
-                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span>Kiểm duyệt</span>
-                  </button>
-                )}
-                {/* Inspection Status Button */}
-                {post.status !== "HIDDEN" && post.status !== "SOLD" && (
-                  <button
-                    onClick={() => handleShowInspectionStatus(post.listingId)}
-                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                    disabled={statusLoading}
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    {statusLoading ? "Đang kiểm tra..." : "Trạng thái kiểm duyệt"}
-                  </button>
-                )}
-                {/* Delete button: hide if status is HIDDEN */}
-                {post.status !== "HIDDEN" && (
-                  <button
-                    onClick={() => handleDeletePost(post.listingId)}
-                    className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Xóa</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+                {/* Divider and Actions */}
+                <hr className="my-3 border-t border-[#A8E6CF]/40" />
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {post.status === "ACTIVE" && (
+                    <button
+                      onClick={e => { e.preventDefault(); handleMarkAsSold(post.listingId); }}
+                      className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Đã bán</span>
+                    </button>
+                  )}
+                  {(post.status === "ACTIVE" || post.status === "PENDING") && (
+                    <Link
+                      to={`/cap-nhat/${post.listingId}`}
+                      onClick={e => e.stopPropagation()}
+                      className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Sửa</span>
+                    </Link>
+                  )}
+                  {post.status === "ACTIVE" && post.productType === "VEHICLE" && (
+                    <button
+                      onClick={e => { e.preventDefault(); openModal(post); }}
+                      className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span>Kiểm duyệt</span>
+                    </button>
+                  )}
+                  {post.status !== "HIDDEN" && post.status !== "SOLD" && (
+                    <button
+                      onClick={e => { e.preventDefault(); handleShowInspectionStatus(post.listingId); }}
+                      className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                      disabled={statusLoading}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      {statusLoading ? "Đang kiểm tra..." : "Trạng thái kiểm duyệt"}
+                    </button>
+                  )}
+                  {post.status !== "HIDDEN" && (
+                    <button
+                      onClick={e => { e.preventDefault(); handleDeletePost(post.listingId); }}
+                      className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xóa</span>
+                    </button>
+                  )}
+                </div>
+              </Link>
+            ) : null
+          )
         )}
       </div>
 
