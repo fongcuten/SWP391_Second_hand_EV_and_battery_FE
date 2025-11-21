@@ -9,7 +9,8 @@ import { OAuthConfig } from "../../config/configuration";
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, error, isAuthenticated, clearError, login } = useAuth();
+  const { isLoading, error, isAuthenticated, clearError, login, user } =
+    useAuth();
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -44,12 +45,16 @@ const LoginPage: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from =
-        (location.state as { from?: { pathname: string } })?.from?.pathname ||
-        "/";
-      navigate(from, { replace: true });
+      if (user?.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        const from =
+          (location.state as { from?: { pathname: string } })?.from?.pathname ||
+          "/";
+        navigate(from, { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, user, navigate, location]);
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -151,6 +156,14 @@ const LoginPage: React.FC = () => {
             bạn.
           </p>
         </div>
+
+        {/* Error message */}
+        {/* {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
+            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <div className="text-sm text-red-700">{error}</div>
+          </div>
+        )} */}
 
         {/* Success message */}
         {location.state?.message && (
