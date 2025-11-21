@@ -46,7 +46,6 @@ type AdminTab =
   | "posts"
   | "reports"
   | "analytics"
-  | "moderation"
   | "transactions"
   | "inspections"
   | "brands";
@@ -204,6 +203,8 @@ const AdminPage: React.FC = () => {
   // Track deleted posts and banned users for reports
   const [deletedPosts, setDeletedPosts] = useState<Set<number>>(new Set());
   const [bannedUsers, setBannedUsers] = useState<Set<number>>(new Set());
+  // Track deals that have been refunded
+  const [refundedDeals, setRefundedDeals] = useState<Set<number>>(new Set());
   const [revenueStats, setRevenueStats] = useState<RevenueResponse | null>(
     null
   );
@@ -303,7 +304,9 @@ const AdminPage: React.FC = () => {
     setFinanceError(null);
     try {
       const refunds = await adminRevenueService.getPendingRefunds();
-      setPendingRefunds(refunds);
+      // Chỉ lấy refund cho deal (SELLER_NO_SHOW)
+      const dealRefunds = refunds.filter((tx) => tx.referenceType === "DEAL");
+      setPendingRefunds(dealRefunds);
     } catch (e: any) {
       setFinanceError(e.message || "Lỗi tải danh sách hoàn tiền");
     } finally {
@@ -501,7 +504,6 @@ const AdminPage: React.FC = () => {
     { key: "users", label: "Người dùng" },
     { key: "inspections", label: "Kiểm định" },
     { key: "brands", label: "Thương hiệu & Model" },
-    { key: "moderation", label: "Kiểm duyệt" },
     { key: "transactions", label: "Giao dịch" },
     { key: "reports", label: "Báo cáo" },
   ];
@@ -742,7 +744,11 @@ const AdminPage: React.FC = () => {
                       const fullName = `${u.firstName ?? ""} ${
                         u.lastName ?? ""
                       }`.trim();
-                      const role = (u.role || "USER").toLowerCase();
+                      // Normalize role: convert to uppercase first, then format for display
+                      const roleUpper = (u.role || "USER").toUpperCase();
+                      const roleDisplay =
+                        roleUpper === "ADMIN" ? "Admin" : "User";
+                      const isAdmin = roleUpper === "ADMIN";
                       const status = (u.status || "UNKNOWN").toUpperCase();
                       const isBanned = status === "BANNED";
                       return (
@@ -754,12 +760,12 @@ const AdminPage: React.FC = () => {
                           <td className="px-4 py-2">
                             <span
                               className={`px-2 py-1 rounded-full text-xs ${
-                                role === "admin"
+                                isAdmin
                                   ? "bg-green-100 text-green-800"
                                   : "bg-gray-100 text-gray-800"
                               }`}
                             >
-                              {role}
+                              {roleDisplay}
                             </span>
                           </td>
                           <td className="px-4 py-2">
@@ -887,7 +893,11 @@ const AdminPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vai trò</span>
-                      <span className="text-gray-900">{selectedUser.role}</span>
+                      <span className="text-gray-900">
+                        {(selectedUser.role || "USER").toUpperCase() === "ADMIN"
+                          ? "Admin"
+                          : "User"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Trạng thái</span>
@@ -918,63 +928,6 @@ const AdminPage: React.FC = () => {
           )}
 
           {/* Posts tab removed as requested */}
-
-          {activeTab === "moderation" && (
-            <SectionCard title="Hàng chờ kiểm duyệt">
-              <div className="mb-3">
-                <button
-                  className="text-sm px-3 py-1 rounded bg-amber-100 hover:bg-amber-200"
-                  onClick={() => loadReports("PENDING")}
-                >
-                  Tải danh sách PENDING
-                </button>
-              </div>
-              {loading && (
-                <div className="text-sm text-gray-500">Đang tải...</div>
-              )}
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <ul className="divide-y divide-gray-200">
-                {reports.map((r) => (
-                  <li
-                    key={r.reportId}
-                    className="py-3 flex items-center justify-between"
-                  >
-                    <span className="text-gray-800">
-                      Report #{r.reportId} - Listing {r.listingId} - {r.reason}
-                    </span>
-                    <div className="space-x-2">
-                      <button
-                        className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700"
-                        onClick={async () => {
-                          await adminReportService.updateStatus(
-                            r.reporterId,
-                            r.listingId,
-                            "APPROVED"
-                          );
-                          loadReports("PENDING");
-                        }}
-                      >
-                        Phê duyệt
-                      </button>
-                      <button
-                        className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-                        onClick={async () => {
-                          await adminReportService.updateStatus(
-                            r.reporterId,
-                            r.listingId,
-                            "REJECTED"
-                          );
-                          loadReports("PENDING");
-                        }}
-                      >
-                        Từ chối
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
 
           {activeTab === "transactions" && (
             <>
@@ -1017,6 +970,14 @@ const AdminPage: React.FC = () => {
                           seller?.fullName ||
                           seller?.username ||
                           `User #${d.sellerId || "N/A"}`;
+                        const isRefunded =
+                          d.status === "SELLER_NO_SHOW" &&
+                          (refundedDeals.has(d.dealId) ||
+                            !pendingRefunds.some(
+                              (r) =>
+                                r.referenceType === "DEAL" &&
+                                r.referenceId === d.dealId
+                            ));
 
                         return (
                           <tr key={d.dealId}>
@@ -1072,30 +1033,186 @@ const AdminPage: React.FC = () => {
                                     ? "bg-amber-100 text-amber-700"
                                     : d.status === "SCHEDULED"
                                     ? "bg-blue-100 text-blue-700"
+                                    : d.status === "SELLER_NO_SHOW"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : d.status === "BUYER_NO_SHOW"
+                                    ? "bg-purple-100 text-purple-700"
+                                    : d.status === "CANCELLED"
+                                    ? "bg-gray-100 text-gray-700"
                                     : "bg-red-100 text-red-700"
                                 }`}
                               >
-                                {d.status}
+                                {d.status === "SELLER_NO_SHOW"
+                                  ? "SELLER_NO_SHOW"
+                                  : d.status === "BUYER_NO_SHOW"
+                                  ? "Buyer không tới"
+                                  : d.status}
                               </span>
                             </td>
                             <td className="px-4 py-2 text-right space-x-3">
-                              {d.status !== "COMPLETED" && (
-                                <button
-                                  className="text-sm text-green-600 hover:underline"
-                                  onClick={async () => {
-                                    await adminDealService.complete(d.dealId);
-                                    loadDeals();
+                              {/* Dropdown để update status */}
+                              {d.status !== "COMPLETED" && !isRefunded && (
+                                <select
+                                  className="text-xs border rounded px-2 py-1 mr-2"
+                                  value={d.status}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target
+                                      .value as AdminDealResponse["status"];
+                                    if (newStatus === d.status) return;
+
+                                    const statusLabels: Record<string, string> =
+                                      {
+                                        SELLER_NO_SHOW: "Seller không tới",
+                                        BUYER_NO_SHOW: "Buyer không tới",
+                                        CANCELLED: "Hủy",
+                                        COMPLETED: "Hoàn tất",
+                                        PENDING: "Đang chờ",
+                                        SCHEDULED: "Đã lên lịch",
+                                      };
+
+                                    if (
+                                      window.confirm(
+                                        `Bạn có chắc muốn đổi trạng thái deal #${
+                                          d.dealId
+                                        } thành "${
+                                          statusLabels[newStatus] || newStatus
+                                        }"?`
+                                      )
+                                    ) {
+                                      try {
+                                        setLoading(true);
+                                        setError(null);
+                                        await adminDealService.updateStatus(
+                                          d.dealId,
+                                          newStatus
+                                        );
+                                        await loadDeals();
+                                        // Nếu chuyển thành SELLER_NO_SHOW, reload refunds
+                                        if (newStatus === "SELLER_NO_SHOW") {
+                                          await loadRefunds();
+                                        }
+                                      } catch (e: any) {
+                                        setError(
+                                          e.message || "Lỗi cập nhật trạng thái"
+                                        );
+                                        alert(
+                                          `Lỗi: ${
+                                            e.message ||
+                                            "Không thể cập nhật trạng thái"
+                                          }`
+                                        );
+                                      } finally {
+                                        setLoading(false);
+                                      }
+                                    } else {
+                                      // Reset về giá trị cũ nếu cancel
+                                      e.target.value = d.status;
+                                    }
                                   }}
+                                  disabled={loading}
                                 >
-                                  Hoàn tất
-                                </button>
+                                  <option value="PENDING">Đang chờ</option>
+                                  <option value="SCHEDULED">Đã lên lịch</option>
+                                  <option value="SELLER_NO_SHOW">
+                                    Seller không tới
+                                  </option>
+                                  <option value="BUYER_NO_SHOW">
+                                    Buyer không tới
+                                  </option>
+                                  <option value="CANCELLED">Hủy</option>
+                                  <option value="COMPLETED">Hoàn tất</option>
+                                </select>
+                              )}
+                              {d.status === "SELLER_NO_SHOW" &&
+                                (isRefunded ? (
+                                  <span className="text-xs text-gray-500 italic">
+                                    Đã hoàn tiền
+                                  </span>
+                                ) : (
+                                  <button
+                                    className="text-sm text-orange-600 hover:underline font-medium"
+                                    onClick={async () => {
+                                      if (
+                                        window.confirm(
+                                          `Bạn có chắc muốn hoàn tiền cho buyer (${buyerName})? Số tiền sẽ được hoàn lại vào tài khoản của buyer.`
+                                        )
+                                      ) {
+                                        try {
+                                          setLoading(true);
+                                          setError(null);
+                                          // Tìm pending refund cho deal này
+                                          const refunds =
+                                            await adminRevenueService.getPendingRefunds();
+                                          const dealRefund = refunds.find(
+                                            (r) =>
+                                              r.referenceType === "DEAL" &&
+                                              r.referenceId === d.dealId
+                                          );
+
+                                          if (dealRefund) {
+                                            // Confirm refund đã có
+                                            await adminRevenueService.confirmRefund(
+                                              dealRefund.id
+                                            );
+                                            // Đánh dấu deal đã được refund
+                                            setRefundedDeals((prev) =>
+                                              new Set(prev).add(d.dealId)
+                                            );
+                                            // Reload để cập nhật UI
+                                            await Promise.all([
+                                              loadDeals(),
+                                              loadRefunds(),
+                                              loadRevenue(),
+                                            ]);
+                                            alert(
+                                              "Đã hoàn tiền thành công cho buyer"
+                                            );
+                                          } else {
+                                            alert(
+                                              "Không tìm thấy yêu cầu hoàn tiền cho deal này. Vui lòng kiểm tra lại."
+                                            );
+                                          }
+                                        } catch (e: any) {
+                                          setError(
+                                            e.message || "Lỗi khi hoàn tiền"
+                                          );
+                                          alert(
+                                            `Lỗi: ${
+                                              e.message || "Không thể hoàn tiền"
+                                            }`
+                                          );
+                                        } finally {
+                                          setLoading(false);
+                                        }
+                                      }
+                                    }}
+                                    disabled={loading}
+                                  >
+                                    Hoàn tiền
+                                  </button>
+                                ))}
+                              {d.status === "COMPLETED" && (
+                                <span className="text-xs text-gray-500 italic">
+                                  Đã hoàn tất
+                                </span>
                               )}
                               <button
                                 className="text-sm text-red-600 hover:underline"
                                 onClick={async () => {
-                                  await adminDealService.remove(d.dealId);
-                                  loadDeals();
+                                  if (
+                                    window.confirm(
+                                      `Bạn có chắc muốn xóa deal #${d.dealId}?`
+                                    )
+                                  ) {
+                                    try {
+                                      await adminDealService.remove(d.dealId);
+                                      await loadDeals();
+                                    } catch (e: any) {
+                                      setError(e.message || "Lỗi xóa deal");
+                                    }
+                                  }
                                 }}
+                                disabled={loading}
                               >
                                 Xóa
                               </button>
@@ -1108,83 +1225,127 @@ const AdminPage: React.FC = () => {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Hoàn tiền chờ xử lý">
-                {financeError && (
-                  <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                    {financeError}
+              {(refundLoading || financeError || pendingRefunds.length > 0) && (
+                <SectionCard title="Hoàn tiền chờ xử lý (Deal - Seller không tới)">
+                  <div className="mb-3 text-xs text-gray-600">
+                    Danh sách hoàn tiền cọc cho buyer khi seller không tới trong
+                    deal
                   </div>
-                )}
-                {refundLoading ? (
-                  <div className="text-sm text-gray-500">Đang tải...</div>
-                ) : pendingRefunds.length === 0 ? (
-                  <div className="text-sm text-gray-500">
-                    Không có yêu cầu hoàn tiền nào đang chờ.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            #
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Người dùng
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Liên quan
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Số tiền
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ngày tạo
-                          </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Hành động
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                        {pendingRefunds.map((tx) => (
-                          <tr key={tx.id}>
-                            <td className="px-4 py-2 font-medium text-gray-900">
-                              #{tx.id}
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="flex flex-col">
-                                <span>User #{tx.userId}</span>
-                                <span className="text-xs text-gray-500">
-                                  {tx.referenceType}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-2">
-                              #{tx.referenceId} ({tx.referenceType})
-                            </td>
-                            <td className="px-4 py-2 font-semibold text-gray-900">
-                              {formatCurrency(tx.amount)}
-                            </td>
-                            <td className="px-4 py-2 text-gray-500">
-                              {tx.createdAt
-                                ? new Date(tx.createdAt).toLocaleString("vi-VN")
-                                : "-"}
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <button
-                                className="rounded-md bg-emerald-600 px-3 py-1 text-sm font-medium text-white hover:bg-emerald-700"
-                                onClick={() => handleConfirmRefund(tx.id)}
-                              >
-                                Xác nhận
-                              </button>
-                            </td>
+                  {financeError && (
+                    <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                      {financeError}
+                    </div>
+                  )}
+                  {refundLoading ? (
+                    <div className="text-sm text-gray-500">Đang tải...</div>
+                  ) : pendingRefunds.length === 0 ? (
+                    <div className="text-sm text-gray-500">
+                      Không có yêu cầu hoàn tiền nào đang chờ.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              #
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Người dùng
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Liên quan
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Số tiền
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Ngày tạo
+                            </th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Hành động
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </SectionCard>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                          {pendingRefunds.map((tx) => {
+                            // Tìm deal tương ứng
+                            const relatedDeal = deals.find(
+                              (d) => d.dealId === tx.referenceId
+                            );
+                            const buyer = relatedDeal?.buyer;
+                            const seller = relatedDeal?.seller;
+                            const buyerName =
+                              buyer?.fullName ||
+                              buyer?.username ||
+                              `User #${tx.userId}`;
+                            const sellerName =
+                              seller?.fullName ||
+                              seller?.username ||
+                              `User #${relatedDeal?.sellerId || "N/A"}`;
+
+                            return (
+                              <tr key={tx.id}>
+                                <td className="px-4 py-2 font-medium text-gray-900">
+                                  #{tx.id}
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {buyerName}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      Người mua (cần hoàn tiền)
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      Deal #{tx.referenceId}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {relatedDeal?.status === "SELLER_NO_SHOW"
+                                        ? "Seller không tới"
+                                        : `Status: ${
+                                            relatedDeal?.status || "N/A"
+                                          }`}
+                                    </span>
+                                    {seller && (
+                                      <span className="text-xs text-gray-400 mt-1">
+                                        Seller: {sellerName}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 font-semibold text-gray-900">
+                                  {formatCurrency(tx.amount)}
+                                </td>
+                                <td className="px-4 py-2 text-gray-500">
+                                  {tx.createdAt
+                                    ? new Date(tx.createdAt).toLocaleString(
+                                        "vi-VN"
+                                      )
+                                    : "-"}
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <button
+                                    className="rounded-md bg-emerald-600 px-3 py-1 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => handleConfirmRefund(tx.id)}
+                                    disabled={loading}
+                                  >
+                                    Xác nhận hoàn tiền
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </SectionCard>
+              )}
             </>
           )}
 

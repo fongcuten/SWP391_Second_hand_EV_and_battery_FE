@@ -1,6 +1,12 @@
 import api from "../../config/axios";
 
-export type DealStatus = "PENDING" | "SCHEDULED" | "COMPLETED" | "CANCELLED";
+export type DealStatus =
+  | "PENDING"
+  | "SCHEDULED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "SELLER_NO_SHOW"
+  | "BUYER_NO_SHOW";
 
 export interface DealUserInfo {
   userId: number;
@@ -43,5 +49,16 @@ export const adminDealService = {
     const res = await api.delete(`/api/deals/${dealId}`);
     if (res.data?.code !== 1000)
       throw new Error(res.data?.message || "Failed to delete deal");
+  },
+  updateStatus: async (
+    dealId: number,
+    status: DealStatus
+  ): Promise<AdminDealResponse> => {
+    const res = await api.put(`/api/deals/${dealId}/status`, null, {
+      params: { status },
+    });
+    if (res.data?.code !== 1000)
+      throw new Error(res.data?.message || "Failed to update deal status");
+    return res.data.result as AdminDealResponse;
   },
 };
