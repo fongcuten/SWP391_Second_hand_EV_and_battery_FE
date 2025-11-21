@@ -7,6 +7,12 @@ export type UserStatus =
   | "INACTIVE"
   | string;
 
+export interface UserPlan {
+  name: string;
+  status?: string;
+  expiresAt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -18,6 +24,7 @@ export interface User {
   status: UserStatus;
   createdAt: string;
   isEmailVerified: boolean;
+  plan?: UserPlan | null;
 }
 
 export interface AuthState {

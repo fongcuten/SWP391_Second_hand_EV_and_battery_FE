@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  CheckCircle,
-  User,
-} from "lucide-react";
+import { Eye, EyeOff, Lock, CheckCircle, User } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import type { LoginFormData } from "../../types/auth";
@@ -157,29 +151,6 @@ const LoginPage: React.FC = () => {
             bạn.
           </p>
         </div>
-
-        {/* Demo accounts info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-800 mb-2">
-            Tài khoản demo:
-          </h3>
-          <div className="text-sm text-blue-700 space-y-1">
-            <p>
-              <strong>Admin:</strong> admin / 123456
-            </p>
-            <p>
-              <strong>User:</strong> user / 123456
-            </p>
-          </div>
-        </div>
-
-        {/* Error message */}
-        {/* {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
-            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-            <div className="text-sm text-red-700">{error}</div>
-          </div>
-        )} */}
 
         {/* Success message */}
         {location.state?.message && (

@@ -1,0 +1,167 @@
+warning: in the working copy of 'index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Header.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/index.html b/index.html[m
+[1mindex 57fa940..b7dd65d 100644[m
+[1m--- a/index.html[m
+[1m+++ b/index.html[m
+[36m@@ -1,10 +1,10 @@[m
+[31m-<!doctype html>[m
+[32m+[m[32m<!DOCTYPE html>[m
+ <html lang="en">[m
+   <head>[m
+     <meta charset="UTF-8" />[m
+     <link rel="icon" type="image/svg+xml" href="/vite.svg" />[m
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />[m
+[31m-    <title>swp391-second-hand-ev-and-battery-fe</title>[m
+[32m+[m[32m    <title>Second-hand EV platform</title>[m
+   </head>[m
+   <body>[m
+     <div id="root"></div>[m
+[1mdiff --git a/src/components/Header.tsx b/src/components/Header.tsx[m
+[1mindex cc37811..a34d2e9 100644[m
+[1m--- a/src/components/Header.tsx[m
+[1m+++ b/src/components/Header.tsx[m
+[36m@@ -1,4 +1,4 @@[m
+[31m-import React, { useState } from "react";[m
+[32m+[m[32mimport React, { useEffect, useRef, useState } from "react";[m
+ import { Link, useNavigate, useLocation } from "react-router-dom";[m
+ import {[m
+   Search,[m
+[36m@@ -11,18 +11,59 @@[m [mimport {[m
+   LogOut,[m
+   Settings,[m
+   ChevronDown,[m
+[31m-  MessageSquare[m
+[32m+[m[32m  MessageSquare,[m
+ } from "lucide-react";[m
+ import { useAuth } from "../contexts/AuthContext";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  searchService,[m
+[32m+[m[32m  type SearchResultItem,[m
+[32m+[m[32m} from "../services/SearchService";[m
+ [m
+ const Header: React.FC = () => {[m
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);[m
+   const [isSearchFocused, setIsSearchFocused] = useState(false);[m
+   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);[m
+[32m+[m[32m  const [searchTerm, setSearchTerm] = useState("");[m
+[32m+[m[32m  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);[m
+[32m+[m[32m  const [searchLoading, setSearchLoading] = useState(false);[m
+[32m+[m[32m  const [showSearchDropdown, setShowSearchDropdown] = useState(false);[m
+[32m+[m[32m  const searchWrapperRef = useRef<HTMLDivElement | null>(null);[m
+   const navigate = useNavigate();[m
+   const location = useLocation();[m
+   const { user, isAuthenticated, logout } = useAuth();[m
+ [m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    const handleClickOutside = (event: MouseEvent) => {[m
+[32m+[m[32m      if ([m
+[32m+[m[32m        searchWrapperRef.current &&[m
+[32m+[m[32m        !searchWrapperRef.current.contains(event.target as Node)[m
+[32m+[m[32m      ) {[m
+[32m+[m[32m        setShowSearchDropdown(false);[m
+[32m+[m[32m        setIsSearchFocused(false);[m
+[32m+[m[32m      }[m
+[32m+[m[32m    };[m
+[32m+[m[32m    document.addEventListener("mousedown", handleClickOutside);[m
+[32m+[m[32m    return () => document.removeEventListener("mousedown", handleClickOutside);[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (!searchTerm.trim()) {[m
+[32m+[m[32m      setSearchResults([]);[m
+[32m+[m[32m      setShowSearchDropdown(false);[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    setSearchLoading(true);[m
+[32m+[m[32m    const handler = setTimeout(async () => {[m
+[32m+[m[32m      const results = await searchService.searchListings(searchTerm.trim());[m
+[32m+[m[32m      setSearchResults(results);[m
+[32m+[m[32m      setShowSearchDropdown(true);[m
+[32m+[m[32m      setSearchLoading(false);[m
+[32m+[m[32m    }, 400);[m
+[32m+[m
+[32m+[m[32m    return () => clearTimeout(handler);[m
+[32m+[m[32m  }, [searchTerm]);[m
+[32m+[m
+   const navigationItems = [[m
+     { label: "Trang chủ", href: "/", primary: true },[m
+     { label: "Xe điện", href: "/xe-dien", primary: true },[m
+[36m@@ -36,6 +77,38 @@[m [mconst Header: React.FC = () => {[m
+   const primaryNav = navigationItems.filter((item) => item.primary);[m
+   const secondaryNav = navigationItems.filter((item) => !item.primary);[m
+ [m
+[32m+[m[32m  const formatCurrency = (value?: number) => {[m
+[32m+[m[32m    if (!value && value !== 0) return "Đang cập nhật";[m
+[32m+[m[32m    return new Intl.NumberFormat("vi-VN", {[m
+[32m+[m[32m      style: "currency",[m
+[32m+[m[32m      currency: "VND",[m
+[32m+[m[32m      maximumFractionDigits: 0,[m
+[32m+[m[32m    }).format(value);[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const handleSelectResult = (result: SearchResultItem) => {[m
+[32m+[m[32m    setSearchTerm("");[m
+[32m+[m[32m    setSearchResults([]);[m
+[32m+[m[32m    setShowSearchDropdown(false);[m
+[32m+[m[32m    const path =[m
+[32m+[m[32m      result.productType === "BATTERY"[m
+[32m+[m[32m        ? `/pin/${result.listingId}`[m
+[32m+[m[32m        : `/xe-dien/${result.listingId}`;[m
+[32m+[m[32m    navigate(path);[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const handleSearchSubmit = async () => {[m
+[32m+[m[32m    if (!searchTerm.trim()) return;[m
+[32m+[m[32m    setSearchLoading(true);[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const results = await searchService.searchListings(searchTerm.trim());[m
+[32m+[m[32m      setSearchResults(results);[m
+[32m+[m[32m      setShowSearchDropdown(true);[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setSearchLoading(false);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m
+   return ([m
+     <header className="bg-white shadow-md sticky top-0 z-50">[m
+       {/* Main Header */}[m
+[36m@@ -64,8 +137,10 @@[m [mconst Header: React.FC = () => {[m
+           {/* Search Bar - Enhanced */}[m
+           <div className="flex-1 max-w-2xl mx-4 lg:mx-8">[m
+             <div[m
+[31m-              className={`relative transition-all duration-200 ${isSearchFocused ? "scale-105" : ""[m
+[31m-                }`}[m
+[32m+[m[32m              ref={searchWrapperRef}[m
+[32m+[m[32m              className={`relative z-40 transition-all duration-200 ${[m
+[32m+[m[32m                isSearchFocused ? "scale-105" : ""[m
+[32m+[m[32m              }`}[m
+             >[m
+               <div className="flex">[m
+                 <div className="relative flex-1">[m
+[36m@@ -74,15 +149,69 @@[m [mconst Header: React.FC = () => {[m
+                     placeholder="Tìm kiếm xe điện, pin, phụ kiện..."[m
+                     className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"[m
+                     onFocus={() => setIsSearchFocused(true)}[m
+[31m-                    onBlur={() => setIsSearchFocused(false)}[m
+[32m+[m[32m                    value={searchTerm}[m
+[32m+[m[32m                    onChange={(e) => setSearchTerm(e.target.value)}[m
+[32m+[m[32m                    onKeyDown={(e) => {[m
+[32m+[m[32m                      if (e.key === "Enter") {[m
+[32m+[m[32m                        e.preventDefault();[m
+[32m+[m[32m                        handleSearchSubmit();[m
+[32m+[m[32m                      }[m
+[32m+[m[32m                    }}[m
+                   />[m
+                   <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />[m
+                 </div>[m
+[31m-                <button className="bg-green-600 text-white px-6 py-3 rounded-r-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-2">[m
+[32m+[m[32m                <button[m
+[32m+[m[32m                  onClick={handleSearchSubmit}[m
+[32m+[m[32m                  className="bg-green-600 text-white px-6 py-3 rounded-r-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-2"[m
+[32m+[m[32m                >[m
+                   <Search className="h-4 w-4" />[m
+                   <span className="hidden sm:inline">Tìm kiếm</span>[m
+                 </button>[m
+             

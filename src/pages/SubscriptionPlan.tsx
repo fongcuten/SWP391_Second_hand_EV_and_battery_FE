@@ -68,6 +68,12 @@ export const SubscriptionsPlan: React.FC = () => {
             return;
         }
 
+        const currentPlanName = user.plan?.name?.toLowerCase();
+        if (currentPlanName && currentPlanName === planName.toLowerCase()) {
+            toast.info("Bạn đang sử dụng gói này.");
+            return;
+        }
+
         setProcessingPlan(planName);
 
         try {
@@ -84,15 +90,20 @@ export const SubscriptionsPlan: React.FC = () => {
         } catch (error: any) {
             console.error("❌ Checkout error:", error);
 
-            if (error.message.includes("Phiên đăng nhập hết hạn")) {
+            const backendMessage =
+                error?.response?.data?.message ||
+                error?.message ||
+                "Không thể xử lý yêu cầu.";
+
+            if (backendMessage.includes("Phiên đăng nhập hết hạn")) {
                 localStorage.removeItem("auth_token");
                 localStorage.removeItem("user");
                 toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
                 navigate("/dang-nhap");
-            } else if (error.message.includes("API endpoint không tồn tại")) {
+            } else if (backendMessage.includes("API endpoint không tồn tại")) {
                 toast.error("Tính năng thanh toán chưa được cấu hình.");
             } else {
-                toast.error(error.message || "Lỗi hệ thống, vui lòng thử lại sau.");
+                toast.error(backendMessage);
             }
         } finally {
             setProcessingPlan(null);
