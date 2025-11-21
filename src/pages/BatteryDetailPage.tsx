@@ -383,6 +383,11 @@ const BatteryDetailPage: React.FC = () => {
       return;
     }
 
+    if (battery && price > battery.price) {
+      toast.error("Giá trả không được vượt quá giá niêm yết.");
+      return;
+    }
+
     setIsSubmittingOffer(true);
     try {
       await OfferService.createOffer({

@@ -462,6 +462,11 @@ const ElectricVehicleDetailPage: React.FC = () => {
       return;
     }
 
+    if (vehicle && price > vehicle.askPrice) {
+      toast.error("Giá trả không được vượt quá giá niêm yết.");
+      return;
+    }
+
     setIsSubmittingOffer(true);
     try {
       await OfferService.createOffer({

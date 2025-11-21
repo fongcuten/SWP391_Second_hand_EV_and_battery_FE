@@ -15,9 +15,20 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { UserPostService, type SalePost } from "../../services/User/UserPostService";
-import { locationService, type Province, type District, type Ward } from "../../services/locationService";
-import { InspectionService, type InspectionOrderRequest } from "../../services/Inspection/InspectionService"; // ✅ Update import
+import {
+  UserPostService,
+  type SalePost,
+} from "../../services/User/UserPostService";
+import {
+  locationService,
+  type Province,
+  type District,
+  type Ward,
+} from "../../services/locationService";
+import {
+  InspectionService,
+  type InspectionOrderRequest,
+} from "../../services/Inspection/InspectionService"; // ✅ Update import
 import api from "../../config/axios";
 import { Link } from "react-router-dom";
 
@@ -53,7 +64,9 @@ export default function UserPosts() {
   const [posts, setPosts] = useState<SalePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("all");
-  const [productTypeFilter, setProductTypeFilter] = useState<"VEHICLE" | "BATTERY" | "">("");
+  const [productTypeFilter, setProductTypeFilter] = useState<
+    "VEHICLE" | "BATTERY" | ""
+  >("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SalePost | null>(null);
   const [inspectionType, setInspectionType] = useState<InspectionType>("");
@@ -211,7 +224,12 @@ export default function UserPosts() {
 
     // Validate SYSTEM inspection
     if (inspectionType === "system") {
-      if (!selectedProvince || !selectedDistrict || !selectedWard || !street.trim()) {
+      if (
+        !selectedProvince ||
+        !selectedDistrict ||
+        !selectedWard ||
+        !street.trim()
+      ) {
         toast.warning("Vui lòng điền đầy đủ thông tin địa chỉ");
         return;
       }
@@ -225,7 +243,7 @@ export default function UserPosts() {
       const now = new Date();
 
       if (selectedDateTime <= now) {
-        toast.warning("Vui lòng chọn ngày trong tương lai");
+        toast.warning("Không thể chọn thời gian trong quá khứ.");
         return;
       }
 
@@ -234,6 +252,11 @@ export default function UserPosts() {
 
       if (selectedDateTime > maxDate) {
         toast.warning("Vui lòng chọn ngày trong vòng 30 ngày tới");
+        return;
+      }
+
+      if (!isValidInspectionSchedule(selectedDateTime)) {
+        toast.warning("Chỉ được đặt lịch từ 09:00 đến 16:00.");
         return;
       }
     }
@@ -273,16 +296,24 @@ export default function UserPosts() {
           street: street.trim() || undefined,
         };
 
-        const inspectionOrderId = await InspectionService.submitInspectionOrder(payload);
+        const inspectionOrderId = await InspectionService.submitInspectionOrder(
+          payload
+        );
         console.log("✅ Created inspection order with ID:", inspectionOrderId);
         if (!inspectionOrderId) {
           toast.error("Không thể tạo đơn kiểm duyệt");
           return;
         }
 
-        localStorage.setItem("pendingInspectionOrderId", inspectionOrderId.toString());
+        localStorage.setItem(
+          "pendingInspectionOrderId",
+          inspectionOrderId.toString()
+        );
 
-        const response = await api.post(`/api/inspection-orders/${inspectionOrderId}/checkout`, {});
+        const response = await api.post(
+          `/api/inspection-orders/${inspectionOrderId}/checkout`,
+          {}
+        );
         const checkoutUrl = response.data?.url;
         if (!checkoutUrl) {
           toast.error("Không thể trả check out URL");
@@ -322,14 +353,21 @@ export default function UserPosts() {
       await loadPosts();
     } catch (error: any) {
       console.error("❌ Error submitting inspection:", error);
-      toast.error(error.message || "Không thể gửi yêu cầu kiểm duyệt. Vui lòng thử lại!");
+      toast.error(
+        error.message || "Không thể gửi yêu cầu kiểm duyệt. Vui lòng thử lại!"
+      );
     } finally {
       setSubmittingInspection(false);
     }
   };
 
   const handleMarkAsSold = async (listingId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn đánh dấu tin này là đã bán? Thao tác này không thể hoàn tác.")) return;
+    if (
+      !window.confirm(
+        "Bạn có chắc chắn muốn đánh dấu tin này là đã bán? Thao tác này không thể hoàn tác."
+      )
+    )
+      return;
 
     try {
       await UserPostService.markPostAsSold(listingId);
@@ -376,10 +414,10 @@ export default function UserPosts() {
     let statusFilteredPosts: SalePost[];
     switch (activeTab) {
       case "active":
-        statusFilteredPosts = posts.filter(p => p.status === "ACTIVE");
+        statusFilteredPosts = posts.filter((p) => p.status === "ACTIVE");
         break;
       case "sold":
-        statusFilteredPosts = posts.filter(p => p.status === "SOLD");
+        statusFilteredPosts = posts.filter((p) => p.status === "SOLD");
         break;
       default:
         statusFilteredPosts = posts;
@@ -388,7 +426,9 @@ export default function UserPosts() {
 
     // Then, filter by product type if a filter is selected
     if (productTypeFilter) {
-      return statusFilteredPosts.filter(p => p.productType === productTypeFilter);
+      return statusFilteredPosts.filter(
+        (p) => p.productType === productTypeFilter
+      );
     }
 
     return statusFilteredPosts;
@@ -401,7 +441,9 @@ export default function UserPosts() {
     };
 
     return (
-      <span className={`inline-block ${badge.color} text-white text-xs px-2 py-1 rounded-md font-medium`}>
+      <span
+        className={`inline-block ${badge.color} text-white text-xs px-2 py-1 rounded-md font-medium`}
+      >
         {badge.text}
       </span>
     );
@@ -416,7 +458,12 @@ export default function UserPosts() {
   };
 
   const getLocationString = (post: SalePost) => {
-    const parts = [post.street, post.wardCode, post.districtCode, post.provinceCode]
+    const parts = [
+      post.street,
+      post.wardCode,
+      post.districtCode,
+      post.provinceCode,
+    ]
       .filter(Boolean)
       .join(", ");
     return parts || "Chưa cập nhật địa chỉ";
@@ -433,7 +480,10 @@ export default function UserPosts() {
           <CheckCircle className="w-6 h-6 text-green-600" />
           Quản lý tin đăng
         </h2>
-        <Link to="/" className="text-sm text-gray-600 hover:text-green-600 font-medium transition-colors">
+        <Link
+          to="/"
+          className="text-sm text-gray-600 hover:text-green-600 font-medium transition-colors"
+        >
           Trang chủ
         </Link>
       </div>
@@ -446,10 +496,11 @@ export default function UserPosts() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${activeTab === tab.id
-                ? "bg-[#2ECC71] text-white shadow-md"
-                : "text-[#2C3E50] hover:bg-[#A8E6CF]/50"
-                }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                activeTab === tab.id
+                  ? "bg-[#2ECC71] text-white shadow-md"
+                  : "text-[#2C3E50] hover:bg-[#A8E6CF]/50"
+              }`}
             >
               {tab.label}
             </button>
@@ -460,7 +511,9 @@ export default function UserPosts() {
         <div>
           <select
             value={productTypeFilter}
-            onChange={(e) => setProductTypeFilter(e.target.value as "VEHICLE" | "BATTERY" | "")}
+            onChange={(e) =>
+              setProductTypeFilter(e.target.value as "VEHICLE" | "BATTERY" | "")
+            }
             className="px-4 py-2 text-sm font-medium text-[#2C3E50] bg-white border border-[#A8E6CF]/80 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] transition-all"
           >
             <option value="">Tất cả sản phẩm</option>
@@ -480,7 +533,9 @@ export default function UserPosts() {
         ) : filteredPosts.length === 0 ? (
           <div className="text-center py-16 text-[#2C3E50]/70">
             <p className="text-lg font-medium mb-2">
-              {activeTab === "all" ? "Bạn chưa có tin đăng nào." : "Chưa có tin ở trạng thái này."}
+              {activeTab === "all"
+                ? "Bạn chưa có tin đăng nào."
+                : "Chưa có tin ở trạng thái này."}
             </p>
             <Link
               to="/dang-tin"
@@ -490,6 +545,7 @@ export default function UserPosts() {
             </Link>
           </div>
         ) : (
+<<<<<<< Updated upstream
           filteredPosts.map((post) =>
             post.status !== "HIDDEN" ? (
               <Link
@@ -516,6 +572,66 @@ export default function UserPosts() {
                       </h4>
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
                         {post.productType === "VEHICLE" ? "Xe" : "Pin"}
+=======
+          filteredPosts.map((post) => (
+            <div
+              key={post.listingId}
+              className="border border-[#A8E6CF]/60 rounded-xl bg-white p-4 hover:shadow-md transition-all"
+            >
+              {/* Top section: Info */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Image */}
+                <div className="flex-shrink-0">
+                  <img
+                    src={
+                      post.coverThumb ||
+                      "https://via.placeholder.com/200?text=No+Image"
+                    }
+                    alt={post.productName}
+                    className="w-28 h-28 object-cover rounded-lg border border-[#A8E6CF]/40"
+                  />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h4 className="font-semibold text-[#2C3E50] text-base truncate max-w-[400px]">
+                      {post.productName}
+                    </h4>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                      {post.productType === "VEHICLE" ? "Xe" : "Pin"}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
+                    <MapPin className="w-4 h-4" />
+                    {post.address || getLocationString(post)}
+                  </p>
+
+                  <p className="text-sm text-[#2C3E50]/70 mb-2 flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <Tag className="w-4 h-4" />
+                      Mã tin:{" "}
+                      <span className="font-medium">#{post.listingId}</span>
+                    </span>
+                    {post.status && getStatusBadge(post.status)}
+                  </p>
+
+                  <div className="text-sm text-[#2C3E50]/70 space-y-1">
+                    {post.createdAt && (
+                      <p className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Đăng ngày:{" "}
+                        <span className="font-medium">
+                          {formatDate(post.createdAt)}
+                        </span>
+                      </p>
+                    )}
+                    <p>
+                      Giá:{" "}
+                      <span className="font-medium text-[#2ECC71]">
+                        {post.askPrice.toLocaleString("vi-VN")} VNĐ
+>>>>>>> Stashed changes
                       </span>
                     </div>
                     <p className="text-sm text-[#2C3E50]/70 flex items-center gap-1 mb-1">
@@ -545,6 +661,7 @@ export default function UserPosts() {
                     </div>
                   </div>
                 </div>
+<<<<<<< Updated upstream
                 {/* Divider and Actions */}
                 <hr className="my-3 border-t border-[#A8E6CF]/40" />
                 <div className="flex flex-wrap items-center justify-end gap-3">
@@ -599,6 +716,66 @@ export default function UserPosts() {
               </Link>
             ) : null
           )
+=======
+              </div>
+
+              {/* Divider and Actions */}
+              <hr className="my-3 border-t border-[#A8E6CF]/40" />
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {post.status === "ACTIVE" && (
+                  <button
+                    onClick={() => handleMarkAsSold(post.listingId)}
+                    className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Đã bán</span>
+                  </button>
+                )}
+                {(post.status === "ACTIVE" || post.status === "PENDING") && (
+                  <Link
+                    to={`/cap-nhat/${post.listingId}`}
+                    className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Sửa</span>
+                  </Link>
+                )}
+                {post.status === "ACTIVE" && post.productType === "VEHICLE" && (
+                  <button
+                    onClick={() => openModal(post)}
+                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Kiểm duyệt</span>
+                  </button>
+                )}
+                {/* Inspection Status Button */}
+                {post.status !== "HIDDEN" && post.status !== "SOLD" && (
+                  <button
+                    onClick={() => handleShowInspectionStatus(post.listingId)}
+                    className="flex items-center justify-center gap-2 bg-[#2ECC71] hover:bg-[#29b765] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    disabled={statusLoading}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    {statusLoading
+                      ? "Đang kiểm tra..."
+                      : "Trạng thái kiểm duyệt"}
+                  </button>
+                )}
+                {/* Delete button: hide if status is HIDDEN */}
+                {post.status !== "HIDDEN" && (
+                  <button
+                    onClick={() => handleDeletePost(post.listingId)}
+                    className="flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 hover:border-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xóa</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+>>>>>>> Stashed changes
         )}
       </div>
 
@@ -610,9 +787,14 @@ export default function UserPosts() {
             <div className="sticky top-0 bg-gradient-to-r from-[#2ECC71] to-[#A8E6CF] px-6 py-5 flex items-center justify-between border-b border-[#A8E6CF]/30 z-10">
               <div>
                 <h3 className="text-xl font-bold text-white">Kiểm duyệt xe</h3>
-                <p className="text-white/80 text-sm mt-1">Mã tin: #{selectedPost.listingId}</p>
+                <p className="text-white/80 text-sm mt-1">
+                  Mã tin: #{selectedPost.listingId}
+                </p>
               </div>
-              <button onClick={closeModal} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
+              <button
+                onClick={closeModal}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
                 <X size={24} />
               </button>
             </div>
@@ -623,18 +805,25 @@ export default function UserPosts() {
               <div className="bg-gradient-to-br from-[#F7F9F9] to-[#A8E6CF]/10 rounded-xl p-4 border border-[#A8E6CF]/30">
                 <div className="flex gap-4">
                   <img
-                    src={selectedPost.coverThumb || "https://via.placeholder.com/200"}
+                    src={
+                      selectedPost.coverThumb ||
+                      "https://via.placeholder.com/200"
+                    }
                     alt={selectedPost.productName}
                     className="w-24 h-24 object-cover rounded-lg border-2 border-[#2ECC71]/30"
                   />
                   <div className="flex-1">
-                    <h4 className="font-semibold text-[#2C3E50] mb-2">{selectedPost.productName}</h4>
+                    <h4 className="font-semibold text-[#2C3E50] mb-2">
+                      {selectedPost.productName}
+                    </h4>
                     <p className="text-sm text-[#2C3E50]/70">
-                      📍 {selectedPost.address || getLocationString(selectedPost)}
+                      📍{" "}
+                      {selectedPost.address || getLocationString(selectedPost)}
                     </p>
                     {selectedPost.vehicle && (
                       <p className="text-sm text-[#2C3E50]/70 mt-1">
-                        {selectedPost.vehicle.brandName} {selectedPost.vehicle.modelName} -{" "}
+                        {selectedPost.vehicle.brandName}{" "}
+                        {selectedPost.vehicle.modelName} -{" "}
                         {selectedPost.vehicle.year}
                       </p>
                     )}
@@ -645,23 +834,27 @@ export default function UserPosts() {
               {/* Inspection Type Selection */}
               <div>
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-3">
-                  Chọn phương thức kiểm duyệt <span className="text-red-500">*</span>
+                  Chọn phương thức kiểm duyệt{" "}
+                  <span className="text-red-500">*</span>
                 </label>
 
                 <div className="space-y-3">
                   {/* ✅ SYSTEM INSPECTION - Date + Location */}
                   <label
-                    className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "system"
-                      ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
-                      : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
-                      }`}
+                    className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      inspectionType === "system"
+                        ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
+                        : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
+                    }`}
                   >
                     <input
                       type="radio"
                       name="inspectionType"
                       value="system"
                       checked={inspectionType === "system"}
-                      onChange={(e) => setInspectionType(e.target.value as "system")}
+                      onChange={(e) =>
+                        setInspectionType(e.target.value as "system")
+                      }
                       className="mt-1 w-5 h-5 text-[#2ECC71]"
                     />
                     <div className="flex-1">
@@ -675,24 +868,28 @@ export default function UserPosts() {
                         </span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Đặt lịch để chúng tôi đến tận nơi kiểm tra xe. Chọn ngày giờ phù hợp với bạn.
+                        Đặt lịch để chúng tôi đến tận nơi kiểm tra xe. Chọn ngày
+                        giờ phù hợp với bạn.
                       </p>
                     </div>
                   </label>
 
                   {/* ✅ MANUAL INSPECTION - Document Upload */}
                   <label
-                    className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${inspectionType === "manual"
-                      ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
-                      : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
-                      }`}
+                    className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      inspectionType === "manual"
+                        ? "border-[#2ECC71] bg-[#2ECC71]/5 shadow-md"
+                        : "border-[#A8E6CF]/40 hover:border-[#2ECC71]/50 hover:bg-[#F7F9F9]"
+                    }`}
                   >
                     <input
                       type="radio"
                       name="inspectionType"
                       value="manual"
                       checked={inspectionType === "manual"}
-                      onChange={(e) => setInspectionType(e.target.value as "manual")}
+                      onChange={(e) =>
+                        setInspectionType(e.target.value as "manual")
+                      }
                       className="mt-1 w-5 h-5 text-[#2ECC71]"
                     />
                     <div className="flex-1">
@@ -706,7 +903,8 @@ export default function UserPosts() {
                         </span>
                       </div>
                       <p className="text-sm text-[#2C3E50]/70">
-                        Tải lên giấy tờ đăng kiểm/bảo hiểm xe để kiểm duyệt. Kết quả trong 24-48h.
+                        Tải lên giấy tờ đăng kiểm/bảo hiểm xe để kiểm duyệt. Kết
+                        quả trong 24-48h.
                       </p>
                     </div>
                   </label>
@@ -721,7 +919,8 @@ export default function UserPosts() {
                       📍 Thông tin kiểm duyệt tại nhà
                     </p>
                     <p className="text-xs text-blue-800">
-                      Vui lòng chọn địa điểm và ngày giờ để chúng tôi đến kiểm tra xe
+                      Vui lòng chọn địa điểm và ngày giờ để chúng tôi đến kiểm
+                      tra xe
                     </p>
                   </div>
 
@@ -734,8 +933,8 @@ export default function UserPosts() {
                       type="datetime-local"
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      min={getMinDate()}
-                      max={getMaxDate()}
+                      min={getMinDateTime()}
+                      max={getMaxDateTime()}
                       className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all"
                     />
                     <p className="text-xs text-[#2C3E50]/60 mt-1">
@@ -750,12 +949,16 @@ export default function UserPosts() {
                     </label>
                     <select
                       value={selectedProvince || ""}
-                      onChange={(e) => setSelectedProvince(Number(e.target.value) || null)}
+                      onChange={(e) =>
+                        setSelectedProvince(Number(e.target.value) || null)
+                      }
                       disabled={loadingProvinces}
                       className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all"
                     >
                       <option value="">
-                        {loadingProvinces ? "Đang tải..." : "Chọn tỉnh/thành phố"}
+                        {loadingProvinces
+                          ? "Đang tải..."
+                          : "Chọn tỉnh/thành phố"}
                       </option>
                       {provinces.map((province) => (
                         <option key={province.code} value={province.code}>
@@ -772,7 +975,9 @@ export default function UserPosts() {
                     </label>
                     <select
                       value={selectedDistrict || ""}
-                      onChange={(e) => setSelectedDistrict(Number(e.target.value) || null)}
+                      onChange={(e) =>
+                        setSelectedDistrict(Number(e.target.value) || null)
+                      }
                       disabled={!selectedProvince || loadingDistricts}
                       className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100"
                     >
@@ -780,8 +985,8 @@ export default function UserPosts() {
                         {!selectedProvince
                           ? "Chọn tỉnh/thành phố trước"
                           : loadingDistricts
-                            ? "Đang tải..."
-                            : "Chọn quận/huyện"}
+                          ? "Đang tải..."
+                          : "Chọn quận/huyện"}
                       </option>
                       {districts.map((district) => (
                         <option key={district.code} value={district.code}>
@@ -798,7 +1003,9 @@ export default function UserPosts() {
                     </label>
                     <select
                       value={selectedWard || ""}
-                      onChange={(e) => setSelectedWard(Number(e.target.value) || null)}
+                      onChange={(e) =>
+                        setSelectedWard(Number(e.target.value) || null)
+                      }
                       disabled={!selectedDistrict || loadingWards}
                       className="w-full border-2 border-[#A8E6CF] rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2ECC71] focus:border-[#2ECC71] outline-none bg-white transition-all disabled:bg-gray-100"
                     >
@@ -806,8 +1013,8 @@ export default function UserPosts() {
                         {!selectedDistrict
                           ? "Chọn quận/huyện trước"
                           : loadingWards
-                            ? "Đang tải..."
-                            : "Chọn phường/xã"}
+                          ? "Đang tải..."
+                          : "Chọn phường/xã"}
                       </option>
                       {wards.map((ward) => (
                         <option key={ward.code} value={ward.code}>
@@ -856,7 +1063,8 @@ export default function UserPosts() {
                       📄 Tải lên giấy tờ xe
                     </p>
                     <p className="text-xs text-blue-800">
-                      Vui lòng tải lên giấy tờ đăng kiểm hoặc bảo hiểm xe (định dạng PDF)
+                      Vui lòng tải lên giấy tờ đăng kiểm hoặc bảo hiểm xe (định
+                      dạng PDF)
                     </p>
                   </div>
 
@@ -991,55 +1199,78 @@ export default function UserPosts() {
                 ) : (
                   <>
                     <div className="mb-2">
-                      <span className="font-semibold text-[#2C3E50]">Trạng thái đơn:</span>{" "}
+                      <span className="font-semibold text-[#2C3E50]">
+                        Trạng thái đơn:
+                      </span>{" "}
                       <span className="px-2 py-1 rounded bg-[#2ECC71]/10 text-[#2ECC71] font-medium">
                         {inspectionStatus.orderStatus}
                       </span>
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold text-[#2C3E50]">Trạng thái thanh toán:</span>{" "}
+                      <span className="font-semibold text-[#2C3E50]">
+                        Trạng thái thanh toán:
+                      </span>{" "}
                       <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">
                         {inspectionStatus.paymentStatus}
                       </span>
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold text-[#2C3E50]">Ngày tạo đơn:</span>{" "}
+                      <span className="font-semibold text-[#2C3E50]">
+                        Ngày tạo đơn:
+                      </span>{" "}
                       {inspectionStatus.orderCreatedAt
-                        ? new Date(inspectionStatus.orderCreatedAt).toLocaleString("vi-VN")
+                        ? new Date(
+                            inspectionStatus.orderCreatedAt
+                          ).toLocaleString("vi-VN")
                         : "—"}
                     </div>
                     {inspectionStatus.orderPaidAt && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Ngày thanh toán:</span>{" "}
-                        {new Date(inspectionStatus.orderPaidAt).toLocaleString("vi-VN")}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Ngày thanh toán:
+                        </span>{" "}
+                        {new Date(inspectionStatus.orderPaidAt).toLocaleString(
+                          "vi-VN"
+                        )}
                       </div>
                     )}
                     {inspectionStatus.reportId && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Mã báo cáo:</span>{" "}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Mã báo cáo:
+                        </span>{" "}
                         {inspectionStatus.reportId}
                       </div>
                     )}
                     {inspectionStatus.reportResult && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Kết quả kiểm duyệt:</span>{" "}
-                        <span className={`px-2 py-1 rounded font-medium ${inspectionStatus.reportResult === "PASS"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                          }`}>
+                        <span className="font-semibold text-[#2C3E50]">
+                          Kết quả kiểm duyệt:
+                        </span>{" "}
+                        <span
+                          className={`px-2 py-1 rounded font-medium ${
+                            inspectionStatus.reportResult === "PASS"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
                           {inspectionStatus.reportResult}
                         </span>
                       </div>
                     )}
                     {inspectionStatus.reportStatus && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Trạng thái báo cáo:</span>{" "}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Trạng thái báo cáo:
+                        </span>{" "}
                         {inspectionStatus.reportStatus}
                       </div>
                     )}
                     {inspectionStatus.reportUrl && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Báo cáo PDF:</span>{" "}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Báo cáo PDF:
+                        </span>{" "}
                         <a
                           href={inspectionStatus.reportUrl}
                           target="_blank"
@@ -1052,25 +1283,35 @@ export default function UserPosts() {
                     )}
                     {inspectionStatus.reportCreatedAt && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Ngày tạo báo cáo:</span>{" "}
-                        {new Date(inspectionStatus.reportCreatedAt).toLocaleString("vi-VN")}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Ngày tạo báo cáo:
+                        </span>{" "}
+                        {new Date(
+                          inspectionStatus.reportCreatedAt
+                        ).toLocaleString("vi-VN")}
                       </div>
                     )}
                     {inspectionStatus.reportApprovedAt && (
                       <div className="mb-2">
-                        <span className="font-semibold text-[#2C3E50]">Ngày duyệt báo cáo:</span>{" "}
-                        {new Date(inspectionStatus.reportApprovedAt).toLocaleString("vi-VN")}
+                        <span className="font-semibold text-[#2C3E50]">
+                          Ngày duyệt báo cáo:
+                        </span>{" "}
+                        {new Date(
+                          inspectionStatus.reportApprovedAt
+                        ).toLocaleString("vi-VN")}
                       </div>
                     )}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
-                        Đã có báo cáo: {inspectionStatus.hasReport ? "Có" : "Chưa"}
+                        Đã có báo cáo:{" "}
+                        {inspectionStatus.hasReport ? "Có" : "Chưa"}
                       </span>
                       <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
                         Đã thanh toán: {inspectionStatus.paid ? "Có" : "Chưa"}
                       </span>
                       <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
-                        Đang chờ duyệt: {inspectionStatus.reportPending ? "Có" : "Không"}
+                        Đang chờ duyệt:{" "}
+                        {inspectionStatus.reportPending ? "Có" : "Không"}
                       </span>
                       <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
                         Đã xác thực: {inspectionStatus.verified ? "Có" : "Chưa"}
@@ -1095,16 +1336,28 @@ export default function UserPosts() {
   );
 }
 
-// ✅ Helper to get minimum date (tomorrow)
-const getMinDate = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split("T")[0];
+const formatDateTimeLocal = (date: Date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-// ✅ Helper to get maximum date (30 days from now)
-const getMaxDate = () => {
+// ✅ Helper to get minimum datetime (start of tomorrow)
+const getMinDateTime = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return formatDateTimeLocal(tomorrow);
+};
+
+// ✅ Helper to get maximum datetime (end of day 30 days from now)
+const getMaxDateTime = () => {
   const maxDate = new Date();
   maxDate.setDate(maxDate.getDate() + 30);
-  return maxDate.toISOString().split("T")[0];
+  maxDate.setHours(23, 59, 0, 0);
+  return formatDateTimeLocal(maxDate);
+};
+
+const isValidInspectionSchedule = (date: Date) => {
+  const hour = date.getHours();
+  return hour >= 9 && hour <= 16;
 };

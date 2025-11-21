@@ -374,6 +374,12 @@ export default function UserDeals() {
             return;
         }
 
+        const selectedDate = new Date(scheduledAtInput);
+        if (selectedDate <= new Date()) {
+            toast.warning("Không thể chọn thời gian trong quá khứ.");
+            return;
+        }
+
         if (!isValidScheduleTime(scheduledAtInput)) {
             toast.warning("Chỉ được đặt lịch từ 09:00 đến 16:00.");
             return;

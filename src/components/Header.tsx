@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
@@ -10,17 +10,58 @@ import {
   LogOut,
   Settings,
   ChevronDown,
-  MessageSquare
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  searchService,
+  type SearchResultItem,
+} from "../services/SearchService";
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchDropdown(false);
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    const handler = setTimeout(async () => {
+      const results = await searchService.searchListings(searchTerm.trim());
+      setSearchResults(results);
+      setShowSearchDropdown(true);
+      setSearchLoading(false);
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const navigationItems = [
     { label: "Trang chủ", href: "/", primary: true },
@@ -34,6 +75,38 @@ const Header: React.FC = () => {
 
   const primaryNav = navigationItems.filter((item) => item.primary);
   const secondaryNav = navigationItems.filter((item) => !item.primary);
+
+  const formatCurrency = (value?: number) => {
+    if (!value && value !== 0) return "Đang cập nhật";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const handleSelectResult = (result: SearchResultItem) => {
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowSearchDropdown(false);
+    const path =
+      result.productType === "BATTERY"
+        ? `/pin/${result.listingId}`
+        : `/xe-dien/${result.listingId}`;
+    navigate(path);
+  };
+
+  const handleSearchSubmit = async () => {
+    if (!searchTerm.trim()) return;
+    setSearchLoading(true);
+    try {
+      const results = await searchService.searchListings(searchTerm.trim());
+      setSearchResults(results);
+      setShowSearchDropdown(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -63,8 +136,10 @@ const Header: React.FC = () => {
           {/* Search Bar - Enhanced */}
           <div className="flex-1 max-w-2xl mx-4 lg:mx-8">
             <div
-              className={`relative transition-all duration-200 ${isSearchFocused ? "scale-105" : ""
-                }`}
+              ref={searchWrapperRef}
+              className={`relative z-40 transition-all duration-200 ${
+                isSearchFocused ? "scale-105" : ""
+              }`}
             >
               <div className="flex">
                 <div className="relative flex-1">
@@ -73,15 +148,69 @@ const Header: React.FC = () => {
                     placeholder="Tìm kiếm xe điện, pin, phụ kiện..."
                     className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
                     onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearchSubmit();
+                      }
+                    }}
                   />
                   <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
                 </div>
-                <button className="bg-green-600 text-white px-6 py-3 rounded-r-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-2">
+                <button
+                  onClick={handleSearchSubmit}
+                  className="bg-green-600 text-white px-6 py-3 rounded-r-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
                   <Search className="h-4 w-4" />
                   <span className="hidden sm:inline">Tìm kiếm</span>
                 </button>
               </div>
+              {showSearchDropdown && (
+                <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
+                  {searchLoading ? (
+                    <div className="p-4 text-sm text-gray-500">
+                      Đang tìm kiếm...
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500">
+                      Không tìm thấy sản phẩm phù hợp
+                    </div>
+                  ) : (
+                    searchResults.map((result) => (
+                      <button
+                        key={`${result.productType}-${result.listingId}`}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectResult(result)}
+                      >
+                        <img
+                          src={
+                            result.coverThumb ||
+                            "https://via.placeholder.com/60x60?text=EV"
+                          }
+                          alt={result.productName}
+                          className="w-12 h-12 rounded-lg object-cover border border-gray-100"
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-gray-900 line-clamp-1">
+                            {result.productName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {result.productType === "BATTERY"
+                              ? "Pin / Ắc quy"
+                              : "Xe điện"}
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold text-green-600">
+                          {formatCurrency(result.askPrice)}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -255,17 +384,19 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${location.pathname === item.href
-                    ? "text-green-600"
-                    : "text-gray-700 hover:text-green-600"
-                    }`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative group ${
+                    location.pathname === item.href
+                      ? "text-green-600"
+                      : "text-gray-700 hover:text-green-600"
+                  }`}
                 >
                   {item.label}
                   <span
-                    className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${location.pathname === item.href
-                      ? "w-full"
-                      : "w-0 group-hover:w-full"
-                      }`}
+                    className={`absolute bottom-0 left-0 h-0.5 bg-green-600 transition-all duration-200 ${
+                      location.pathname === item.href
+                        ? "w-full"
+                        : "w-0 group-hover:w-full"
+                    }`}
                   ></span>
                 </Link>
               ))}
@@ -275,10 +406,11 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`text-sm font-medium transition-colors duration-200 ${location.pathname === item.href
-                    ? "text-green-600"
-                    : "text-gray-600 hover:text-green-600"
-                    }`}
+                  className={`text-sm font-medium transition-colors duration-200 ${
+                    location.pathname === item.href
+                      ? "text-green-600"
+                      : "text-gray-600 hover:text-green-600"
+                  }`}
                 >
                   {item.label}
                 </Link>
@@ -372,10 +504,11 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${location.pathname === item.href
-                    ? "text-green-600 bg-green-50"
-                    : "text-gray-700 hover:text-green-600 hover:bg-green-50"
-                    }`}
+                  className={`block px-3 py-3 rounded-lg text-base font-medium transition-colors ${
+                    location.pathname === item.href
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-700 hover:text-green-600 hover:bg-green-50"
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
@@ -392,10 +525,11 @@ const Header: React.FC = () => {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === item.href
-                    ? "text-green-600 bg-green-50"
-                    : "text-gray-600 hover:text-green-600 hover:bg-green-50"
-                    }`}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                    location.pathname === item.href
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
