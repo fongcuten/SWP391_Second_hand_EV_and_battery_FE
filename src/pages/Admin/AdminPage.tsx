@@ -178,9 +178,6 @@ const AdminPage: React.FC = () => {
   const [inspectionReports, setInspectionReports] = useState<
     AdminInspectionReportResponse[]
   >([]);
-  const [inspectionReportFilter, setInspectionReportFilter] = useState<
-    "PENDING_REVIEW" | "APPROVED" | "REJECTED" | undefined
-  >("PENDING_REVIEW");
   const [inspectionOrdersPage, setInspectionOrdersPage] = useState<{
     content: AdminInspectionOrder[];
     totalElements: number;
@@ -197,9 +194,6 @@ const AdminPage: React.FC = () => {
       { type: "VEHICLE" | "BATTERY"; sellerId?: number; title?: string }
     >
   >({});
-  const [reportFilter, setReportFilter] = useState<ReportStatus | undefined>(
-    undefined
-  );
   // Track deleted posts and banned users for reports
   const [deletedPosts, setDeletedPosts] = useState<Set<number>>(new Set());
   const [bannedUsers, setBannedUsers] = useState<Set<number>>(new Set());
@@ -236,7 +230,6 @@ const AdminPage: React.FC = () => {
   const loadReports = async (status?: ReportStatus) => {
     setLoading(true);
     setError(null);
-    setReportFilter(status);
     try {
       const reportsData = await adminReportService.list(status);
       setReports(reportsData);
@@ -339,7 +332,6 @@ const AdminPage: React.FC = () => {
     try {
       const items = await adminInspectionService.listReports(status);
       setInspectionReports(items);
-      setInspectionReportFilter(status);
     } catch (e: any) {
       setError(e.message || "Lỗi tải báo cáo kiểm định");
     } finally {

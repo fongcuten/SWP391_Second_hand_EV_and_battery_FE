@@ -74,10 +74,11 @@ const mapDetailToElectricVehicle = async (
     }
   }
 
-  const mediaUrls =
+  const mediaUrls = (
     detail.media?.map(
       (media) => media.urlLarge || media.url || media.urlThumb
-    ) || [];
+    ) || []
+  ).filter((url): url is string => Boolean(url));
 
   if (mediaUrls.length === 0) {
     mediaUrls.push(PLACEHOLDER_IMG);
@@ -169,9 +170,10 @@ const ComparePage: React.FC = () => {
     if (selectedVehicles.length < maxCompare) {
       setAddingVehicleId(post.listingId);
       try {
-        const detail = (await VehicleDetailService.getVehicleDetail(
+        const fetchedDetail = await VehicleDetailService.getVehicleDetail(
           post.listingId
-        )) as SalePostDetail;
+        );
+        const detail = fetchedDetail as unknown as SalePostDetail;
         if (detail.productType && detail.productType !== "VEHICLE") {
           toast.warning("Tin này không phải xe, không thể so sánh.");
           return;

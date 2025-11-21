@@ -8,9 +8,6 @@ import {
     Trash2,
     Share2,
     Loader2,
-    Grid,
-    List,
-    Search,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { FavoriteService } from "../../services/FavoriteService";
@@ -48,9 +45,7 @@ export default function UserFavorites() {
     const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabId>("all");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-    const [searchQuery, setSearchQuery] = useState("");
-    const [sortBy, setSortBy] = useState("newest");
+    const searchQuery = "";
 
     useEffect(() => {
         loadFavorites();
@@ -160,26 +155,6 @@ export default function UserFavorites() {
         });
     };
 
-    const getConditionText = (condition: string) => {
-        const conditions = {
-            excellent: "Xuất sắc",
-            good: "Tốt",
-            fair: "Khá",
-            poor: "Trung bình",
-        };
-        return conditions[condition as keyof typeof conditions] || "Không xác định";
-    };
-
-    const getConditionColor = (condition: string) => {
-        const colors = {
-            excellent: "text-green-600 bg-green-100",
-            good: "text-blue-600 bg-blue-100",
-            fair: "text-yellow-600 bg-yellow-100",
-            poor: "text-red-600 bg-red-100",
-        };
-        return colors[condition as keyof typeof colors] || "text-gray-600 bg-gray-100";
-    };
-
     // Filter and sort
     const filteredFavorites = favorites
         .filter((item) => {
@@ -188,20 +163,10 @@ export default function UserFavorites() {
             const matchesType = activeTab === "all" || item.type === activeTab;
             return matchesSearch && matchesType;
         })
-        .sort((a, b) => {
-            switch (sortBy) {
-                case "newest":
-                    return new Date(b.datePosted).getTime() - new Date(a.datePosted).getTime();
-                case "oldest":
-                    return new Date(a.datePosted).getTime() - new Date(b.datePosted).getTime();
-                case "price-low":
-                    return a.price - b.price;
-                case "price-high":
-                    return b.price - a.price;
-                default:
-                    return 0;
-            }
-        });
+        .sort(
+            (a, b) =>
+                new Date(b.datePosted).getTime() - new Date(a.datePosted).getTime()
+        );
 
     return (
         <div className="bg-[#F7F9F9] rounded-2xl shadow-lg border border-[#A8E6CF]/50 mb-10">
