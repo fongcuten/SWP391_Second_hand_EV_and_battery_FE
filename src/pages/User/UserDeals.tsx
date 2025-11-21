@@ -374,6 +374,11 @@ export default function UserDeals() {
             return;
         }
 
+        if (!isValidScheduleTime(scheduledAtInput)) {
+            toast.warning("Chỉ được đặt lịch từ 09:00 đến 16:00.");
+            return;
+        }
+
         const payload: AssignSitePayload = {
             offerId: selectedDeal.offerId,
             platformSiteId: Number(selectedPlatformSiteId),
@@ -441,217 +446,244 @@ export default function UserDeals() {
     };
 
     return (
-        <div className="bg-gray-50 rounded-2xl shadow-lg border border-gray-200/80 mb-10">
-            <div className="px-6 py-5 bg-white border-b border-gray-200 flex items-center justify-between rounded-t-2xl">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-                    <Tag className="w-6 h-6 text-blue-600" />
-                    Quản lý Giao dịch
-                </h2>
-            </div>
-
-            <div className="flex border-b border-gray-200 bg-white/50 px-4 pt-3">
-                <button
-                    onClick={() => setActiveTab("seller")}
-                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === "seller"
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-800"
-                        }`}
-                >
-                    Giao dịch bán ({sellerDeals.length})
-                </button>
-                <button
-                    onClick={() => setActiveTab("buyer")}
-                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === "buyer"
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-800"
-                        }`}
-                >
-                    Giao dịch mua ({buyerDeals.length})
-                </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-                        <p className="text-gray-500 text-lg">Đang tải danh sách giao dịch...</p>
-                    </div>
-                ) : currentDeals.length === 0 ? (
-                    <div className="text-center py-16 text-gray-500">
-                        <Inbox className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                        <p className="text-lg font-medium mb-2">
-                            {activeTab === "seller" ? "Bạn chưa có giao dịch bán nào." : "Bạn chưa có giao dịch mua nào."}
-                        </p>
-                        <p className="text-sm">Các giao dịch liên quan tới tài khoản của bạn sẽ xuất hiện ở đây.</p>
-                    </div>
-                ) : (
-                    currentDeals.map(d => (
-                        <DealCard
-                            key={d.dealId}
-                            deal={d}
-                            isSellerView={activeTab === "seller"}
-                            onAssigned={handleAssigned}
-                            onOpenAssignModal={openAssignModal}
-                            onOpenReview={openReviewModal} // <-- pass handler so modal opens
-                        />
-                    ))
-                )}
-            </div>
-
-            {/* Assign Modal */}
-            {isAssignModalOpen && selectedDeal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="px-6 py-4 flex items-center justify-between border-b">
-                            <div>
-                                <h3 className="text-lg font-semibold">Phân công địa điểm & đặt lịch</h3>
-                                <p className="text-sm text-gray-500">Giao dịch #{selectedDeal.dealId} · Offer #{selectedDeal.offerId}</p>
-                            </div>
-                            <button onClick={closeAssignModal} className="p-2 rounded hover:bg-gray-100">
-                                <X />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Chọn địa điểm <span className="text-red-500">*</span></label>
-                                <select
-                                    value={selectedPlatformSiteId}
-                                    onChange={(e) => setSelectedPlatformSiteId(e.target.value ? Number(e.target.value) : "")}
-                                    disabled={loadingSites}
-                                    className="w-full border rounded px-3 py-2"
-                                >
-                                    <option value="">-- Chọn địa điểm --</option>
-                                    {platformSites.map(site => (
-                                        <option key={site.platformSiteId} value={site.platformSiteId}>
-                                            {site.name} {site.street ? `- ${site.street}` : ""}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Số tiền phải trả (VNĐ)</label>
-                                <input
-                                    type="number"
-                                    value={balanceDueInput}
-                                    onChange={(e) => setBalanceDueInput(e.target.value)}
-                                    className="w-full border rounded px-3 py-2"
-                                    placeholder="Ví dụ 1000000"
-                                    readOnly
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Thời gian lịch <span className="text-red-500">*</span></label>
-                                <input
-                                    type="datetime-local"
-                                    value={scheduledAtInput}
-                                    onChange={(e) => setScheduledAtInput(e.target.value)}
-                                    className="w-full border rounded px-3 py-2"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Chọn thời gian để đặt lịch cho giao dịch</p>
-                            </div>
-                        </div>
-
-                        <div className="px-6 py-4 border-t flex gap-3 justify-end">
-                            <button onClick={closeAssignModal} className="px-4 py-2 border rounded">Hủy</button>
-                            <button
-                                onClick={submitAssign}
-                                className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-                            >
-                                Xác nhận & Lên lịch
-                            </button>
-                        </div>
-                    </div>
+        <div
+            className="bg-gray-50 rounded-2xl shadow-lg border border-gray-200/80 mb-10"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none", overflow: "hidden" }}
+        >
+            {/* Hide scrollbar for Webkit browsers */}
+            <style>
+                {`
+                .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+            `}
+            </style>
+            <div className="hide-scrollbar">
+                <div className="px-6 py-5 bg-white border-b border-gray-200 flex items-center justify-between rounded-t-2xl">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+                        <Tag className="w-6 h-6 text-blue-600" />
+                        Quản lý Giao dịch
+                    </h2>
                 </div>
-            )}
 
-            {/* Review Modal */}
-            {isReviewModalOpen && selectedDealForReview && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeReviewModal} />
+                <div className="flex border-b border-gray-200 bg-white/50 px-4 pt-3">
+                    <button
+                        onClick={() => setActiveTab("seller")}
+                        className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === "seller"
+                            ? "border-blue-600 text-blue-600"
+                            : "border-transparent text-gray-500 hover:text-gray-800"
+                            }`}
+                    >
+                        Giao dịch bán ({sellerDeals.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("buyer")}
+                        className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === "buyer"
+                            ? "border-blue-600 text-blue-600"
+                            : "border-transparent text-gray-500 hover:text-gray-800"
+                            }`}
+                    >
+                        Giao dịch mua ({buyerDeals.length})
+                    </button>
+                </div>
 
-                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full mx-auto overflow-hidden">
-                        <header className="px-6 py-4 flex items-center justify-between border-b">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-800">Đánh giá người bán</h3>
-                                <p className="text-sm text-gray-500">Giao dịch #{selectedDealForReview.dealId}</p>
-                            </div>
-                            <button
-                                onClick={closeReviewModal}
-                                aria-label="Close review"
-                                className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
-                            >
-                                <X />
-                            </button>
-                        </header>
+                <div className="p-6 space-y-4">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+                            <p className="text-gray-500 text-lg">Đang tải danh sách giao dịch...</p>
+                        </div>
+                    ) : currentDeals.length === 0 ? (
+                        <div className="text-center py-16 text-gray-500">
+                            <Inbox className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                            <p className="text-lg font-medium mb-2">
+                                {activeTab === "seller" ? "Bạn chưa có giao dịch bán nào." : "Bạn chưa có giao dịch mua nào."}
+                            </p>
+                            <p className="text-sm">Các giao dịch liên quan tới tài khoản của bạn sẽ xuất hiện ở đây.</p>
+                        </div>
+                    ) : (
+                        currentDeals.map(d => (
+                            <DealCard
+                                key={d.dealId}
+                                deal={d}
+                                isSellerView={activeTab === "seller"}
+                                onAssigned={handleAssigned}
+                                onOpenAssignModal={openAssignModal}
+                                onOpenReview={openReviewModal} // <-- pass handler so modal opens
+                            />
+                        ))
+                    )}
+                </div>
 
-                        <main className="p-6 space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-semibold">
-                                    {selectedDealForReview.seller?.username?.charAt(0)?.toUpperCase() ?? "U"}
-                                </div>
+                {/* Assign Modal */}
+                {isAssignModalOpen && selectedDeal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="px-6 py-4 flex items-center justify-between border-b">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-800">{selectedDealForReview.seller?.fullName || selectedDealForReview.seller?.username || "Người bán"}</p>
-                                    <p className="text-xs text-gray-500">ID người bán: {selectedDealForReview.seller?.userId ?? "—"}</p>
+                                    <h3 className="text-lg font-semibold">Phân công địa điểm & đặt lịch</h3>
+                                    <p className="text-sm text-gray-500">
+                                        Giao dịch #{selectedDeal.dealId} · Offer #{selectedDeal.offerId}
+                                    </p>
                                 </div>
+                                <button onClick={closeAssignModal} className="p-2 rounded hover:bg-gray-100">
+                                    <X />
+                                </button>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Đánh giá <span className="text-red-500">*</span></label>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <RatingStar
-                                        value={reviewRating}
-                                        isEdit
-                                        isHalf
-                                        valueShow
-                                        size={24}
-                                        onChange={(v) => setReviewRating(v)}
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Chọn địa điểm <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={selectedPlatformSiteId}
+                                        onChange={(e) => setSelectedPlatformSiteId(e.target.value ? Number(e.target.value) : "")}
+                                        disabled={loadingSites}
+                                        className="w-full border rounded px-3 py-2"
+                                    >
+                                        <option value="">-- Chọn địa điểm --</option>
+                                        {platformSites.map(site => (
+                                            <option key={site.platformSiteId} value={site.platformSiteId}>
+                                                {site.name} {site.street ? `- ${site.street}` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Số tiền phải trả (VNĐ)</label>
+                                    <input
+                                        type="number"
+                                        value={balanceDueInput}
+                                        onChange={(e) => setBalanceDueInput(e.target.value)}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="Ví dụ 1000000"
+                                        readOnly
                                     />
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Thời gian lịch <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        value={scheduledAtInput}
+                                        onChange={(e) => setScheduledAtInput(e.target.value)}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Chỉ được đặt lịch từ 09:00 đến 16:00 mỗi ngày
+                                    </p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Nhận xét</label>
-                                <textarea
-                                    rows={6}
-                                    value={reviewComment}
-                                    onChange={(e) => setReviewComment(e.target.value)}
-                                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    placeholder="Mô tả trải nghiệm của bạn với người bán..."
-                                />
-                                <div className="text-xs text-gray-400 mt-1 text-right">{Math.min(500, reviewComment.length)}/500</div>
+                            <div className="px-6 py-4 border-t flex gap-3 justify-end">
+                                <button onClick={closeAssignModal} className="px-4 py-2 border rounded">Hủy</button>
+                                <button
+                                    onClick={submitAssign}
+                                    className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                                >
+                                    Xác nhận & Lên lịch
+                                </button>
                             </div>
-                        </main>
-
-                        <footer className="px-6 py-4 border-t flex items-center justify-end gap-3">
-                            <button
-                                onClick={closeReviewModal}
-                                className="px-4 py-2 rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                onClick={submitReview}
-                                disabled={submittingReview || reviewRating <= 0}
-                                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                            >
-                                {submittingReview ? <Loader2 className="animate-spin" size={16} /> : "Gửi đánh giá"}
-                            </button>
-                        </footer>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* Review Modal */}
+                {isReviewModalOpen && selectedDealForReview && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeReviewModal} />
+
+                        <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full mx-auto overflow-hidden">
+                            <header className="px-6 py-4 flex items-center justify-between border-b">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-800">Đánh giá người bán</h3>
+                                    <p className="text-sm text-gray-500">Giao dịch #{selectedDealForReview.dealId}</p>
+                                </div>
+                                <button
+                                    onClick={closeReviewModal}
+                                    aria-label="Close review"
+                                    className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
+                                >
+                                    <X />
+                                </button>
+                            </header>
+
+                            <main className="p-6 space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+                                        {selectedDealForReview.seller?.username?.charAt(0)?.toUpperCase() ?? "U"}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-800">{selectedDealForReview.seller?.fullName || selectedDealForReview.seller?.username || "Người bán"}</p>
+                                        <p className="text-xs text-gray-500">ID người bán: {selectedDealForReview.seller?.userId ?? "—"}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Đánh giá <span className="text-red-500">*</span></label>
+                                    <div className="bg-gray-50 p-3 rounded">
+                                        <RatingStar
+                                            value={reviewRating}
+                                            isEdit
+                                            isHalf
+                                            valueShow
+                                            size={24}
+                                            onChange={(v) => setReviewRating(v)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Nhận xét</label>
+                                    <textarea
+                                        rows={6}
+                                        value={reviewComment}
+                                        onChange={(e) => setReviewComment(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        placeholder="Mô tả trải nghiệm của bạn với người bán..."
+                                    />
+                                    <div className="text-xs text-gray-400 mt-1 text-right">{Math.min(500, reviewComment.length)}/500</div>
+                                </div>
+                            </main>
+
+                            <footer className="px-6 py-4 border-t flex items-center justify-end gap-3">
+                                <button
+                                    onClick={closeReviewModal}
+                                    className="px-4 py-2 rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={submitReview}
+                                    disabled={submittingReview || reviewRating <= 0}
+                                    className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {submittingReview ? <Loader2 className="animate-spin" size={16} /> : "Gửi đánh giá"}
+                                </button>
+                            </footer>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
 
-// helper: convert ISO => datetime-local value
 function toInputDatetimeLocal(iso?: string) {
     if (!iso) return "";
     const d = new Date(iso);
     const tzOffset = d.getTimezoneOffset() * 60000;
     const local = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
     return local;
+}
+
+function isValidScheduleTime(datetimeStr: string) {
+    if (!datetimeStr) return false;
+    const date = new Date(datetimeStr);
+    const hour = date.getHours();
+    return hour >= 9 && hour <= 16;
 }

@@ -59,10 +59,10 @@ const ChatPage: React.FC = () => {
 
         loadConversations();
         return () => { mounted = false; };
-    }, [currentUser?.id, navigate]);
+    }, [currentUser, navigate] );
 
     // ============================================
-    // ✅ WEBSOCKET - FIXED
+    // ✅ WEBSOCKET 
     // ============================================
     useEffect(() => {
         const token = localStorage.getItem("auth_token");
@@ -210,7 +210,7 @@ const ChatPage: React.FC = () => {
 
         loadMessages();
         return () => { mounted = false; };
-    }, [state.activeChatKey]);
+    }, [state.activeChatKey] );
 
     useEffect(() => {
         const navState = location.state as {
@@ -274,9 +274,8 @@ const ChatPage: React.FC = () => {
         };
 
         handleNewChat();
-    }, [location.state?.sellerId]); 
+    }, [location.state?.sellerId, currentUser, location] );
 
-    // ✅ Reset ref when location changes
     useEffect(() => {
         handledNavStateRef.current = false;
     }, [location.pathname]);

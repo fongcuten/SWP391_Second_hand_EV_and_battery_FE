@@ -59,11 +59,6 @@ const PRIORITY_CONFIG = {
     icon: Award,
     label: "STANDARD",
   },
-  1: {
-    badge: "bg-gray-100 text-gray-700",
-    icon: Star,
-    label: "NORMAL",
-  },
 } as const;
 
 interface FilterState {
@@ -195,16 +190,15 @@ const ElectricVehiclesPage: React.FC = () => {
   }, [filters.selectedDistrictCode]);
 
   useEffect(() => {
-  if (filters.selectedBrandId) {
-    brandService.getModelsByBrand(filters.selectedBrandId)
-      .then(setModels)
-      .catch(() => setModels([]));
-  } else {
-    setModels([]);
-  }
-}, [filters.selectedBrandId]);
+    if (filters.selectedBrandId) {
+      brandService.getModelsByBrand(filters.selectedBrandId)
+        .then(setModels)
+        .catch(() => setModels([]));
+    } else {
+      setModels([]);
+    }
+  }, [filters.selectedBrandId]);
 
-  // --- FILTERING & SORTING (Memoized for performance) ---
   const filteredPosts = useMemo(() => {
     const matchesPrice = (price: number, range: string): boolean => {
       if (!range) return true;
@@ -662,7 +656,7 @@ const FilterSelect: React.FC<{
         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="">
-          { defaultLabel}
+          {defaultLabel}
         </option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
