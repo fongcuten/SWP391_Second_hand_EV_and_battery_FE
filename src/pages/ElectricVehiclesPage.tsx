@@ -11,7 +11,6 @@ import {
   ChevronRight,
   X,
   Zap,
-  Star,
   Crown,
   Award,
 } from "lucide-react";
@@ -105,7 +104,7 @@ const ElectricVehiclesPage: React.FC = () => {
   // Filter & Location Data State
   const [filters, setFilters] = useState<FilterState>(initialFilterState);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
+  const [models] = useState<Model[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -189,16 +188,7 @@ const ElectricVehiclesPage: React.FC = () => {
     }
   }, [filters.selectedDistrictCode]);
 
-  useEffect(() => {
-    if (filters.selectedBrandId) {
-      brandService.getModelsByBrand(filters.selectedBrandId)
-        .then(setModels)
-        .catch(() => setModels([]));
-    } else {
-      setModels([]);
-    }
-  }, [filters.selectedBrandId]);
-
+  // --- FILTERING & SORTING (Memoized for performance) ---
   const filteredPosts = useMemo(() => {
     const matchesPrice = (price: number, range: string): boolean => {
       if (!range) return true;
@@ -467,16 +457,16 @@ const ElectricVehiclesPage: React.FC = () => {
               {Object.values(filters).some((v) =>
                 Array.isArray(v) ? v.length > 0 : v
               ) && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={resetFilters}
-                    className="sm:w-auto border-2 border-red-300 text-red-600 py-4 px-8 rounded-lg font-semibold hover:bg-red-50 transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <X className="h-5 w-5" />
-                    <span>Xóa bộ lọc</span>
-                  </motion.button>
-                )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={resetFilters}
+                  className="sm:w-auto border-2 border-red-300 text-red-600 py-4 px-8 rounded-lg font-semibold hover:bg-red-50 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <X className="h-5 w-5" />
+                  <span>Xóa bộ lọc</span>
+                </motion.button>
+              )}
             </div>
           </motion.div>
 
@@ -496,10 +486,11 @@ const ElectricVehiclesPage: React.FC = () => {
                 <button
                   key={priority}
                   onClick={() => togglePriority(Number(priority))}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${filters.selectedPriority.includes(Number(priority))
-                    ? `${config.badge} shadow-lg`
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${
+                    filters.selectedPriority.includes(Number(priority))
+                      ? `${config.badge} shadow-lg`
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
                 >
                   <config.icon className="w-4 h-4" />
                   {config.label.charAt(0) + config.label.slice(1).toLowerCase()}
@@ -519,19 +510,21 @@ const ElectricVehiclesPage: React.FC = () => {
             <div className="flex border-2 border-gray-200 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 transition ${viewMode === "grid"
-                  ? "bg-[#2ECC71] text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`p-2 transition ${
+                  viewMode === "grid"
+                    ? "bg-[#2ECC71] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 <Grid3x3 className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 transition ${viewMode === "list"
-                  ? "bg-[#2ECC71] text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`p-2 transition ${
+                  viewMode === "list"
+                    ? "bg-[#2ECC71] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 <List className="w-5 h-5" />
               </button>
@@ -644,28 +637,28 @@ const FilterSelect: React.FC<{
   defaultLabel,
   disabled,
 }) => (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold text-gray-700">
-        <Icon className="inline h-4 w-4 mr-1" />
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-      >
-        <option value="">
-          {defaultLabel}
+  <div className="space-y-2">
+    <label className="block text-sm font-semibold text-gray-700">
+      <Icon className="inline h-4 w-4 mr-1" />
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2ECC71] focus:border-transparent outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+    >
+      <option value="">
+        {disabled && value === "" ? "Đang tải..." : defaultLabel}
+      </option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
         </option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+      ))}
+    </select>
+  </div>
+);
 
 const VehicleGrid: React.FC<{
   posts: ListPostSummary[];
@@ -684,7 +677,7 @@ const VehicleGrid: React.FC<{
   );
 };
 
-// Removed VehicleCard and VehicleListItem - now using ElectricVehicleCard component
+// Removed VehicleCard and VehicleListItem - now                                                      using ElectricVehicleCard component
 
 const Pagination: React.FC<{
   currentPage: number;
@@ -708,10 +701,11 @@ const Pagination: React.FC<{
       <button
         key={i}
         onClick={() => onPageChange(i)}
-        className={`min-w-[44px] h-11 rounded-lg font-medium transition ${currentPage === i
-          ? "bg-[#2ECC71] text-white shadow-lg"
-          : "border-2 border-gray-200 text-gray-700 hover:bg-gray-50"
-          }`}
+        className={`min-w-[44px] h-11 rounded-lg font-medium transition ${
+          currentPage === i
+            ? "bg-[#2ECC71] text-white shadow-lg"
+            : "border-2 border-gray-200 text-gray-700 hover:bg-gray-50"
+        }`}
       >
         {i + 1}
       </button>
@@ -725,6 +719,5 @@ const Pagination: React.FC<{
     </button>
   </motion.div>
 );
-
 
 export default ElectricVehiclesPage;

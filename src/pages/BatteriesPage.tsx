@@ -7,7 +7,6 @@ import {
   Battery as BatteryIcon,
   X,
   MapPin,
-  Star,
   Crown,
   Award,
   Calendar,
@@ -43,18 +42,12 @@ const PRIORITY_CONFIG = {
     icon: Award,
     label: "STANDARD",
   },
-  1: {
-    badge: "bg-gray-100 text-gray-700",
-    border: "border-gray-100 hover:border-[#A8E6CF]",
-    icon: Star,
-    label: "NORMAL",
-  },
 } as const;
 
 const getPriorityConfig = (priority: number) => {
   return (
     PRIORITY_CONFIG[priority as keyof typeof PRIORITY_CONFIG] ||
-    PRIORITY_CONFIG[1]
+    PRIORITY_CONFIG[2]
   );
 };
 
