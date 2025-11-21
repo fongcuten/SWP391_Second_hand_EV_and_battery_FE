@@ -28,7 +28,7 @@ const Header: React.FC = () => {
     { label: "Xe điện", href: "/xe-dien", primary: true },
     { label: "Pin", href: "/pin", primary: true },
     { label: "Gói đăng ký", href: "/goi-dang-ky", primary: true },
-    { label: "Thương hiệu", href: "/thuong-hieu", primary: false },
+    // { label: "Thương hiệu", href: "/thuong-hieu", primary: false },
     { label: "So sánh", href: "/so-sanh", primary: false },
     { label: "Hỗ trợ", href: "/ho-tro", primary: false },
   ];
@@ -284,10 +284,6 @@ const Header: React.FC = () => {
                   {item.label}
                 </Link>
               ))}
-              <button className="flex items-center space-x-1 text-gray-600 hover:text-green-600">
-                <Filter className="h-4 w-4" />
-                <span className="text-sm">Lọc nâng cao</span>
-              </button>
             </div>
           </nav>
         </div>
