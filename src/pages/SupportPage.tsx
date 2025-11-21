@@ -217,8 +217,8 @@ const SupportPage: React.FC = () => {
                     key={category}
                     onClick={() => setActiveCategory(category)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeCategory === category
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
                   >
                     {category}
@@ -264,7 +264,7 @@ const SupportPage: React.FC = () => {
             </div>
 
             {/* Contact Form */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Gửi Câu Hỏi Của Bạn
               </h2>
@@ -372,12 +372,11 @@ const SupportPage: React.FC = () => {
                   </button>
                 </form>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Office Hours */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-6 h-6 text-green-600" />
@@ -387,28 +386,16 @@ const SupportPage: React.FC = () => {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Thứ 2 - Thứ 6:</span>
+                  <span className="text-gray-600">Thứ 2 - Chủ nhật:</span>
                   <span className="font-semibold text-gray-900">
-                    8:00 - 20:00
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Thứ 7 - Chủ nhật:</span>
-                  <span className="font-semibold text-gray-900">
-                    9:00 - 18:00
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Hotline 24/7:</span>
-                  <span className="font-semibold text-green-600">
-                    Luôn sẵn sàng
+                    9:00 - 16:00
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Social Media */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Social Media Links */}
+            {/* <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Kết Nối Với Chúng Tôi
               </h3>
@@ -454,7 +441,6 @@ const SupportPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Links */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Liên Kết Hữu Ích
@@ -491,10 +477,10 @@ const SupportPage: React.FC = () => {
                   Chính sách bảo mật
                 </a>
               </div>
-            </div>
+            </div> */}
 
             {/* Emergency Contact */}
-            <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg shadow-md p-6 text-white">
+            {/* <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg shadow-md p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">Hỗ Trợ Khẩn Cấp</h3>
               <p className="text-sm text-red-100 mb-4">
                 Gặp sự cố trên đường? Gọi ngay:
@@ -505,7 +491,7 @@ const SupportPage: React.FC = () => {
               >
                 1900-xxxx
               </a>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
